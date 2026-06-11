@@ -248,9 +248,22 @@ function freshDB(){
   return {products,docs:[],movements:[],counters:{},settings:{passcode:'',
     customers:["AMPAS","A.T.T.","A.A.A.","TSC","TSCOM","CNN","CYF","PMC","SPV","TTS","C.B. PARTS","ไม่ระบุ"],
     suppliers:["TG Steel","Siam Forging","Bangkok Metal","Thai Special Steel","ไม่ระบุ"],
-    platings:["MFZn8-Cf","MFZn8-Kf","MFZn8-B","MFZn8-3Cf","MFZn5-Kf","Trivalent","Black Oxide"]
+    platings:["MFZn8-Cf","MFZn8-Kf","MFZn8-B","MFZn8-3Cf","MFZn5-Kf","Trivalent","Black Oxide"],
+    company:DEFAULT_COMPANY(), makers:DEFAULT_MAKERS()
   }};
 }
+function DEFAULT_COMPANY(){return {name:'RUSSAMITONGTRAKUL CO., LTD.',taxId:'0105539107852',address:'10 ออนนุช 88 แยก 6 แขวงประเวศ เขตประเวศ กรุงเทพฯ 10250',tel:'02-726-0105',email:'Russamitongtrakul@hotmail.com'};}
+function DEFAULT_MAKERS(){return [
+  {code:'JARUN',name:'นายจรัญ เทพมงคล',taxId:'3249900031922',address:'26/16 หมู่ 8 ต.ราชาเทวะ อ.บางพลี จ.สมุทรปราการ',tel:'081-685-8857'},
+  {code:'VS4',name:'',taxId:'',address:'',tel:''},{code:'RTK-K',name:'',taxId:'',address:'',tel:''},
+  {code:'RTK-V',name:'',taxId:'',address:'',tel:''},{code:'RTK-N',name:'',taxId:'',address:'',tel:''},
+  {code:'AKE',name:'',taxId:'',address:'',tel:''},{code:'JH',name:'',taxId:'',address:'',tel:''},
+  {code:'ROOT',name:'',taxId:'',address:'',tel:''},{code:'SOM',name:'',taxId:'',address:'',tel:''},
+  {code:'WSP',name:'',taxId:'',address:'',tel:''}
+];}
+function ensureSettings(){const s=DB&&DB.settings;if(!s)return;if(!s.company)s.company=DEFAULT_COMPANY();if(!s.makers||!s.makers.length)s.makers=DEFAULT_MAKERS();if(s.passcode===undefined)s.passcode='';if(!s.suppliers)s.suppliers=[];if(!s.customers)s.customers=[];if(!s.platings)s.platings=[];}
+function makerByCode(code){return (DB.settings.makers||[]).find(m=>m.code===code)||null;}
+function fmt2(n){return (Number(n)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}
 function mkProduct(type,p){
   return {id:uid(),type,pn:p.pn,name:p.name||'-',customer:p.cust||'ไม่ระบุ',
     moq:p.moq||0,material:p.mat||'',plating:p.plating||'',needPlating:!!p.plating,
@@ -306,16 +319,19 @@ function setSyncStatus(s){
 const P=id=>DB.products.find(x=>x.id===id);
 function nextNo(prefix){
   const ym=new Date(); const k=prefix; DB.counters[k]=(DB.counters[k]||0)+1;
+  if(prefix==='PO'){ return `PO${String(ym.getFullYear()+543).slice(2)}${String(DB.counters[k]).padStart(5,'0')}`; }
   return `${prefix}-${String(ym.getFullYear()+543).slice(2)}${String(ym.getMonth()+1).padStart(2,'0')}${String(DB.counters[k]).padStart(4,'0')}`;
 }
+function peekPO(){ const y=String(new Date().getFullYear()+543).slice(2); return `PO${y}${String((DB.counters['PO']||0)+1).padStart(5,'0')}`; }
+function commitPONo(no){ const m=/^PO\d{2}(\d{5})$/.exec(no); if(m){ const n=parseInt(m[1],10); if(n>(DB.counters['PO']||0))DB.counters['PO']=n; } }
 
 /* ---------- Doc type registry ----------
    Each doc has status pending->approved (or cancelled). Stock effect applies on approve. */
 const DT={
-  PO:{label:'ใบสั่งซื้อวัตถุดิบ',icon:'🛒',color:'cyan',prefix:'PO',multi:true,
+  PO:{label:'ใบสั่งซื้อวัตถุดิบ',icon:'🛒',color:'cyan',prefix:'PU',multi:true,
       apply:null}, // PO: authorize only, receiving done via GR
   GR:{label:'รับวัตถุดิบเข้าสต๊อค',icon:'📥',color:'teal',prefix:'GR',multi:true},
-  PRD:{label:'ใบสั่งผลิต',icon:'📋',color:'violet',prefix:'PRD',multi:false}, // authorize + BOM
+  PRD:{label:'ใบสั่งผลิต',icon:'📋',color:'violet',prefix:'PO',multi:false}, // production order, PO NO format
   WD:{label:'ใบเบิกวัตถุดิบ',icon:'📤',color:'amber',prefix:'WD',multi:true},
   DP:{label:'รายงานผลิตประจำวัน',icon:'🏭',color:'brand',prefix:'DP',multi:false},
   PS:{label:'ส่งชุบ',icon:'🚚',color:'cyan',prefix:'PS',multi:false},
@@ -392,7 +408,7 @@ function renderNav(){
 function go(r){route=r;render()}
 function setTitle(t,c){document.getElementById('pageTitle').textContent=t;document.getElementById('pageCrumb').textContent=c||''}
 function render(){
-  renderNav();saveDB();
+  ensureSettings();renderNav();saveDB();
   const el=document.getElementById('content');
   const map={dashboard:viewDashboard,inventory:viewInventory,approvals:viewApprovals,
     po:()=>viewDocs('PO'),gr:()=>viewDocs('GR'),prd:()=>viewDocs('PRD'),wd:()=>viewDocs('WD'),
@@ -611,12 +627,12 @@ function viewDocs(type){
   ${docHint(type)}
   <div class="panel">
     <div class="panel-h"><h2>${cfg.label}</h2><div class="desc">${docs.length} เอกสาร</div>
-      <div class="right"><button class="btn pri" onclick="openDocForm('${type}')">+ สร้าง${cfg.label}</button></div>
+      <div class="right">${type==='PRD'?`<div class="searchbox"><input id="docSearch" placeholder="ค้นเลขที่ PO / Part / MAKER" oninput="filterDocRows()"></div>`:''}<button class="btn pri" onclick="openDocForm('${type}')">+ สร้าง${cfg.label}</button></div>
     </div>
     <div class="panel-b nopad">
       ${docs.length?`<div class="tbl-wrap"><table><thead><tr>
         <th>เลขที่</th><th>วันที่</th><th>รายละเอียด</th><th class="num">จำนวน</th><th>สถานะ</th><th></th>
-      </tr></thead><tbody>
+      </tr></thead><tbody id="docRows">
       ${docs.map(d=>docRow(d)).join('')}
       </tbody></table></div>`:`<div class="empty"><div class="big">${cfg.icon}</div><div class="t">ยังไม่มีเอกสาร</div><div>กดปุ่ม "สร้าง${cfg.label}" เพื่อเริ่มต้น</div></div>`}
     </div>
@@ -626,7 +642,7 @@ function docHint(type){
   const h={
     PO:'สั่งซื้อวัตถุดิบจาก Supplier → เมื่ออนุมัติแล้วใช้เป็นฐานในการ "รับวัตถุดิบ" เข้าสต๊อค',
     GR:'รับวัตถุดิบจริงเข้าคลัง → เมื่ออนุมัติ ระบบ <b>เพิ่มยอดวัตถุดิบคงเหลืออัตโนมัติ</b>',
-    PRD:'ใบสั่งผลิตชิ้นงาน ระบุวัตถุดิบที่ใช้ (BOM) → เป็นฐานในการเบิกวัตถุดิบและรายงานผลิต',
+    PRD:'ใบสั่งผลิต (Production Order) ส่งให้ผู้ผลิต (MAKER) → เลขที่ PO ใช้ค้นย้อนกลับได้ว่า ผลิตอะไร วันที่ จำนวน ใครผลิต · พิมพ์/PDF/ส่ง LINE ได้',
     WD:'เบิกวัตถุดิบไปผลิต → เมื่ออนุมัติ ระบบ <b>ตัดยอดวัตถุดิบคงเหลืออัตโนมัติ</b>',
     DP:'รายงานจำนวนผลิตเสร็จประจำวัน → เข้าบัญชี WIP (ผลิตเสร็จรอดำเนินการ)',
     QC:'คัดแยกของดี (OK) / ของเสีย (NG) → OK เข้า "คัดผ่านรอรับเข้า", NG บันทึกแยก',
@@ -637,6 +653,7 @@ function docHint(type){
   return h[type]?`<div class="hint"><span class="i">💡</span><div>${h[type]}</div></div>`:'';
 }
 function docRow(d){
+  if(d.type==='PRD')return prdRow(d);
   const cfg=DT[d.type];let detail='',qty='';
   if(cfg.multi){detail=(d.lines||[]).map(l=>{const p=P(l.productId);return p?p.pn:'?'}).slice(0,3).join(', ')+((d.lines||[]).length>3?` +${d.lines.length-3}`:'');qty=fmt((d.lines||[]).reduce((s,l)=>s+l.qty,0));
     if(d.type==='PO'||d.type==='GR')detail=(d.supplier?'Supplier: '+d.supplier+' · ':'')+detail;
@@ -660,6 +677,7 @@ function docRow(d){
 
 /* ---------- Doc form builder ---------- */
 function openDocForm(type){
+  if(type==='PRD')return openPRDForm();
   const cfg=DT[type];
   let body='';
   const dateF=`<div class="field"><label>วันที่</label><input type="date" id="d_date" value="${todayISO()}"></div>`;
@@ -678,7 +696,7 @@ function openDocForm(type){
       <button class="btn sm" style="margin-top:6px" onclick="addLine('FG')">+ เพิ่มรายการ</button>`;
   } else if(type==='WD'){
     body=`<div class="row c2">${dateF}
-      <div class="field"><label>อ้างอิงใบสั่งผลิต</label><select id="d_refprd" onchange="loadBOM(this.value)"><option value="">— เลือก —</option>${DB.docs.filter(x=>x.type==='PRD'&&x.status==='approved').map(x=>{const p=P(x.productId);return `<option value="${x.id}">${x.no} · ${p?p.pn:''}</option>`}).join('')}</select></div></div>
+      <div class="field"><label>อ้างอิงใบสั่งผลิต (PO)</label><select id="d_refprd"><option value="">— เลือก —</option>${DB.docs.filter(x=>x.type==='PRD'&&x.status==='approved').map(x=>{const it=(x.lines&&x.lines[0])||{};const p=it.fgId?P(it.fgId):null;return `<option value="${x.id}">${x.no} · ${esc(x.maker||'')} · ${esc(p?p.pn:(it.name||''))}</option>`}).join('')}</select></div></div>
       <label style="font-size:12.5px;color:var(--ink2);font-weight:500;margin:6px 0">รายการวัตถุดิบที่เบิก (ตัดจากสต๊อควัตถุดิบ)</label>
       <div id="lineRoot"></div>
       <button class="btn sm" style="margin-top:6px" onclick="addLine('RM')">+ เพิ่มรายการ</button>`;
@@ -747,7 +765,7 @@ function renderLines(){
 }
 function lineHint(i){const l=lineState[i];const e=document.getElementById('lh_'+i);if(!e)return;const p=P(l.productId);e.innerHTML=p?`คงเหลือปัจจุบัน: <b>${fmt(p.onHand)}</b>`:'';}
 function loadPOLines(poId){if(!poId)return;const po=DB.docs.find(d=>d.id===poId);if(!po)return;lineState=po.lines.map(l=>({ptype:'RM',productId:l.productId,qty:l.qty,price:l.price||''}));renderLines();const s=document.getElementById('d_supplier');if(s&&po.supplier)s.value=po.supplier;}
-function loadBOM(prdId){if(!prdId)return;const prd=DB.docs.find(d=>d.id===prdId);if(!prd||!prd.lines)return;lineState=prd.lines.map(l=>({ptype:'RM',productId:l.productId,qty:l.qty,price:''}));renderLines();}
+function loadBOM(prdId){/* ใบสั่งผลิตเป็นรายการชิ้นงาน (FG) — วัตถุดิบที่เบิกกรอกเองด้านล่าง */}
 /* stage info for single docs */
 function docStageInfo(type){
   const el=document.getElementById('stageInfo');if(!el)return;
@@ -804,9 +822,155 @@ function validateStage(type,d,p){
   return '';
 }
 
+/* ============================================================
+   ใบสั่งผลิต (Production Order) — full form, print/PDF, LINE
+   ============================================================ */
+let prdLines=[];
+function filterDocRows(){const q=((document.getElementById('docSearch')||{}).value||'').trim().toLowerCase();document.querySelectorAll('#docRows tr').forEach(tr=>{tr.style.display=(!q||tr.textContent.toLowerCase().includes(q))?'':'none'})}
+function prdRow(d){
+  const first=(d.lines&&d.lines[0])||{};
+  const more=(d.lines||[]).length>1?` <span class="muted">+${d.lines.length-1}</span>`:'';
+  const totQty=(d.lines||[]).reduce((s,l)=>s+(l.qty||0),0);
+  const pn=first.fgId&&P(first.fgId)?P(first.fgId).pn:(first.name||'');
+  return `<tr>
+    <td class="pn linkish" onclick="viewDoc('${d.id}')">${d.no}</td><td class="muted">${d.date}</td>
+    <td><span class="tag violet">${esc(d.maker||'-')}</span> ${esc(pn)}${more}</td>
+    <td class="num">${fmt(totQty)}</td><td>${statusTag(d.status)}</td>
+    <td style="text-align:right;white-space:nowrap">
+      <button class="btn sm" onclick="viewDoc('${d.id}')">ดู</button>
+      <button class="btn sm" onclick="printPO('${d.id}')">🖨️</button>
+      ${d.status==='pending'?`<button class="btn sm ok" onclick="approveDoc('${d.id}')">อนุมัติ</button>`:''}
+    </td></tr>`;
+}
+function openPRDForm(edit){
+  ensureSettings();
+  const makers=DB.settings.makers||[];
+  const poNo=edit?edit.no:peekPO();
+  modal({title:'📋 '+(edit?'แก้ไข':'สร้าง')+'ใบสั่งผลิต (Production Order)',size:'lg',body:`
+    <div class="row c3">
+      <div class="field"><label>เลขที่ PO NO. <span class="req">*</span></label><input id="po_no" value="${esc(poNo)}"></div>
+      <div class="field"><label>วันที่</label><input type="date" id="po_date" value="${edit?edit.date:todayISO()}"></div>
+      <div class="field"><label>MAKER (ผู้ผลิต) <span class="req">*</span></label><input id="po_maker" list="dl_makers" value="${edit?esc(edit.maker||''):''}" placeholder="VS4, JARUN..."><datalist id="dl_makers">${makers.map(m=>`<option value="${esc(m.code)}">${esc(m.name||'')}</option>`).join('')}</datalist></div>
+    </div>
+    <div class="field"><label>ผู้สั่งผลิต / ผู้รับผิดชอบ</label><input id="po_producer" value="${edit?esc(edit.producer||''):''}" placeholder="ชื่อผู้สั่งผลิต"></div>
+    <label style="font-size:12.5px;color:var(--ink2);font-weight:600;margin:8px 0 4px;display:block">รายการสั่งผลิต</label>
+    <div id="prdRoot"></div>
+    <button class="btn sm" style="margin-top:6px" onclick="addPrdLine()">+ เพิ่มรายการ</button>
+    <div style="margin:14px 0 4px"><label style="font-weight:400;display:flex;gap:7px;align-items:center;font-size:13px"><input type="checkbox" id="po_wht" style="width:auto" ${edit&&edit.wht3?'checked':''} onchange="prdTotals()"> หักภาษี ณ ที่จ่าย 3%</label></div>
+    <div id="prdTotalsBox"></div>
+    <div class="field" style="margin-top:8px"><label>หมายเหตุ</label><input id="po_note" value="${edit?esc(edit.note||''):''}"></div>
+  `,footer:`<button class="btn" onclick="closeModal()">ยกเลิก</button>
+    <button class="btn" onclick="submitPRD('pending','${edit?edit.id:''}')">บันทึก (รออนุมัติ)</button>
+    <button class="btn pri" onclick="submitPRD('approved','${edit?edit.id:''}')">บันทึก + อนุมัติ</button>`});
+  prdLines=edit&&edit.lines?edit.lines.map(l=>({fgId:l.fgId||'',name:l.name||'',qty:l.qty||'',price:l.price||'',due:l.due||''})):[{fgId:'',name:'',qty:'',price:'',due:''}];
+  setTimeout(renderPrdLines,15);
+}
+function addPrdLine(){prdLines.push({fgId:'',name:'',qty:'',price:'',due:''});renderPrdLines()}
+function rmPrdLine(i){prdLines.splice(i,1);renderPrdLines()}
+function renderPrdLines(){
+  const root=document.getElementById('prdRoot');if(!root)return;
+  root.innerHTML=`<div style="overflow-x:auto"><table style="font-size:12.5px"><thead><tr>
+    <th style="min-width:200px">รายการ (Part)</th><th style="width:80px">จำนวนสั่ง</th><th style="width:80px">ราคา</th><th style="width:95px">รวมเงิน</th><th style="width:140px">กำหนดส่ง</th><th></th></tr></thead><tbody>
+  ${prdLines.map((l,i)=>`<tr>
+    <td><input list="dl_fg" value="${esc(l.name||'')}" placeholder="พิมพ์/เลือก Part" oninput="prdPick(${i},this.value)" style="padding:6px 8px"></td>
+    <td><input type="number" value="${l.qty}" oninput="prdLines[${i}].qty=this.value;prdTotals()" style="padding:6px 8px"></td>
+    <td><input type="number" step="0.01" value="${l.price}" oninput="prdLines[${i}].price=this.value;prdTotals()" style="padding:6px 8px"></td>
+    <td class="num" id="ptl_${i}" style="font-weight:600">0.00</td>
+    <td><input type="date" value="${l.due}" oninput="prdLines[${i}].due=this.value" style="padding:6px 8px"></td>
+    <td><div class="rm-x" style="height:32px" onclick="rmPrdLine(${i})">✕</div></td>
+  </tr>`).join('')}
+  </tbody></table></div>
+  <datalist id="dl_fg">${DB.products.filter(p=>p.type==='FG').slice(0,1600).map(p=>`<option value="${esc(p.pn+(p.name&&p.name!=='-'?' '+p.name:''))}">`).join('')}</datalist>`;
+  prdTotals();
+}
+function prdPick(i,val){prdLines[i].name=val;const pn=(val||'').split(' ')[0];const p=DB.products.find(x=>x.type==='FG'&&x.pn===pn);prdLines[i].fgId=p?p.id:'';if(p&&!prdLines[i].price&&p.salePrice){prdLines[i].price=p.salePrice;const inp=document.querySelectorAll('#prdRoot tbody tr')[i];if(inp){const pe=inp.querySelectorAll('input')[2];if(pe)pe.value=p.salePrice;}}prdTotals();}
+function prdTotals(){
+  let sub=0;
+  prdLines.forEach((l,i)=>{const amt=(Number(l.qty)||0)*(Number(l.price)||0);sub+=amt;const e=document.getElementById('ptl_'+i);if(e)e.textContent=fmt2(amt);});
+  const wht=(document.getElementById('po_wht')&&document.getElementById('po_wht').checked)?sub*0.03:0;
+  const el=document.getElementById('prdTotalsBox');if(!el)return;
+  el.innerHTML=`<div class="panel" style="box-shadow:none;margin:0"><div class="panel-b" style="padding:10px 14px">
+    <div class="kv"><span class="k">รวมเงิน (Subtotal)</span><b>${fmt2(sub)}</b></div>
+    ${wht?`<div class="kv"><span class="k">หัก ณ ที่จ่าย 3%</span><b style="color:var(--red)">-${fmt2(wht)}</b></div>`:''}
+    <div class="kv"><span class="k">ยอดสุทธิ (Net)</span><b style="color:var(--teal);font-size:15px">${fmt2(sub-wht)} บาท</b></div>
+  </div></div>`;
+}
+function submitPRD(status,editId){
+  const v=k=>(document.getElementById(k)||{}).value;
+  const no=(v('po_no')||'').trim();if(!no){toast('กรุณากรอกเลขที่ PO','err');return}
+  const maker=(v('po_maker')||'').trim();if(!maker){toast('กรุณาระบุ MAKER','err');return}
+  const lines=prdLines.filter(l=>(l.name||l.fgId)&&Number(l.qty)>0).map(l=>({fgId:l.fgId||'',name:(l.name||'').trim(),qty:Number(l.qty),price:Number(l.price)||0,due:l.due||''}));
+  if(!lines.length){toast('กรุณาเพิ่มรายการอย่างน้อย 1 บรรทัด','err');return}
+  if(!editId){const dup=DB.docs.find(x=>x.type==='PRD'&&x.no===no);if(dup){toast('เลขที่ PO '+no+' มีอยู่แล้ว','err');return}}
+  const sub=lines.reduce((s,l)=>s+l.qty*l.price,0);
+  const wht3=!!(document.getElementById('po_wht')&&document.getElementById('po_wht').checked);
+  const wht=wht3?sub*0.03:0;
+  let d;
+  if(editId){d=DB.docs.find(x=>x.id===editId);if(!d)return;}
+  else{d={id:uid(),type:'PRD',ts:Date.now(),status:'pending'};DB.docs.push(d);}
+  d.no=no;d.date=v('po_date')||todayISO();d.maker=maker;d.makerInfo=makerByCode(maker)||{code:maker};
+  d.producer=(v('po_producer')||'').trim();d.lines=lines;d.wht3=wht3;d.subtotal=sub;d.wht=wht;d.net=sub-wht;d.note=(v('po_note')||'').trim();
+  commitPONo(no);
+  if(!makerByCode(maker))DB.settings.makers.push({code:maker,name:'',taxId:'',address:'',tel:''});
+  if(status==='approved'){d.status='approved';d.approvedAt=new Date().toLocaleString('th-TH');}
+  closeModal();render();toast((editId?'บันทึกการแก้ไข ':'สร้างใบสั่งผลิต ')+d.no,'ok');
+}
+function viewPO(d){
+  const mk=d.makerInfo||makerByCode(d.maker)||{code:d.maker};
+  const rows=(d.lines||[]).map(l=>{const pn=l.fgId&&P(l.fgId)?P(l.fgId).pn+' '+P(l.fgId).name:(l.name||'');return `<tr><td>${esc(pn)}</td><td class="num">${fmt(l.qty)}</td><td class="num">${fmt2(l.price)}</td><td class="num">${fmt2(l.qty*l.price)}</td><td class="muted">${l.due||'-'}</td></tr>`}).join('');
+  modal({title:'📋 '+d.no,size:'lg',body:`
+    <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">${statusTag(d.status)}<span class="tag violet">ใบสั่งผลิต</span><span class="tag gray">วันที่ ${d.date}</span><span class="tag gray">MAKER: ${esc(d.maker||'-')}</span></div>
+    ${mk&&mk.name?`<div class="kv"><span class="k">ผู้ผลิต</span>${esc(mk.name)}${mk.tel?' · '+esc(mk.tel):''}</div>`:''}
+    ${d.producer?`<div class="kv"><span class="k">ผู้สั่งผลิต</span>${esc(d.producer)}</div>`:''}
+    <table style="margin-top:10px"><thead><tr><th>รายการ</th><th class="num">จำนวนสั่ง</th><th class="num">ราคา</th><th class="num">รวมเงิน</th><th>กำหนดส่ง</th></tr></thead><tbody>${rows}</tbody></table>
+    <div style="margin-top:10px"><div class="kv"><span class="k">รวมเงิน</span><b>${fmt2(d.subtotal||0)}</b></div>${d.wht3?`<div class="kv"><span class="k">หัก ณ ที่จ่าย 3%</span><b style="color:var(--red)">-${fmt2(d.wht||0)}</b></div>`:''}<div class="kv"><span class="k">ยอดสุทธิ</span><b style="color:var(--teal)">${fmt2(d.net||0)} บาท</b></div></div>
+    ${d.note?`<div class="kv" style="margin-top:6px"><span class="k">หมายเหตุ</span>${esc(d.note)}</div>`:''}
+  `,footer:`
+    ${d.status==='pending'?`<button class="btn ok" onclick="approveDoc('${d.id}')">✓ อนุมัติ</button>`:''}
+    <button class="btn" onclick="closeModal();openPRDForm(DB.docs.find(x=>x.id==='${d.id}'))">✏️ แก้ไข</button>
+    <button class="btn" onclick="sharePOLine('${d.id}')">📤 ส่ง LINE</button>
+    <button class="btn pri" onclick="printPO('${d.id}')">🖨️ พิมพ์ / PDF</button>`});
+}
+function sharePOLine(id){
+  const d=DB.docs.find(x=>x.id===id);if(!d)return;
+  const items=(d.lines||[]).map(l=>`• ${l.fgId&&P(l.fgId)?P(l.fgId).pn:(l.name||'')} x ${fmt(l.qty)}`).join('\n');
+  const txt=`📋 ใบสั่งผลิต ${d.no}\nวันที่ ${d.date}\nผู้ผลิต(MAKER): ${d.maker||'-'}\n${items}\nยอดสุทธิ: ${fmt2(d.net||0)} บาท\n\nระบบสต๊อค: ${location.origin+location.pathname}`;
+  window.open('https://line.me/R/msg/text/?'+encodeURIComponent(txt),'_blank');
+}
+function printPO(id){
+  const d=DB.docs.find(x=>x.id===id);if(!d)return;ensureSettings();
+  const co=DB.settings.company||{};const mk=d.makerInfo||makerByCode(d.maker)||{code:d.maker};
+  const rows=(d.lines||[]).map((l,i)=>{const pn=l.fgId&&P(l.fgId)?P(l.fgId).pn+' '+P(l.fgId).name:(l.name||'');return `<tr><td style="text-align:center">${i+1}</td><td>${esc(pn)}</td><td class="r">${fmt(l.qty)}</td><td class="r">${fmt2(l.price)}</td><td class="r">${fmt2(l.qty*l.price)}</td><td style="text-align:center">${l.due||''}</td></tr>`}).join('');
+  const blanks=Array.from({length:Math.max(0,8-(d.lines||[]).length)}).map(()=>'<tr><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td></tr>').join('');
+  const html='<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"><title>'+esc(d.no)+'</title><style>'
+   +"*{font-family:'Tahoma','TH Sarabun New',sans-serif;box-sizing:border-box}body{margin:0;padding:16mm 13mm;color:#111;font-size:13px}"
+   +".hd{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #111;padding-bottom:8px}"
+   +".co h1{font-size:16px;margin:0 0 2px}.co div{font-size:11.5px;color:#333}"
+   +".title{text-align:right}.title .t1{font-size:20px;font-weight:700}.title .t2{font-size:12px;color:#555}"
+   +".meta{display:flex;justify-content:space-between;margin-top:10px;gap:16px}"
+   +".box{border:1px solid #999;border-radius:6px;padding:8px 10px;font-size:12px;flex:1}.box b{display:inline-block;min-width:62px;color:#555}"
+   +"table{width:100%;border-collapse:collapse;margin-top:12px;font-size:12px}th,td{border:1px solid #888;padding:6px 8px}th{background:#eee;text-align:center}td.r{text-align:right}"
+   +".sum{margin-top:8px;width:46%;margin-left:auto;font-size:12.5px}.sum div{display:flex;justify-content:space-between;padding:3px 0}"
+   +".sign{display:flex;justify-content:space-between;margin-top:46px;text-align:center;font-size:12px}.sign div{width:30%}.sign .line{border-top:1px dotted #555;margin-top:30px;padding-top:4px}"
+   +"@media print{.noprint{display:none}}</style></head><body>"
+   +'<div class="hd"><div class="co"><h1>'+esc(co.name||'')+'</h1><div>'+esc(co.address||'')+'</div><div>TAX ID: '+esc(co.taxId||'')+' &nbsp; โทร '+esc(co.tel||'')+'</div><div>'+esc(co.email||'')+'</div></div>'
+   +'<div class="title"><div class="t1">ใบสั่งผลิต</div><div class="t2">PRODUCTION ORDER</div><div style="margin-top:6px;font-size:13px"><b>เลขที่:</b> '+esc(d.no)+'</div><div style="font-size:12px"><b>วันที่:</b> '+esc(d.date)+'</div></div></div>'
+   +'<div class="meta"><div class="box"><div><b>ผู้ผลิต:</b> '+esc(mk.name||'')+' ('+esc(d.maker||'')+')</div><div><b>Tax ID:</b> '+esc(mk.taxId||'')+'</div><div><b>ที่อยู่:</b> '+esc(mk.address||'')+'</div><div><b>โทร:</b> '+esc(mk.tel||'')+'</div></div>'
+   +'<div class="box"><div><b>PO NO.:</b> '+esc(d.no)+'</div><div><b>ผู้สั่งผลิต:</b> '+esc(d.producer||'')+'</div><div><b>สถานะ:</b> '+(d.status==='approved'?'อนุมัติแล้ว':'รออนุมัติ')+'</div></div></div>'
+   +'<table><thead><tr><th style="width:30px">#</th><th>รายการ (Part)</th><th style="width:78px">จำนวนสั่ง</th><th style="width:66px">ราคา</th><th style="width:88px">รวมเงิน</th><th style="width:84px">กำหนดส่ง</th></tr></thead><tbody>'+rows+blanks+'</tbody></table>'
+   +'<div class="sum"><div><span>รวมเงิน</span><span>'+fmt2(d.subtotal||0)+'</span></div>'+(d.wht3?'<div><span>หัก ณ ที่จ่าย 3%</span><span>-'+fmt2(d.wht||0)+'</span></div>':'')+'<div style="border-top:1px solid #888;font-weight:700"><span>ยอดสุทธิ</span><span>'+fmt2(d.net||0)+' บาท</span></div></div>'
+   +(d.note?'<div style="margin-top:10px;font-size:12px"><b>หมายเหตุ:</b> '+esc(d.note)+'</div>':'')
+   +'<div class="sign"><div><div class="line">ผู้สั่งผลิต</div></div><div><div class="line">ผู้อนุมัติ</div></div><div><div class="line">ผู้รับงาน (MAKER)</div></div></div>'
+   +'<div class="noprint" style="text-align:center;margin-top:22px"><button onclick="window.print()" style="padding:8px 22px;font-size:14px;cursor:pointer">🖨️ พิมพ์ / บันทึก PDF</button></div>'
+   +'<scr'+'ipt>setTimeout(function(){window.print()},500)</scr'+'ipt></body></html>';
+  const w=window.open('','_blank');if(!w){toast('เบราว์เซอร์บล็อก popup — กรุณาอนุญาต','err');return}
+  w.document.write(html);w.document.close();
+}
 /* view a doc */
 function viewDoc(id){
-  const d=DB.docs.find(x=>x.id===id);if(!d)return;const cfg=DT[d.type];
+  const d=DB.docs.find(x=>x.id===id);if(!d)return;
+  if(d.type==='PRD')return viewPO(d);
+  const cfg=DT[d.type];
   let rows='';
   if(cfg.multi){rows=`<table style="margin-top:8px"><thead><tr><th>Part</th><th>ชื่อ</th><th class="num">จำนวน</th>${d.type!=='WD'?'<th class="num">ราคา</th>':''}</tr></thead><tbody>
     ${d.lines.map(l=>{const p=P(l.productId);return `<tr><td class="pn">${p?p.pn:'?'}</td><td>${p?p.name:''}</td><td class="num">${fmt(l.qty)}</td>${d.type!=='WD'?'<td class="num">'+fmt(l.price)+'</td>':''}</tr>`}).join('')}
@@ -932,6 +1096,8 @@ function viewSettings(el){
       ${listEditor('customers','👥 ลูกค้า')}
       ${listEditor('suppliers','🏢 ผู้ขาย (Supplier)')}
       ${listEditor('platings','✨ ประเภทการชุบ')}
+      ${makersEditor()}
+      ${companyEditor()}
     </div>
     <div>
       <div class="panel"><div class="panel-h"><h2>💾 ข้อมูล & การสำรอง</h2></div><div class="panel-b">
@@ -963,6 +1129,36 @@ function listEditor(key,title){
     ${arr.map((c,i)=>`<span class="tag gray" style="padding:5px 10px">${esc(c)} <span style="cursor:pointer;color:var(--red);margin-left:3px" onclick="delSetting('${key}',${i})">✕</span></span>`).join('')||'<span class="muted">ยังไม่มีข้อมูล</span>'}
   </div></div></div>`;
 }
+function makersEditor(){
+  ensureSettings();const ms=DB.settings.makers||[];
+  return `<div class="panel"><div class="panel-h"><h2>🏭 ผู้ผลิต (MAKER)</h2><div class="right"><button class="btn sm" onclick="addMaker()">+ เพิ่ม</button></div></div>
+  <div class="panel-b"><div class="tbl-wrap"><table><thead><tr><th>รหัส</th><th>ชื่อผู้ผลิต</th><th>โทร</th><th></th></tr></thead><tbody>
+  ${ms.map((m,i)=>`<tr><td class="pn">${esc(m.code)}</td><td>${esc(m.name||'')||'<span class=muted>—</span>'}</td><td class="muted">${esc(m.tel||'')}</td><td style="text-align:right;white-space:nowrap"><button class="btn sm" onclick="editMaker(${i})">แก้</button> <button class="btn sm danger" onclick="delMaker(${i})">ลบ</button></td></tr>`).join('')||'<tr><td colspan=4 class="muted">ยังไม่มี</td></tr>'}
+  </tbody></table></div></div></div>`;
+}
+function addMaker(){const c=prompt('รหัส MAKER (เช่น VS4):');if(c&&c.trim()){if(makerByCode(c.trim())){toast('มีรหัสนี้แล้ว','err');return}DB.settings.makers.push({code:c.trim(),name:'',taxId:'',address:'',tel:''});render();editMaker(DB.settings.makers.length-1)}}
+function delMaker(i){DB.settings.makers.splice(i,1);render()}
+function editMaker(i){const m=DB.settings.makers[i];if(!m)return;
+  modal({title:'แก้ไขผู้ผลิต '+esc(m.code),body:`
+    <div class="field"><label>รหัส</label><input id="mk_code" value="${esc(m.code)}"></div>
+    <div class="field"><label>ชื่อผู้ผลิต</label><input id="mk_name" value="${esc(m.name||'')}"></div>
+    <div class="row c2"><div class="field"><label>Tax ID</label><input id="mk_tax" value="${esc(m.taxId||'')}"></div>
+    <div class="field"><label>โทร</label><input id="mk_tel" value="${esc(m.tel||'')}"></div></div>
+    <div class="field"><label>ที่อยู่</label><input id="mk_addr" value="${esc(m.address||'')}"></div>
+  `,footer:`<button class="btn" onclick="closeModal()">ยกเลิก</button><button class="btn pri" onclick="saveMaker(${i})">บันทึก</button>`});
+}
+function saveMaker(i){const m=DB.settings.makers[i];const v=k=>(document.getElementById(k)||{}).value;m.code=(v('mk_code')||m.code).trim();m.name=v('mk_name').trim();m.taxId=v('mk_tax').trim();m.tel=v('mk_tel').trim();m.address=v('mk_addr').trim();closeModal();render();toast('บันทึกผู้ผลิตแล้ว','ok')}
+function companyEditor(){
+  ensureSettings();const c=DB.settings.company||{};
+  return `<div class="panel"><div class="panel-h"><h2>🏢 ข้อมูลบริษัท (หัวเอกสาร)</h2></div><div class="panel-b">
+    <div class="field"><label>ชื่อบริษัท</label><input id="co_name" value="${esc(c.name||'')}"></div>
+    <div class="row c2"><div class="field"><label>Tax ID</label><input id="co_tax" value="${esc(c.taxId||'')}"></div><div class="field"><label>โทร</label><input id="co_tel" value="${esc(c.tel||'')}"></div></div>
+    <div class="field"><label>ที่อยู่</label><input id="co_addr" value="${esc(c.address||'')}"></div>
+    <div class="field"><label>อีเมล</label><input id="co_email" value="${esc(c.email||'')}"></div>
+    <button class="btn pri" onclick="saveCompany()">บันทึกข้อมูลบริษัท</button>
+  </div></div>`;
+}
+function saveCompany(){const v=k=>(document.getElementById(k)||{}).value;DB.settings.company={name:v('co_name').trim(),taxId:v('co_tax').trim(),tel:v('co_tel').trim(),address:v('co_addr').trim(),email:v('co_email').trim()};render();toast('บันทึกข้อมูลบริษัทแล้ว','ok')}
 function addSetting(key){const v=prompt('เพิ่มรายการใหม่:');if(v&&v.trim()){DB.settings[key].push(v.trim());render();toast('เพิ่มแล้ว','ok')}}
 function delSetting(key,i){DB.settings[key].splice(i,1);render()}
 function resetAll(){confirmBox('รีเซ็ตข้อมูลทั้งหมด?','การกระทำนี้ลบเอกสารและความเคลื่อนไหวทั้งหมด คืนค่าเป็นตัวอย่างตั้งต้น',()=>{DB=freshDB();saveDB();closeModal();go('dashboard');toast('รีเซ็ตเรียบร้อย','ok')})}
