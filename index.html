@@ -190,6 +190,7 @@ td.num,th.num{text-align:right;font-family:'Inter',sans-serif;font-variant-numer
     <div class="topbar">
       <div><h1 id="pageTitle">แดชบอร์ด</h1><div class="crumb" id="pageCrumb"></div></div>
       <div class="right">
+        <span id="syncChip" style="font-size:12px;font-weight:600;margin-right:6px;white-space:nowrap;color:var(--ink3)">…</span>
         <button class="btn sm ghost" onclick="exportData()">⬇ สำรองข้อมูล</button>
         <button class="btn sm ghost" onclick="document.getElementById('importFile').click()">⬆ นำเข้า</button>
         <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(this)">
@@ -201,11 +202,18 @@ td.num,th.num{text-align:right;font-family:'Inter',sans-serif;font-variant-numer
 <div class="toast-wrap" id="toasts"></div>
 <div id="modalRoot"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 /* ============================================================
    RTK STORE CONTROL — Inventory Control App (single file)
    ============================================================ */
 const LS_KEY='rtk_inv_v2';
+/* ===== Cloud sync (Supabase) ===== */
+const SUPA_URL='https://boksyxrvquqgercpjuyj.supabase.co';
+const SUPA_KEY='sb_publishable_b_6QwQt2oKzv79_3SSIVbg_NDCSkkPG';
+const ROW_ID='main';
+let supa=null, CLIENT_ID=Math.random().toString(36).slice(2)+Date.now().toString(36);
+let lastSyncedJSON='', lastRemoteUpdated=0, applyingRemote=false, syncTimer=null, cloudOK=false;
 const SEED={
 "fg":[{"pn":"40051848","name":"SHAFT (L.25)","cust":"AMPAS","moq":3000,"mat":"","plating":"","stock":1547},{"pn":"01572-21219","name":"SEAT","cust":"A.T.T.","moq":100,"mat":"","plating":"","stock":213},{"pn":"01572-21225","name":"SEAT","cust":"A.T.T.","moq":2000,"mat":"","plating":"","stock":2},{"pn":"12310-ZE3-7910","name":"JOINT BREATHER TUBE","cust":"CNN","moq":0,"mat":"","plating":"","stock":3},{"pn":"13061-0673","name":"BOSS","cust":"CYF","moq":0,"mat":"","plating":"","stock":28},{"pn":"14672-035-3000","name":"BUSH","cust":"A.A.A.","moq":0,"mat":"S35C","plating":"","stock":1398},{"pn":"14672-KWBA-6000","name":"BUSH","cust":"A.A.A.","moq":0,"mat":"","plating":"","stock":9041},{"pn":"172B03-83220","name":"BOSS","cust":"A.T.T.","moq":360,"mat":"","plating":"","stock":134},{"pn":"172B03-83230","name":"BOSS","cust":"A.T.T.","moq":400,"mat":"","plating":"","stock":422},{"pn":"17561-W0040-C","name":"SUPPORT NO.1 (L105)","cust":"A.A.A.","moq":0,"mat":"","plating":"","stock":12000},{"pn":"175-862-4240","name":"SEAT","cust":"A.T.T.","moq":1200,"mat":"","plating":"","stock":567},{"pn":"22P-53-23A10","name":"SEAT","cust":"A.T.T.","moq":8000,"mat":"S45C","plating":"MFZn8-Cf","stock":3690},{"pn":"236-46-23920","name":"SEAT","cust":"A.T.T.","moq":1200,"mat":"","plating":"","stock":965},{"pn":"2A5-53-28651","name":"BRACKET","cust":"A.T.T.","moq":0,"mat":"","plating":"","stock":903},{"pn":"303-0953-01","name":"TAPPING BLOCK","cust":"A.T.T.","moq":0,"mat":"","plating":"","stock":84},{"pn":"31051291","name":"INSERT BOLT 0205","cust":"AMPAS","moq":0,"mat":"","plating":"","stock":930},{"pn":"3C081-2780","name":"BOLT","cust":"ไม่ระบุ","moq":500,"mat":"","plating":"","stock":1346},{"pn":"3C081-2972","name":"PIN","cust":"A.T.T.","moq":500,"mat":"SS400","plating":"MFZn8-Kf","stock":1205},{"pn":"3J065-96920","name":"PIVOT","cust":"C.B. PARTS","moq":0,"mat":"SS400","plating":"","stock":7064},{"pn":"40045530","name":"WEIGHT","cust":"AMPAS","moq":0,"mat":"","plating":"","stock":4603},{"pn":"40050709","name":"BRACKET MIRROR 0511","cust":"AMPAS","moq":0,"mat":"","plating":"","stock":550},{"pn":"40051248","name":"INSERT NUT M8x1.25","cust":"AMPAS","moq":0,"mat":"","plating":"","stock":3016},{"pn":"40051251","name":"STAY JCM","cust":"AMPAS","moq":0,"mat":"","plating":"","stock":230},{"pn":"40051545","name":"CUSHION, ASSIST GRIP","cust":"AMPAS","moq":2000,"mat":"","plating":"","stock":312768},{"pn":"40051578A","name":"CUSHION ASSIST GRIP","cust":"AMPAS","moq":0,"mat":"","plating":"","stock":47994},{"pn":"40051607","name":"COLLAR 9.5x14","cust":"AMPAS","moq":0,"mat":"","plating":"","stock":7015},{"pn":"40051608","name":"COLLAR 9.5x21","cust":"AMPAS","moq":0,"mat":"","plating":"","stock":6308},{"pn":"40051621","name":"PIN BACK MIRROR B0BA","cust":"AMPAS","moq":0,"mat":"","plating":"","stock":4092},{"pn":"40051795","name":"Stay Comp Mirror","cust":"AMPAS","moq":0,"mat":"","plating":"","stock":626},{"pn":"40051802","name":"COLLAR","cust":"AMPAS","moq":0,"mat":"","plating":"MFZn8-B","stock":84306},{"pn":"40051826","name":"PLATED, NUT","cust":"AMPAS","moq":2000,"mat":"","plating":"MFZn8-Cf","stock":4083},{"pn":"40051830","name":"PLATE, RETAINER","cust":"AMPAS","moq":2000,"mat":"","plating":"","stock":40455},{"pn":"40051832","name":"BOLT, ADPT 10mm","cust":"AMPAS","moq":2000,"mat":"","plating":"","stock":2017},{"pn":"40051833","name":"SOCKET BOLT 10x25","cust":"AMPAS","moq":5000,"mat":"","plating":"","stock":2192},{"pn":"40051851","name":"LEAF WASHER B3L1","cust":"AMPAS","moq":5000,"mat":"","plating":"","stock":13317}],
 "rm":[{"pn":"AT2T001F0-F","name":"FORGH (วัตถุดิบ)","mat":"6R","stock":7813},{"pn":"AY5E006F0-F","name":"FORGH (วัตถุดิบ)","mat":"6R","stock":14000},{"pn":"GA043840A-F","name":"FORGH (วัตถุดิบ)","mat":"6R","stock":7495},{"pn":"HEX.8x2000-SS400","name":"STEEL HEXAGON","mat":"SS400","stock":374},{"pn":"AM30057P0-N","name":"NUT_SL","mat":"","stock":0},{"pn":"AM51059P0-N","name":"NUT ADJUST","mat":"","stock":0},{"pn":"AC0T03100-F","name":"FORGH (วัตถุดิบ)","mat":"","stock":0},{"pn":"AJ1T001F0-F","name":"FORGH (วัตถุดิบ)","mat":"","stock":0},{"pn":"AL0232900-F","name":"FORGH (วัตถุดิบ)","mat":"","stock":0},{"pn":"GC21089F0-F","name":"FORGH (วัตถุดิบ)","mat":"","stock":0}]
@@ -215,16 +223,29 @@ const SEED={
 let DB=null;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
 function todayISO(){return new Date().toISOString().slice(0,10)}
-function loadDB(){
+function loadLocal(){
   const raw=localStorage.getItem(LS_KEY);
-  if(raw){try{DB=JSON.parse(raw);return}catch(e){}}
-  DB=freshDB();saveDB();
+  if(raw){try{return JSON.parse(raw)}catch(e){}}
+  return null;
+}
+async function loadDB(){
+  DB=loadLocal();
+  if(!supa){ if(!DB){DB=freshDB();localStorage.setItem(LS_KEY,JSON.stringify(DB));} return; }
+  try{
+    const {data,error}=await supa.from('app_state').select('data,updated_at,client_id').eq('id',ROW_ID).maybeSingle();
+    if(error)throw error;
+    cloudOK=true;
+    if(data&&data.data){ DB=data.data; lastRemoteUpdated=new Date(data.updated_at).getTime(); }
+    else { if(!DB)DB=freshDB(); await pushCloud(true); }
+  }catch(e){ cloudOK=false; if(!DB)DB=freshDB(); }
+  localStorage.setItem(LS_KEY,JSON.stringify(DB));
+  lastSyncedJSON=JSON.stringify(DB);
 }
 function freshDB(){
   const products=[];
   SEED.fg.forEach(p=>products.push(mkProduct('FG',p)));
   SEED.rm.forEach(p=>products.push(mkProduct('RM',p)));
-  return {products,docs:[],movements:[],counters:{},settings:{
+  return {products,docs:[],movements:[],counters:{},settings:{passcode:'',
     customers:["AMPAS","A.T.T.","A.A.A.","TSC","TSCOM","CNN","CYF","PMC","SPV","TTS","C.B. PARTS","ไม่ระบุ"],
     suppliers:["TG Steel","Siam Forging","Bangkok Metal","Thai Special Steel","ไม่ระบุ"],
     platings:["MFZn8-Cf","MFZn8-Kf","MFZn8-B","MFZn8-3Cf","MFZn5-Kf","Trivalent","Black Oxide"]
@@ -237,7 +258,51 @@ function mkProduct(type,p){
     onHand:p.stock||0,wip:0,atPlating:0,passedQC:0,ng:0,
     reorder: type==='FG'?(p.moq||0):0};
 }
-function saveDB(){localStorage.setItem(LS_KEY,JSON.stringify(DB))}
+function saveDB(){localStorage.setItem(LS_KEY,JSON.stringify(DB));scheduleSync()}
+function scheduleSync(){ if(applyingRemote||!supa)return; clearTimeout(syncTimer); syncTimer=setTimeout(()=>pushCloud(false),600); }
+async function pushCloud(force){
+  if(!supa)return;
+  const json=JSON.stringify(DB);
+  if(!force && json===lastSyncedJSON)return;
+  const now=new Date().toISOString();
+  setSyncStatus('saving');
+  try{
+    const {error}=await supa.from('app_state').upsert({id:ROW_ID,data:DB,client_id:CLIENT_ID,updated_at:now});
+    if(error)throw error;
+    lastSyncedJSON=json; lastRemoteUpdated=new Date(now).getTime(); cloudOK=true; setSyncStatus('synced');
+  }catch(e){ cloudOK=false; setSyncStatus('offline'); }
+}
+async function reloadFromCloud(){
+  if(!supa)return;
+  try{
+    const {data}=await supa.from('app_state').select('data,updated_at').eq('id',ROW_ID).maybeSingle();
+    if(data&&data.data){ applyingRemote=true; DB=data.data; lastRemoteUpdated=new Date(data.updated_at).getTime(); lastSyncedJSON=JSON.stringify(DB); localStorage.setItem(LS_KEY,lastSyncedJSON); render(); applyingRemote=false; setSyncStatus('synced'); }
+  }catch(e){}
+}
+function subscribeRealtime(){
+  if(!supa)return;
+  try{
+    supa.channel('app_state_rt').on('postgres_changes',{event:'*',schema:'public',table:'app_state',filter:'id=eq.'+ROW_ID},payload=>{
+      const row=payload.new;
+      if(row&&row.client_id===CLIENT_ID)return;
+      const t=row&&row.updated_at?new Date(row.updated_at).getTime():0;
+      if(t&&t<=lastRemoteUpdated)return;
+      if(row&&row.data){ applyingRemote=true; DB=row.data; lastRemoteUpdated=t; lastSyncedJSON=JSON.stringify(DB); localStorage.setItem(LS_KEY,lastSyncedJSON); render(); applyingRemote=false; toast('🔄 ข้อมูลอัปเดตจากอุปกรณ์อื่น','ok'); }
+      else reloadFromCloud();
+    }).subscribe();
+  }catch(e){}
+  setInterval(async()=>{
+    if(!supa||applyingRemote)return;
+    try{ const {data}=await supa.from('app_state').select('updated_at,client_id').eq('id',ROW_ID).maybeSingle();
+      if(data){ const t=new Date(data.updated_at).getTime(); if(t>lastRemoteUpdated&&data.client_id!==CLIENT_ID)reloadFromCloud(); cloudOK=true; setSyncStatus('synced'); }
+    }catch(e){ cloudOK=false; setSyncStatus('offline'); }
+  },15000);
+}
+function setSyncStatus(s){
+  const el=document.getElementById('syncChip'); if(!el)return;
+  const m={synced:['☁️ ซิงค์แล้ว','var(--teal)'],saving:['⏳ กำลังบันทึก','var(--amber)'],offline:['⚠️ ออฟไลน์','var(--red)']};
+  const v=m[s]||m.synced; el.textContent=v[0]; el.style.color=v[1];
+}
 const P=id=>DB.products.find(x=>x.id===id);
 function nextNo(prefix){
   const ym=new Date(); const k=prefix; DB.counters[k]=(DB.counters[k]||0)+1;
@@ -880,6 +945,10 @@ function viewSettings(el){
         </div>
         <div class="hint" style="margin-top:14px"><span class="i">ℹ️</span><div>ข้อมูลถูกบันทึกอัตโนมัติในเบราว์เซอร์เครื่องนี้ (Local Storage) ควรกด "สำรองข้อมูล" เป็นไฟล์เก็บไว้สม่ำเสมอ และนำเข้าเมื่อย้ายเครื่อง</div></div>
       </div></div>
+      <div class="panel"><div class="panel-h"><h2>🔒 รหัสผ่านเข้าใช้งาน</h2></div><div class="panel-b">
+        <p class="muted" style="font-size:12.5px;margin-bottom:10px">ตั้งรหัสเพื่อให้ต้องกรอกก่อนเข้าใช้ (กันคนนอกที่ได้ลิงก์) — เว้นว่าง = ปิดการใช้รหัส มีผลทุกอุปกรณ์</p>
+        <div style="display:flex;gap:8px"><input id="set_pass" value="${esc((DB.settings.passcode)||'')}" placeholder="เช่น 2580"><button class="btn pri" onclick="savePass()">บันทึก</button></div>
+      </div></div>
       <div class="panel"><div class="panel-h"><h2>⚠️ ล้างข้อมูล</h2></div><div class="panel-b">
         <p class="muted" style="font-size:12.5px;margin-bottom:10px">รีเซ็ตกลับเป็นข้อมูลตัวอย่างตั้งต้น (ลบเอกสาร/ความเคลื่อนไหวทั้งหมด)</p>
         <button class="btn danger" onclick="resetAll()">🗑️ รีเซ็ตเป็นค่าเริ่มต้น</button>
@@ -897,6 +966,7 @@ function listEditor(key,title){
 function addSetting(key){const v=prompt('เพิ่มรายการใหม่:');if(v&&v.trim()){DB.settings[key].push(v.trim());render();toast('เพิ่มแล้ว','ok')}}
 function delSetting(key,i){DB.settings[key].splice(i,1);render()}
 function resetAll(){confirmBox('รีเซ็ตข้อมูลทั้งหมด?','การกระทำนี้ลบเอกสารและความเคลื่อนไหวทั้งหมด คืนค่าเป็นตัวอย่างตั้งต้น',()=>{DB=freshDB();saveDB();closeModal();go('dashboard');toast('รีเซ็ตเรียบร้อย','ok')})}
+function savePass(){ DB.settings.passcode=(document.getElementById('set_pass').value||'').trim(); if(DB.settings.passcode)localStorage.setItem('rtk_pass',DB.settings.passcode); else localStorage.removeItem('rtk_pass'); saveDB(); render(); toast('บันทึกรหัสผ่านแล้ว','ok'); }
 function exportProductsCSV(){
   let csv='﻿ประเภท,PartNumber,ชื่อ,ลูกค้า,วัตถุดิบ,ชุบ,คงเหลือ,WIP,ระหว่างชุบ,คัดผ่าน,NG,จุดสั่งซ้ำ\n';
   DB.products.forEach(p=>{csv+=`${p.type==='FG'?'สำเร็จรูป':'วัตถุดิบ'},"${p.pn}","${p.name}","${p.customer}","${p.material}","${p.plating}",${p.onHand},${p.wip},${p.atPlating},${p.passedQC},${p.ng},${p.reorder}\n`});
@@ -933,8 +1003,31 @@ function toast(msg,type){const id='t'+(++toastN);const w=document.getElementById
   w.appendChild(e);setTimeout(()=>{e.style.opacity='0';e.style.transform='translateX(20px)';e.style.transition='.3s';setTimeout(()=>e.remove(),300)},3000)}
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
 
+/* ---------- gate (passcode) ---------- */
+function gatePassed(){
+  const code=DB.settings&&DB.settings.passcode;
+  if(!code)return true;
+  return localStorage.getItem('rtk_pass')===code;
+}
+function renderGate(){
+  document.getElementById('content').innerHTML='';
+  document.getElementById('modalRoot').innerHTML=`<div class="overlay"><div class="modal" style="max-width:380px"><div class="modal-h"><h3>🔒 เข้าสู่ระบบ RTK Store</h3></div><div class="modal-b"><div class="field"><label>กรอกรหัสผ่านเข้าใช้งาน</label><input type="password" id="gateInput" onkeydown="if(event.key==='Enter')tryGate()"></div><div id="gateErr" style="color:var(--red);font-size:12.5px;display:none">รหัสไม่ถูกต้อง</div></div><div class="modal-f"><button class="btn pri" onclick="tryGate()">เข้าใช้งาน</button></div></div></div>`;
+  setTimeout(()=>{const i=document.getElementById('gateInput');if(i)i.focus()},60);
+}
+function tryGate(){
+  const v=(document.getElementById('gateInput')||{}).value||'';
+  if(v===(DB.settings&&DB.settings.passcode)){ localStorage.setItem('rtk_pass',v); closeModal(); render(); subscribeRealtime(); setSyncStatus(cloudOK?'synced':'offline'); }
+  else { const e=document.getElementById('gateErr'); if(e)e.style.display='block'; }
+}
 /* ---------- boot ---------- */
-loadDB();render();
+(async function(){
+  try{ if(window.supabase&&SUPA_URL&&SUPA_KEY){ supa=window.supabase.createClient(SUPA_URL,SUPA_KEY); } }catch(e){ supa=null; }
+  await loadDB();
+  if(!gatePassed()){ renderNav(); renderGate(); return; }
+  render();
+  subscribeRealtime();
+  setSyncStatus(cloudOK?'synced':'offline');
+})();
 </script>
 </body>
 </html>
