@@ -1,0 +1,940 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RTK Store Control — ระบบควบคุมสต๊อคสินค้า</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0f1729; --bg2:#16213e; --panel:#ffffff; --panel2:#f7f9fc;
+  --line:#e6eaf2; --line2:#eef2f8;
+  --ink:#1a2440; --ink2:#5a6885; --ink3:#90a0bd;
+  --brand:#3b5bdb; --brand2:#5c7cfa; --brandL:#eef2ff;
+  --teal:#0ca678; --tealL:#e6fcf5;
+  --amber:#f59f00; --amberL:#fff9db;
+  --red:#e03131; --redL:#fff0f0;
+  --violet:#7048e8; --violetL:#f3f0ff;
+  --cyan:#1098ad; --cyanL:#e3fafc;
+  --shadow:0 1px 3px rgba(20,30,60,.06),0 8px 24px rgba(20,30,60,.06);
+  --shadow2:0 12px 40px rgba(20,30,60,.16);
+  --r:14px; --r2:10px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Noto Sans Thai','Inter',system-ui,sans-serif;background:var(--panel2);color:var(--ink);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-thumb{background:#cfd8ea;border-radius:8px;border:2px solid var(--panel2)}
+::-webkit-scrollbar-thumb:hover{background:#aebbd6}
+.app{display:flex;min-height:100vh}
+
+/* Sidebar */
+.sidebar{width:248px;background:linear-gradient(180deg,#101a33,#0d1530);color:#c9d4ee;display:flex;flex-direction:column;position:fixed;top:0;bottom:0;left:0;z-index:30}
+.brand{padding:20px 18px 16px;display:flex;align-items:center;gap:11px;border-bottom:1px solid rgba(255,255,255,.07)}
+.brand .logo{width:38px;height:38px;border-radius:11px;background:linear-gradient(135deg,#5c7cfa,#3b5bdb);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:17px;color:#fff;box-shadow:0 4px 14px rgba(60,90,220,.45)}
+.brand .t1{font-weight:700;color:#fff;font-size:15px;letter-spacing:.2px}
+.brand .t2{font-size:11px;color:#8294bd}
+.nav{flex:1;overflow-y:auto;padding:10px 10px 20px}
+.nav-group{font-size:10.5px;text-transform:uppercase;letter-spacing:1px;color:#5e6f96;margin:16px 12px 6px;font-weight:600}
+.nav a{display:flex;align-items:center;gap:11px;padding:9px 12px;border-radius:10px;color:#b7c4e2;text-decoration:none;font-size:13.5px;cursor:pointer;margin-bottom:2px;transition:.12s;position:relative}
+.nav a:hover{background:rgba(255,255,255,.06);color:#fff}
+.nav a.active{background:linear-gradient(135deg,rgba(92,124,250,.22),rgba(59,91,219,.14));color:#fff;font-weight:600}
+.nav a.active::before{content:"";position:absolute;left:0;top:8px;bottom:8px;width:3px;border-radius:3px;background:#5c7cfa}
+.nav a .ico{width:18px;text-align:center;font-size:15px;opacity:.95}
+.nav a .badge{margin-left:auto;background:#e03131;color:#fff;font-size:10.5px;font-weight:700;border-radius:20px;padding:1px 7px;min-width:18px;text-align:center}
+.nav a .badge.amber{background:#f59f00}
+
+/* Main */
+.main{margin-left:248px;flex:1;min-width:0}
+.topbar{height:60px;background:rgba(255,255,255,.85);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:16px;padding:0 26px;position:sticky;top:0;z-index:20}
+.topbar h1{font-size:17px;font-weight:600;color:var(--ink)}
+.topbar .crumb{color:var(--ink3);font-size:12.5px}
+.topbar .right{margin-left:auto;display:flex;align-items:center;gap:10px}
+.content{padding:24px 26px 60px;max-width:1400px}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);background:#fff;color:var(--ink);padding:8px 14px;border-radius:10px;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;transition:.12s;white-space:nowrap}
+.btn:hover{border-color:#c4cee0;background:#fafbff}
+.btn.pri{background:linear-gradient(135deg,#5c7cfa,#3b5bdb);border-color:transparent;color:#fff;box-shadow:0 4px 14px rgba(60,90,220,.28)}
+.btn.pri:hover{filter:brightness(1.06)}
+.btn.ok{background:var(--teal);border-color:transparent;color:#fff}
+.btn.ok:hover{filter:brightness(1.06)}
+.btn.danger{background:#fff;border-color:#f1c4c4;color:var(--red)}
+.btn.danger:hover{background:var(--redL)}
+.btn.ghost{background:transparent;border-color:transparent;color:var(--ink2)}
+.btn.ghost:hover{background:var(--line2)}
+.btn.sm{padding:5px 10px;font-size:12px;border-radius:8px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+
+/* Cards */
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin-bottom:22px}
+.card{background:#fff;border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;box-shadow:var(--shadow)}
+.card .lbl{font-size:12.5px;color:var(--ink2);display:flex;align-items:center;gap:7px;margin-bottom:8px}
+.card .lbl .dot{width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:15px}
+.card .val{font-size:26px;font-weight:700;font-family:'Inter',sans-serif;letter-spacing:-.5px}
+.card .sub{font-size:11.5px;color:var(--ink3);margin-top:3px}
+.d-brand{background:var(--brandL);color:var(--brand)} .d-teal{background:var(--tealL);color:var(--teal)}
+.d-amber{background:var(--amberL);color:var(--amber)} .d-red{background:var(--redL);color:var(--red)}
+.d-violet{background:var(--violetL);color:var(--violet)} .d-cyan{background:var(--cyanL);color:var(--cyan)}
+
+/* Panel */
+.panel{background:#fff;border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);margin-bottom:22px;overflow:hidden}
+.panel-h{padding:15px 18px;border-bottom:1px solid var(--line2);display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.panel-h h2{font-size:15px;font-weight:600}
+.panel-h .desc{font-size:12px;color:var(--ink3)}
+.panel-h .right{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.panel-b{padding:18px}
+.panel-b.nopad{padding:0}
+
+/* Inputs */
+.field{margin-bottom:13px}
+.field label{display:block;font-size:12.5px;color:var(--ink2);margin-bottom:5px;font-weight:500}
+.field label .req{color:var(--red)}
+input,select,textarea{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:9px;font-family:inherit;font-size:13.5px;color:var(--ink);background:#fff;transition:.12s}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--brand2);box-shadow:0 0 0 3px rgba(92,124,250,.14)}
+input::placeholder{color:#aab6cf}
+.row{display:grid;gap:12px}
+.row.c2{grid-template-columns:1fr 1fr} .row.c3{grid-template-columns:1fr 1fr 1fr} .row.c4{grid-template-columns:repeat(4,1fr)}
+.searchbox{position:relative;flex:1;min-width:180px;max-width:340px}
+.searchbox input{padding-left:34px}
+.searchbox::before{content:"🔍";position:absolute;left:11px;top:50%;transform:translateY(-50%);font-size:13px;opacity:.6}
+
+/* Table */
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;padding:10px 12px;background:var(--panel2);color:var(--ink2);font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:.3px;border-bottom:1px solid var(--line);position:sticky;top:0;white-space:nowrap}
+td{padding:10px 12px;border-bottom:1px solid var(--line2);vertical-align:middle}
+tbody tr:hover{background:#f9fbff}
+tbody tr:last-child td{border-bottom:none}
+td.num,th.num{text-align:right;font-family:'Inter',sans-serif;font-variant-numeric:tabular-nums}
+.pn{font-family:'Inter',monospace;font-weight:600;font-size:12.5px;color:var(--ink)}
+.muted{color:var(--ink3)}
+.linkish{color:var(--brand);cursor:pointer;font-weight:500}
+.linkish:hover{text-decoration:underline}
+
+/* Pills / tags */
+.tag{display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap}
+.tag.fg{background:var(--brandL);color:var(--brand)}
+.tag.rm{background:var(--cyanL);color:var(--cyan)}
+.tag.green{background:var(--tealL);color:var(--teal)}
+.tag.amber{background:var(--amberL);color:#b07700}
+.tag.red{background:var(--redL);color:var(--red)}
+.tag.gray{background:#eef1f6;color:var(--ink2)}
+.tag.violet{background:var(--violetL);color:var(--violet)}
+.tag.cyan{background:var(--cyanL);color:var(--cyan)}
+.dotline{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px}
+
+/* Modal */
+.overlay{position:fixed;inset:0;background:rgba(15,23,41,.5);backdrop-filter:blur(3px);z-index:50;display:flex;align-items:flex-start;justify-content:center;padding:40px 16px;overflow-y:auto}
+.modal{background:#fff;border-radius:16px;width:100%;max-width:620px;box-shadow:var(--shadow2);animation:pop .16s ease}
+.modal.lg{max-width:860px}
+@keyframes pop{from{transform:translateY(8px) scale(.99);opacity:0}to{transform:none;opacity:1}}
+.modal-h{padding:18px 22px;border-bottom:1px solid var(--line2);display:flex;align-items:center;gap:12px}
+.modal-h h3{font-size:16px;font-weight:600;flex:1}
+.modal-h .x{cursor:pointer;color:var(--ink3);font-size:22px;line-height:1;padding:2px 6px;border-radius:8px}
+.modal-h .x:hover{background:var(--line2);color:var(--ink)}
+.modal-b{padding:20px 22px;max-height:64vh;overflow-y:auto}
+.modal-f{padding:14px 22px;border-top:1px solid var(--line2);display:flex;gap:10px;justify-content:flex-end;background:var(--panel2);border-radius:0 0 16px 16px}
+
+/* line items */
+.lineitem{display:grid;grid-template-columns:1fr 110px 110px 34px;gap:8px;align-items:end;margin-bottom:8px}
+.lineitem .rm-x{height:38px;border:1px solid var(--line);background:#fff;border-radius:8px;color:var(--red);cursor:pointer;display:flex;align-items:center;justify-content:center}
+.lineitem .rm-x:hover{background:var(--redL)}
+
+/* empty */
+.empty{text-align:center;padding:48px 20px;color:var(--ink3)}
+.empty .big{font-size:42px;margin-bottom:10px;opacity:.7}
+.empty .t{font-weight:600;color:var(--ink2);margin-bottom:4px}
+
+/* toast */
+.toast-wrap{position:fixed;bottom:24px;right:24px;z-index:80;display:flex;flex-direction:column;gap:10px}
+.toast{background:#13203c;color:#fff;padding:12px 18px;border-radius:11px;font-size:13.5px;box-shadow:var(--shadow2);display:flex;align-items:center;gap:9px;animation:slidein .2s ease;max-width:340px}
+.toast.ok{background:#0b7a55}.toast.err{background:#c92a2a}
+@keyframes slidein{from{transform:translateX(20px);opacity:0}to{transform:none;opacity:1}}
+
+/* misc */
+.flow{display:flex;gap:0;align-items:stretch;overflow-x:auto;padding:4px 0}
+.flow .step{flex:1;min-width:120px;background:#fff;border:1px solid var(--line);padding:12px 14px;position:relative}
+.flow .step:first-child{border-radius:10px 0 0 10px}
+.flow .step:last-child{border-radius:0 10px 10px 0}
+.flow .step .n{font-size:11px;color:var(--ink3);font-weight:600}
+.flow .step .nm{font-size:12.5px;font-weight:600;margin-top:2px}
+.flow .step .v{font-size:18px;font-weight:700;font-family:'Inter';margin-top:4px}
+.flow .step .arrow{position:absolute;right:-9px;top:50%;transform:translateY(-50%);z-index:2;color:var(--ink3);font-size:15px}
+.seg{display:inline-flex;background:var(--line2);border-radius:9px;padding:3px}
+.seg button{border:none;background:transparent;padding:6px 13px;border-radius:7px;font-size:12.5px;font-family:inherit;cursor:pointer;color:var(--ink2);font-weight:500}
+.seg button.on{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.08);font-weight:600}
+.hint{background:var(--brandL);border:1px solid #d7e0ff;border-radius:10px;padding:11px 14px;font-size:12.5px;color:#33489c;display:flex;gap:9px;margin-bottom:14px}
+.hint .i{font-size:15px}
+.kv{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px dashed var(--line);font-size:13px}
+.kv:last-child{border:none} .kv .k{color:var(--ink2)}
+.bktbar{display:flex;height:8px;border-radius:6px;overflow:hidden;background:var(--line2);margin-top:6px}
+.timeline{position:relative;padding-left:22px}
+.timeline .ev{position:relative;padding:0 0 16px}
+.timeline .ev::before{content:"";position:absolute;left:-15px;top:4px;width:9px;height:9px;border-radius:50%;background:var(--brand);border:2px solid #fff;box-shadow:0 0 0 2px var(--brandL)}
+.timeline::after{content:"";position:absolute;left:-11px;top:6px;bottom:6px;width:2px;background:var(--line)}
+@media(max-width:880px){.sidebar{width:64px}.brand .t1,.brand .t2,.nav a span.lbl,.nav-group{display:none}.main{margin-left:64px}.nav a{justify-content:center}.row.c2,.row.c3,.row.c4{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="logo">RTK</div>
+      <div><div class="t1">Store Control</div><div class="t2">ระบบควบคุมสต๊อค</div></div>
+    </div>
+    <nav class="nav" id="nav"></nav>
+  </aside>
+  <div class="main">
+    <div class="topbar">
+      <div><h1 id="pageTitle">แดชบอร์ด</h1><div class="crumb" id="pageCrumb"></div></div>
+      <div class="right">
+        <button class="btn sm ghost" onclick="exportData()">⬇ สำรองข้อมูล</button>
+        <button class="btn sm ghost" onclick="document.getElementById('importFile').click()">⬆ นำเข้า</button>
+        <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(this)">
+      </div>
+    </div>
+    <div class="content" id="content"></div>
+  </div>
+</div>
+<div class="toast-wrap" id="toasts"></div>
+<div id="modalRoot"></div>
+
+<script>
+/* ============================================================
+   RTK STORE CONTROL — Inventory Control App (single file)
+   ============================================================ */
+const LS_KEY='rtk_inv_v2';
+const SEED={
+"fg":[{"pn":"40051848","name":"SHAFT (L.25)","cust":"AMPAS","moq":3000,"mat":"","plating":"","stock":1547},{"pn":"01572-21219","name":"SEAT","cust":"A.T.T.","moq":100,"mat":"","plating":"","stock":213},{"pn":"01572-21225","name":"SEAT","cust":"A.T.T.","moq":2000,"mat":"","plating":"","stock":2},{"pn":"12310-ZE3-7910","name":"JOINT BREATHER TUBE","cust":"CNN","moq":0,"mat":"","plating":"","stock":3},{"pn":"13061-0673","name":"BOSS","cust":"CYF","moq":0,"mat":"","plating":"","stock":28},{"pn":"14672-035-3000","name":"BUSH","cust":"A.A.A.","moq":0,"mat":"S35C","plating":"","stock":1398},{"pn":"14672-KWBA-6000","name":"BUSH","cust":"A.A.A.","moq":0,"mat":"","plating":"","stock":9041},{"pn":"172B03-83220","name":"BOSS","cust":"A.T.T.","moq":360,"mat":"","plating":"","stock":134},{"pn":"172B03-83230","name":"BOSS","cust":"A.T.T.","moq":400,"mat":"","plating":"","stock":422},{"pn":"17561-W0040-C","name":"SUPPORT NO.1 (L105)","cust":"A.A.A.","moq":0,"mat":"","plating":"","stock":12000},{"pn":"175-862-4240","name":"SEAT","cust":"A.T.T.","moq":1200,"mat":"","plating":"","stock":567},{"pn":"22P-53-23A10","name":"SEAT","cust":"A.T.T.","moq":8000,"mat":"S45C","plating":"MFZn8-Cf","stock":3690},{"pn":"236-46-23920","name":"SEAT","cust":"A.T.T.","moq":1200,"mat":"","plating":"","stock":965},{"pn":"2A5-53-28651","name":"BRACKET","cust":"A.T.T.","moq":0,"mat":"","plating":"","stock":903},{"pn":"303-0953-01","name":"TAPPING BLOCK","cust":"A.T.T.","moq":0,"mat":"","plating":"","stock":84},{"pn":"31051291","name":"INSERT BOLT 0205","cust":"AMPAS","moq":0,"mat":"","plating":"","stock":930},{"pn":"3C081-2780","name":"BOLT","cust":"ไม่ระบุ","moq":500,"mat":"","plating":"","stock":1346},{"pn":"3C081-2972","name":"PIN","cust":"A.T.T.","moq":500,"mat":"SS400","plating":"MFZn8-Kf","stock":1205},{"pn":"3J065-96920","name":"PIVOT","cust":"C.B. PARTS","moq":0,"mat":"SS400","plating":"","stock":7064},{"pn":"40045530","name":"WEIGHT","cust":"AMPAS","moq":0,"mat":"","plating":"","stock":4603},{"pn":"40050709","name":"BRACKET MIRROR 0511","cust":"AMPAS","moq":0,"mat":"","plating":"","stock":550},{"pn":"40051248","name":"INSERT NUT M8x1.25","cust":"AMPAS","moq":0,"mat":"","plating":"","stock":3016},{"pn":"40051251","name":"STAY JCM","cust":"AMPAS","moq":0,"mat":"","plating":"","stock":230},{"pn":"40051545","name":"CUSHION, ASSIST GRIP","cust":"AMPAS","moq":2000,"mat":"","plating":"","stock":312768},{"pn":"40051578A","name":"CUSHION ASSIST GRIP","cust":"AMPAS","moq":0,"mat":"","plating":"","stock":47994},{"pn":"40051607","name":"COLLAR 9.5x14","cust":"AMPAS","moq":0,"mat":"","plating":"","stock":7015},{"pn":"40051608","name":"COLLAR 9.5x21","cust":"AMPAS","moq":0,"mat":"","plating":"","stock":6308},{"pn":"40051621","name":"PIN BACK MIRROR B0BA","cust":"AMPAS","moq":0,"mat":"","plating":"","stock":4092},{"pn":"40051795","name":"Stay Comp Mirror","cust":"AMPAS","moq":0,"mat":"","plating":"","stock":626},{"pn":"40051802","name":"COLLAR","cust":"AMPAS","moq":0,"mat":"","plating":"MFZn8-B","stock":84306},{"pn":"40051826","name":"PLATED, NUT","cust":"AMPAS","moq":2000,"mat":"","plating":"MFZn8-Cf","stock":4083},{"pn":"40051830","name":"PLATE, RETAINER","cust":"AMPAS","moq":2000,"mat":"","plating":"","stock":40455},{"pn":"40051832","name":"BOLT, ADPT 10mm","cust":"AMPAS","moq":2000,"mat":"","plating":"","stock":2017},{"pn":"40051833","name":"SOCKET BOLT 10x25","cust":"AMPAS","moq":5000,"mat":"","plating":"","stock":2192},{"pn":"40051851","name":"LEAF WASHER B3L1","cust":"AMPAS","moq":5000,"mat":"","plating":"","stock":13317}],
+"rm":[{"pn":"AT2T001F0-F","name":"FORGH (วัตถุดิบ)","mat":"6R","stock":7813},{"pn":"AY5E006F0-F","name":"FORGH (วัตถุดิบ)","mat":"6R","stock":14000},{"pn":"GA043840A-F","name":"FORGH (วัตถุดิบ)","mat":"6R","stock":7495},{"pn":"HEX.8x2000-SS400","name":"STEEL HEXAGON","mat":"SS400","stock":374},{"pn":"AM30057P0-N","name":"NUT_SL","mat":"","stock":0},{"pn":"AM51059P0-N","name":"NUT ADJUST","mat":"","stock":0},{"pn":"AC0T03100-F","name":"FORGH (วัตถุดิบ)","mat":"","stock":0},{"pn":"AJ1T001F0-F","name":"FORGH (วัตถุดิบ)","mat":"","stock":0},{"pn":"AL0232900-F","name":"FORGH (วัตถุดิบ)","mat":"","stock":0},{"pn":"GC21089F0-F","name":"FORGH (วัตถุดิบ)","mat":"","stock":0}]
+};
+
+/* ---------- State ---------- */
+let DB=null;
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
+function todayISO(){return new Date().toISOString().slice(0,10)}
+function loadDB(){
+  const raw=localStorage.getItem(LS_KEY);
+  if(raw){try{DB=JSON.parse(raw);return}catch(e){}}
+  DB=freshDB();saveDB();
+}
+function freshDB(){
+  const products=[];
+  SEED.fg.forEach(p=>products.push(mkProduct('FG',p)));
+  SEED.rm.forEach(p=>products.push(mkProduct('RM',p)));
+  return {products,docs:[],movements:[],counters:{},settings:{
+    customers:["AMPAS","A.T.T.","A.A.A.","TSC","TSCOM","CNN","CYF","PMC","SPV","TTS","C.B. PARTS","ไม่ระบุ"],
+    suppliers:["TG Steel","Siam Forging","Bangkok Metal","Thai Special Steel","ไม่ระบุ"],
+    platings:["MFZn8-Cf","MFZn8-Kf","MFZn8-B","MFZn8-3Cf","MFZn5-Kf","Trivalent","Black Oxide"]
+  }};
+}
+function mkProduct(type,p){
+  return {id:uid(),type,pn:p.pn,name:p.name||'-',customer:p.cust||'ไม่ระบุ',
+    moq:p.moq||0,material:p.mat||'',plating:p.plating||'',needPlating:!!p.plating,
+    custSupplyMat:false,salePrice:0,buyPrice:0,supplier:'',remark:'',
+    onHand:p.stock||0,wip:0,atPlating:0,passedQC:0,ng:0,
+    reorder: type==='FG'?(p.moq||0):0};
+}
+function saveDB(){localStorage.setItem(LS_KEY,JSON.stringify(DB))}
+const P=id=>DB.products.find(x=>x.id===id);
+function nextNo(prefix){
+  const ym=new Date(); const k=prefix; DB.counters[k]=(DB.counters[k]||0)+1;
+  return `${prefix}-${String(ym.getFullYear()+543).slice(2)}${String(ym.getMonth()+1).padStart(2,'0')}${String(DB.counters[k]).padStart(4,'0')}`;
+}
+
+/* ---------- Doc type registry ----------
+   Each doc has status pending->approved (or cancelled). Stock effect applies on approve. */
+const DT={
+  PO:{label:'ใบสั่งซื้อวัตถุดิบ',icon:'🛒',color:'cyan',prefix:'PO',multi:true,
+      apply:null}, // PO: authorize only, receiving done via GR
+  GR:{label:'รับวัตถุดิบเข้าสต๊อค',icon:'📥',color:'teal',prefix:'GR',multi:true},
+  PRD:{label:'ใบสั่งผลิต',icon:'📋',color:'violet',prefix:'PRD',multi:false}, // authorize + BOM
+  WD:{label:'ใบเบิกวัตถุดิบ',icon:'📤',color:'amber',prefix:'WD',multi:true},
+  DP:{label:'รายงานผลิตประจำวัน',icon:'🏭',color:'brand',prefix:'DP',multi:false},
+  PS:{label:'ส่งชุบ',icon:'🚚',color:'cyan',prefix:'PS',multi:false},
+  PR:{label:'รับคืนจากชุบ',icon:'✨',color:'violet',prefix:'PR',multi:false},
+  QC:{label:'คัดแยก OK/NG',icon:'🔎',color:'amber',prefix:'QC',multi:false},
+  SI:{label:'รับเข้าสต๊อคสำเร็จรูป',icon:'📦',color:'teal',prefix:'SI',multi:false},
+  INV:{label:'Invoice ส่งลูกค้า',icon:'🧾',color:'brand',prefix:'INV',multi:true},
+  ADJ:{label:'ปรับยอด/ตรวจนับ',icon:'⚖️',color:'red',prefix:'ADJ',multi:false},
+};
+
+/* movement helper */
+function move(productId,bucket,qty,docType,docNo,note){
+  DB.movements.push({id:uid(),date:todayISO(),ts:Date.now(),productId,bucket,qty,docType,docNo,note:note||''});
+}
+/* Apply stock effect for a doc (called on approve). Returns {ok,err} */
+function applyDoc(d){
+  const t=d.type;
+  try{
+    if(t==='GR'){ d.lines.forEach(l=>{const p=P(l.productId);p.onHand+=l.qty;move(p.id,'onHand',+l.qty,'GR',d.no,'รับซื้อ '+(d.supplier||''));}); }
+    else if(t==='WD'){ d.lines.forEach(l=>{const p=P(l.productId);p.onHand-=l.qty;move(p.id,'onHand',-l.qty,'WD',d.no,'เบิกผลิต '+(d.refPRD||''));}); }
+    else if(t==='DP'){ const p=P(d.productId);p.wip+=d.qty;move(p.id,'wip',+d.qty,'DP',d.no,'ผลิตเสร็จ'); }
+    else if(t==='PS'){ const p=P(d.productId);p.wip-=d.qty;p.atPlating+=d.qty;move(p.id,'wip',-d.qty,'PS',d.no,'ส่งชุบ '+(d.vendor||''));move(p.id,'atPlating',+d.qty,'PS',d.no,'ส่งชุบ'); }
+    else if(t==='PR'){ const p=P(d.productId);p.atPlating-=d.qty;p.wip+=d.qty;move(p.id,'atPlating',-d.qty,'PR',d.no,'รับคืนชุบ');move(p.id,'wip',+d.qty,'PR',d.no,'รับคืนชุบ'); }
+    else if(t==='QC'){ const p=P(d.productId);const tot=d.qtyOk+d.qtyNg;p.wip-=tot;p.passedQC+=d.qtyOk;p.ng+=d.qtyNg;move(p.id,'wip',-tot,'QC',d.no,'คัดแยก');if(d.qtyOk)move(p.id,'passedQC',+d.qtyOk,'QC',d.no,'OK');if(d.qtyNg)move(p.id,'ng',+d.qtyNg,'QC',d.no,'NG'); }
+    else if(t==='SI'){ const p=P(d.productId);p.passedQC-=d.qty;p.onHand+=d.qty;move(p.id,'passedQC',-d.qty,'SI',d.no,'รับเข้าสต๊อค');move(p.id,'onHand',+d.qty,'SI',d.no,'รับเข้าสต๊อค'); }
+    else if(t==='INV'){ d.lines.forEach(l=>{const p=P(l.productId);p.onHand-=l.qty;move(p.id,'onHand',-l.qty,'INV',d.no,'ขาย '+(d.customer||''));}); }
+    else if(t==='ADJ'){ const p=P(d.productId);const before=p.onHand;const after=d.mode==='set'?d.qty:before+d.qty;const delta=after-before;p.onHand=after;move(p.id,'onHand',delta,'ADJ',d.no,d.mode==='set'?'ตรวจนับตั้งยอด':'ปรับยอด'); d.delta=delta; }
+    // PO & PRD: authorize only, no stock effect
+    return {ok:true};
+  }catch(e){return {ok:false,err:e.message}}
+}
+function reverseDoc(d){
+  // reverse the movements created by this doc
+  const ms=DB.movements.filter(m=>m.docNo===d.no);
+  ms.forEach(m=>{const p=P(m.productId);if(p)p[m.bucket]-=m.qty;});
+  DB.movements=DB.movements.filter(m=>m.docNo!==d.no);
+}
+
+/* ---------- App / Router ---------- */
+const NAV=[
+  {g:'ภาพรวม'},
+  {id:'dashboard',ico:'📊',label:'แดชบอร์ด'},
+  {id:'inventory',ico:'📦',label:'สินค้าคงคลัง'},
+  {id:'approvals',ico:'✅',label:'ศูนย์อนุมัติ'},
+  {g:'วัตถุดิบ'},
+  {id:'po',ico:'🛒',label:'สั่งซื้อวัตถุดิบ',dt:'PO'},
+  {id:'gr',ico:'📥',label:'รับวัตถุดิบ',dt:'GR'},
+  {g:'การผลิต (สินค้าสำเร็จรูป)'},
+  {id:'prd',ico:'📋',label:'ใบสั่งผลิต',dt:'PRD'},
+  {id:'wd',ico:'📤',label:'เบิกวัตถุดิบ',dt:'WD'},
+  {id:'dp',ico:'🏭',label:'ผลิตประจำวัน',dt:'DP'},
+  {id:'plate',ico:'✨',label:'ส่งชุบ / รับชุบ',dt:'PS'},
+  {id:'qc',ico:'🔎',label:'คัดแยก OK/NG',dt:'QC'},
+  {id:'si',ico:'📦',label:'รับเข้าสต๊อค',dt:'SI'},
+  {g:'ขาย & ปรับปรุง'},
+  {id:'inv',ico:'🧾',label:'Invoice ส่งลูกค้า',dt:'INV'},
+  {id:'adj',ico:'⚖️',label:'ปรับยอด/ตรวจนับ',dt:'ADJ'},
+  {id:'moves',ico:'🔁',label:'ความเคลื่อนไหว'},
+  {g:'อื่นๆ'},
+  {id:'settings',ico:'⚙️',label:'ตั้งค่า'},
+];
+let route='dashboard';
+function pendingCount(){return DB.docs.filter(d=>d.status==='pending').length}
+function renderNav(){
+  const nav=document.getElementById('nav');let h='';
+  NAV.forEach(n=>{
+    if(n.g){h+=`<div class="nav-group">${n.g}</div>`;return}
+    let badge='';
+    if(n.id==='approvals'){const c=pendingCount();if(c)badge=`<span class="badge">${c}</span>`}
+    h+=`<a class="${route===n.id?'active':''}" onclick="go('${n.id}')"><span class="ico">${n.ico}</span><span class="lbl">${n.label}</span>${badge}</a>`;
+  });
+  nav.innerHTML=h;
+}
+function go(r){route=r;render()}
+function setTitle(t,c){document.getElementById('pageTitle').textContent=t;document.getElementById('pageCrumb').textContent=c||''}
+function render(){
+  renderNav();saveDB();
+  const el=document.getElementById('content');
+  const map={dashboard:viewDashboard,inventory:viewInventory,approvals:viewApprovals,
+    po:()=>viewDocs('PO'),gr:()=>viewDocs('GR'),prd:()=>viewDocs('PRD'),wd:()=>viewDocs('WD'),
+    dp:()=>viewDocs('DP'),plate:viewPlate,qc:()=>viewDocs('QC'),si:()=>viewDocs('SI'),
+    inv:()=>viewDocs('INV'),adj:()=>viewDocs('ADJ'),moves:viewMoves,settings:viewSettings};
+  (map[route]||viewDashboard)(el);
+}
+
+/* ---------- Helpers for rendering ---------- */
+function fmt(n){if(n===null||n===undefined||n==='')return '0';return Number(n).toLocaleString('en-US')}
+function statusTag(s){return s==='approved'?'<span class="tag green">✓ อนุมัติแล้ว</span>':s==='cancelled'?'<span class="tag gray">ยกเลิก</span>':'<span class="tag amber">⏳ รออนุมัติ</span>'}
+function typeTag(t){return t==='FG'?'<span class="tag fg">สำเร็จรูป</span>':'<span class="tag rm">วัตถุดิบ</span>'}
+function prodOptions(filterType){
+  return DB.products.filter(p=>!filterType||p.type===filterType)
+    .map(p=>`<option value="${p.id}">${p.pn} — ${p.name} ${p.customer&&p.customer!=='ไม่ระบุ'?'('+p.customer+')':''}</option>`).join('');
+}
+function prodLabel(id){const p=P(id);return p?`<span class="pn">${p.pn}</span> <span class="muted">${p.name}</span>`:'-'}
+
+/* ============================================================
+   DASHBOARD
+   ============================================================ */
+function viewDashboard(el){
+  setTitle('แดชบอร์ด','ภาพรวมระบบ ณ '+todayISO());
+  const fg=DB.products.filter(p=>p.type==='FG'),rm=DB.products.filter(p=>p.type==='RM');
+  const lowFG=fg.filter(p=>p.onHand<=(p.reorder||0)&&(p.reorder>0||p.onHand===0));
+  const wipTot=fg.reduce((s,p)=>s+p.wip,0),platTot=fg.reduce((s,p)=>s+p.atPlating,0),qcTot=fg.reduce((s,p)=>s+p.passedQC,0);
+  const pend=DB.docs.filter(d=>d.status==='pending');
+  el.innerHTML=`
+  <div class="cards">
+    <div class="card"><div class="lbl"><span class="dot d-brand">📦</span>สินค้าสำเร็จรูป</div><div class="val">${fmt(fg.length)}</div><div class="sub">${fmt(fg.reduce((s,p)=>s+p.onHand,0))} ชิ้น คงเหลือรวม</div></div>
+    <div class="card"><div class="lbl"><span class="dot d-cyan">🧱</span>วัตถุดิบ</div><div class="val">${fmt(rm.length)}</div><div class="sub">${fmt(rm.reduce((s,p)=>s+p.onHand,0))} หน่วย คงเหลือรวม</div></div>
+    <div class="card"><div class="lbl"><span class="dot d-amber">⏳</span>รออนุมัติ</div><div class="val">${fmt(pend.length)}</div><div class="sub">เอกสารรอดำเนินการ</div></div>
+    <div class="card"><div class="lbl"><span class="dot d-red">🚨</span>สต๊อคต่ำ/หมด</div><div class="val">${fmt(lowFG.length)}</div><div class="sub">รายการต้องเติม</div></div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-h"><h2>🏭 งานระหว่างผลิต (WIP)</h2><div class="desc">ติดตามสินค้าระหว่างกระบวนการ</div></div>
+    <div class="panel-b">
+      <div class="flow">
+        <div class="step"><div class="n">ขั้นที่ 1</div><div class="nm">🏭 ผลิตเสร็จ / รอดำเนินการ</div><div class="v">${fmt(wipTot)}</div><span class="arrow">→</span></div>
+        <div class="step"><div class="n">ขั้นที่ 2</div><div class="nm">✨ อยู่ระหว่างชุบ</div><div class="v">${fmt(platTot)}</div><span class="arrow">→</span></div>
+        <div class="step"><div class="n">ขั้นที่ 3</div><div class="nm">📦 คัดผ่าน รอรับเข้า</div><div class="v">${fmt(qcTot)}</div><span class="arrow">→</span></div>
+        <div class="step"><div class="n">ขั้นที่ 4</div><div class="nm">✅ คงเหลือพร้อมขาย</div><div class="v">${fmt(fg.reduce((s,p)=>s+p.onHand,0))}</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row c2" style="align-items:start">
+    <div class="panel">
+      <div class="panel-h"><h2>⏳ รออนุมัติ</h2><div class="right"><button class="btn sm" onclick="go('approvals')">ดูทั้งหมด</button></div></div>
+      <div class="panel-b nopad">
+        ${pend.length?`<div class="tbl-wrap"><table><thead><tr><th>เลขที่</th><th>ประเภท</th><th>วันที่</th><th></th></tr></thead><tbody>
+        ${pend.slice(0,7).map(d=>`<tr><td class="pn">${d.no}</td><td>${DT[d.type].icon} ${DT[d.type].label}</td><td class="muted">${d.date}</td><td style="text-align:right"><button class="btn sm ok" onclick="approveDoc('${d.id}')">อนุมัติ</button></td></tr>`).join('')}
+        </tbody></table></div>`:`<div class="empty"><div class="big">🎉</div><div class="t">ไม่มีรายการรออนุมัติ</div></div>`}
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-h"><h2>🚨 สต๊อคต่ำ / หมด</h2><div class="right"><button class="btn sm" onclick="go('inventory')">จัดการ</button></div></div>
+      <div class="panel-b nopad">
+        ${lowFG.length?`<div class="tbl-wrap"><table><thead><tr><th>Part Number</th><th>ลูกค้า</th><th class="num">คงเหลือ</th><th class="num">จุดสั่งซ้ำ</th></tr></thead><tbody>
+        ${lowFG.slice(0,7).map(p=>`<tr><td><span class="pn linkish" onclick="openProduct('${p.id}')">${p.pn}</span><br><span class="muted" style="font-size:11px">${p.name}</span></td><td>${p.customer}</td><td class="num"><span class="tag ${p.onHand===0?'red':'amber'}">${fmt(p.onHand)}</span></td><td class="num muted">${fmt(p.reorder)}</td></tr>`).join('')}
+        </tbody></table></div>`:`<div class="empty"><div class="big">✅</div><div class="t">สต๊อคอยู่ในเกณฑ์ปกติ</div></div>`}
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-h"><h2>🔁 ความเคลื่อนไหวล่าสุด</h2><div class="right"><button class="btn sm" onclick="go('moves')">ดูทั้งหมด</button></div></div>
+    <div class="panel-b nopad">${recentMovesTable(8)}</div>
+  </div>`;
+}
+function recentMovesTable(n){
+  const ms=[...DB.movements].sort((a,b)=>b.ts-a.ts).slice(0,n);
+  if(!ms.length)return `<div class="empty"><div class="big">📭</div><div class="t">ยังไม่มีความเคลื่อนไหว</div><div>เริ่มสร้างเอกสารเพื่อบันทึกการเข้า-ออก</div></div>`;
+  const bk={onHand:'คงเหลือ',wip:'ผลิตเสร็จ',atPlating:'ระหว่างชุบ',passedQC:'คัดผ่าน',ng:'NG'};
+  return `<div class="tbl-wrap"><table><thead><tr><th>วันที่</th><th>Part</th><th>รายการ</th><th>บัญชี</th><th class="num">จำนวน</th><th>เอกสาร</th></tr></thead><tbody>
+  ${ms.map(m=>{const p=P(m.productId);return `<tr><td class="muted">${m.date}</td><td>${p?'<span class="pn">'+p.pn+'</span>':'-'}</td><td>${m.note}</td><td><span class="tag gray">${bk[m.bucket]||m.bucket}</span></td><td class="num"><b style="color:${m.qty>=0?'var(--teal)':'var(--red)'}">${m.qty>=0?'+':''}${fmt(m.qty)}</b></td><td class="muted pn">${m.docNo}</td></tr>`}).join('')}
+  </tbody></table></div>`;
+}
+
+/* ============================================================
+   INVENTORY
+   ============================================================ */
+let invFilter={q:'',type:'all'};
+function viewInventory(el){
+  setTitle('สินค้าคงคลัง','ฐานข้อมูลหลัก — สำเร็จรูป + วัตถุดิบ');
+  el.innerHTML=`
+  <div class="panel">
+    <div class="panel-h">
+      <div class="seg" id="invSeg">
+        <button class="${invFilter.type==='all'?'on':''}" onclick="invSet('all')">ทั้งหมด</button>
+        <button class="${invFilter.type==='FG'?'on':''}" onclick="invSet('FG')">สำเร็จรูป</button>
+        <button class="${invFilter.type==='RM'?'on':''}" onclick="invSet('RM')">วัตถุดิบ</button>
+      </div>
+      <div class="searchbox"><input id="invQ" placeholder="ค้นหา PN / ชื่อ / ลูกค้า..." value="${invFilter.q}" oninput="invFilter.q=this.value;renderInvTable()"></div>
+      <div class="right"><button class="btn pri" onclick="openProductForm()">+ เพิ่มสินค้าใหม่</button></div>
+    </div>
+    <div class="panel-b nopad" id="invTableWrap"></div>
+  </div>`;
+  renderInvTable();
+}
+function invSet(t){invFilter.type=t;document.querySelectorAll('#invSeg button').forEach((b,i)=>b.classList.toggle('on',['all','FG','RM'][i]===t));renderInvTable()}
+function renderInvTable(){
+  const wrap=document.getElementById('invTableWrap');if(!wrap)return;
+  const q=invFilter.q.trim().toLowerCase();
+  let list=DB.products.filter(p=>invFilter.type==='all'||p.type===invFilter.type);
+  if(q)list=list.filter(p=>(p.pn+' '+p.name+' '+p.customer+' '+p.material).toLowerCase().includes(q));
+  list=list.slice().sort((a,b)=>a.pn.localeCompare(b.pn));
+  if(!list.length){wrap.innerHTML=`<div class="empty"><div class="big">🔍</div><div class="t">ไม่พบรายการ</div></div>`;return}
+  wrap.innerHTML=`<div class="tbl-wrap"><table><thead><tr>
+    <th>ประเภท</th><th>Part Number</th><th>ชื่อ</th><th>ลูกค้า</th><th>วัตถุดิบ/ชุบ</th>
+    <th class="num">คงเหลือ</th><th class="num">WIP</th><th class="num">ชุบ</th><th class="num">รอรับเข้า</th><th></th>
+  </tr></thead><tbody>
+  ${list.map(p=>{
+    const total=p.onHand+p.wip+p.atPlating+p.passedQC;
+    const low=p.onHand<=(p.reorder||0)&&(p.reorder>0||p.onHand===0);
+    return `<tr>
+      <td>${typeTag(p.type)}</td>
+      <td><span class="pn linkish" onclick="openProduct('${p.id}')">${p.pn}</span></td>
+      <td>${p.name}</td>
+      <td>${p.customer==='ไม่ระบุ'?'<span class="muted">—</span>':p.customer}</td>
+      <td>${p.material?'<span class="tag gray">'+p.material+'</span> ':''}${p.needPlating?'<span class="tag cyan">'+(p.plating||'ชุบ')+'</span>':''}${p.custSupplyMat?'<span class="tag violet">ลูกค้าจ่ายแมท</span>':''}</td>
+      <td class="num"><b style="color:${low?'var(--red)':'var(--ink)'}">${fmt(p.onHand)}</b></td>
+      <td class="num ${p.wip?'':'muted'}">${fmt(p.wip)}</td>
+      <td class="num ${p.atPlating?'':'muted'}">${fmt(p.atPlating)}</td>
+      <td class="num ${p.passedQC?'':'muted'}">${fmt(p.passedQC)}</td>
+      <td style="text-align:right;white-space:nowrap"><button class="btn sm" onclick="openProduct('${p.id}')">รายละเอียด</button></td>
+    </tr>`}).join('')}
+  </tbody></table></div>
+  <div style="padding:12px 16px;color:var(--ink3);font-size:12px;border-top:1px solid var(--line2)">แสดง ${list.length} รายการ</div>`;
+}
+
+/* product detail */
+function openProduct(id){
+  const p=P(id);if(!p)return;
+  const total=p.onHand+p.wip+p.atPlating+p.passedQC;
+  const ms=DB.movements.filter(m=>m.productId===id).sort((a,b)=>b.ts-a.ts).slice(0,12);
+  const bk={onHand:'คงเหลือ',wip:'ผลิตเสร็จ',atPlating:'ระหว่างชุบ',passedQC:'คัดผ่าน',ng:'NG'};
+  const seg=[['คงเหลือพร้อมขาย',p.onHand,'var(--teal)'],['ผลิตเสร็จ/WIP',p.wip,'var(--brand)'],['ระหว่างชุบ',p.atPlating,'var(--cyan)'],['คัดผ่านรอรับเข้า',p.passedQC,'var(--violet)']];
+  const sum=Math.max(1,seg.reduce((s,x)=>s+x[1],0));
+  modal({title:`${p.pn} <span style="font-weight:400;color:var(--ink3);font-size:14px">${p.name}</span>`,size:'lg',body:`
+    <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">${typeTag(p.type)}<span class="tag gray">ลูกค้า: ${p.customer}</span>${p.material?'<span class="tag gray">แมท: '+p.material+'</span>':''}${p.needPlating?'<span class="tag cyan">ชุบ: '+(p.plating||'-')+'</span>':''}${p.custSupplyMat?'<span class="tag violet">ลูกค้าจ่ายแมท</span>':''}</div>
+    <div class="row c4" style="margin-bottom:6px">
+      ${seg.map(s=>`<div class="card" style="box-shadow:none"><div class="lbl">${s[0]}</div><div class="val" style="font-size:22px;color:${s[2]}">${fmt(s[1])}</div></div>`).join('')}
+    </div>
+    <div class="bktbar">${seg.map(s=>`<div style="width:${s[1]/sum*100}%;background:${s[2]}"></div>`).join('')}</div>
+    ${p.ng?`<div style="margin-top:10px"><span class="tag red">NG สะสม: ${fmt(p.ng)}</span></div>`:''}
+    <div class="panel" style="margin-top:18px;box-shadow:none"><div class="panel-h"><h2 style="font-size:14px">🔁 ความเคลื่อนไหวล่าสุด</h2></div>
+    <div class="panel-b nopad">${ms.length?`<div class="tbl-wrap"><table><thead><tr><th>วันที่</th><th>รายการ</th><th>บัญชี</th><th class="num">จำนวน</th><th>เอกสาร</th></tr></thead><tbody>
+      ${ms.map(m=>`<tr><td class="muted">${m.date}</td><td>${m.note}</td><td><span class="tag gray">${bk[m.bucket]||m.bucket}</span></td><td class="num"><b style="color:${m.qty>=0?'var(--teal)':'var(--red)'}">${m.qty>=0?'+':''}${fmt(m.qty)}</b></td><td class="muted pn">${m.docNo}</td></tr>`).join('')}
+      </tbody></table></div>`:'<div class="empty" style="padding:24px"><div>ยังไม่มีความเคลื่อนไหว</div></div>'}</div></div>
+  `,footer:`<button class="btn" onclick="closeModal();openProductForm('${p.id}')">✏️ แก้ไขข้อมูล</button><button class="btn pri" onclick="closeModal()">ปิด</button>`});
+}
+
+/* product form */
+function openProductForm(id){
+  const p=id?P(id):null;const isEdit=!!p;
+  const cust=DB.settings.customers,plt=DB.settings.platings,sup=DB.settings.suppliers;
+  modal({title:isEdit?'แก้ไขสินค้า':'เพิ่มสินค้าใหม่',body:`
+    <div class="row c2">
+      <div class="field"><label>ประเภท <span class="req">*</span></label><select id="f_type">
+        <option value="FG" ${!p||p.type==='FG'?'selected':''}>สินค้าสำเร็จรูป (ชิ้นงาน)</option>
+        <option value="RM" ${p&&p.type==='RM'?'selected':''}>วัตถุดิบ</option></select></div>
+      <div class="field"><label>Part Number <span class="req">*</span></label><input id="f_pn" value="${p?esc(p.pn):''}" placeholder="เช่น 40051848"></div>
+    </div>
+    <div class="field"><label>ชื่อสินค้า</label><input id="f_name" value="${p?esc(p.name):''}" placeholder="เช่น SHAFT, SEAT, BUSH"></div>
+    <div class="row c2">
+      <div class="field"><label>ลูกค้า</label><input id="f_cust" list="dl_cust" value="${p?esc(p.customer):''}"><datalist id="dl_cust">${cust.map(c=>`<option value="${esc(c)}">`).join('')}</datalist></div>
+      <div class="field"><label>วัตถุดิบ (เกรด)</label><input id="f_mat" value="${p?esc(p.material):''}" placeholder="S45C, SS400, 6R..."></div>
+    </div>
+    <div class="row c3">
+      <div class="field"><label>MOQ / จุดสั่งซ้ำ</label><input type="number" id="f_reorder" value="${p?p.reorder:0}"></div>
+      <div class="field"><label>ราคาขาย</label><input type="number" step="0.01" id="f_sale" value="${p?p.salePrice:0}"></div>
+      <div class="field"><label>ราคาซื้อ/ต้นทุน</label><input type="number" step="0.01" id="f_buy" value="${p?p.buyPrice:0}"></div>
+    </div>
+    <div id="fgOnly" style="${p&&p.type==='RM'?'display:none':''}">
+      <div class="row c2">
+        <div class="field"><label>การชุบ</label><input id="f_plt" list="dl_plt" value="${p?esc(p.plating):''}" placeholder="ว่าง = ไม่ชุบ" oninput="document.getElementById('f_needplt').checked=!!this.value.trim()"><datalist id="dl_plt">${plt.map(c=>`<option value="${esc(c)}">`).join('')}</datalist></div>
+        <div class="field"><label>เงื่อนไขวัตถุดิบ</label>
+          <label style="font-weight:400;display:flex;gap:7px;align-items:center;margin-top:8px"><input type="checkbox" id="f_csm" style="width:auto" ${p&&p.custSupplyMat?'checked':''}> ลูกค้าจ่ายแมท (Customer Supply)</label>
+          <input type="hidden" id="f_needplt" ${p&&p.needPlating?'value=1':''}>
+        </div>
+      </div>
+    </div>
+    <div class="field"><label>หมายเหตุ</label><input id="f_remark" value="${p?esc(p.remark):''}"></div>
+    ${isEdit?'<div class="hint"><span class="i">ℹ️</span> ยอดคงเหลือปรับผ่านเอกสาร (รับเข้า/เบิก/ปรับยอด) เพื่อให้มีการอนุมัติและบันทึกประวัติ</div>':'<div class="field"><label>ยอดยกมา (สต๊อคตั้งต้น)</label><input type="number" id="f_open" value="0"></div>'}
+  `,footer:`<button class="btn" onclick="closeModal()">ยกเลิก</button><button class="btn pri" onclick="saveProduct('${id||''}')">บันทึก</button>`});
+  setTimeout(()=>{const ts=document.getElementById('f_type');if(!ts)return;ts.onchange=()=>{const fo=document.getElementById('fgOnly');if(fo)fo.style.display=ts.value==='RM'?'none':''}},10);
+}
+function saveProduct(id){
+  const v=k=>document.getElementById(k);
+  const pn=v('f_pn').value.trim();if(!pn){toast('กรุณากรอก Part Number','err');return}
+  const type=v('f_type').value;
+  let p=id?P(id):null;
+  if(!p){p=mkProduct(type,{pn,name:'',cust:''});p.onHand=Number(v('f_open').value)||0;DB.products.push(p);
+    if(p.onHand)move(p.id,'onHand',p.onHand,'ADJ','ยอดยกมา','ยอดยกมาตั้งต้น');}
+  p.type=type;p.pn=pn;p.name=v('f_name').value.trim()||'-';p.customer=v('f_cust').value.trim()||'ไม่ระบุ';
+  p.material=v('f_mat').value.trim();p.reorder=Number(v('f_reorder').value)||0;
+  p.salePrice=Number(v('f_sale').value)||0;p.buyPrice=Number(v('f_buy').value)||0;p.remark=v('f_remark').value.trim();
+  if(type==='FG'){p.plating=v('f_plt').value.trim();p.needPlating=!!p.plating;p.custSupplyMat=v('f_csm').checked;}
+  else{p.plating='';p.needPlating=false;p.custSupplyMat=false;}
+  // register customer
+  if(p.customer&&!DB.settings.customers.includes(p.customer))DB.settings.customers.push(p.customer);
+  closeModal();render();toast(id?'บันทึกการแก้ไขแล้ว':'เพิ่มสินค้าใหม่แล้ว','ok');
+}
+
+/* ============================================================
+   GENERIC DOC LIST VIEW
+   ============================================================ */
+function viewDocs(type){
+  const cfg=DT[type];
+  setTitle(cfg.icon+' '+cfg.label,'สร้าง / อนุมัติ / ติดตามสถานะ');
+  const docs=DB.docs.filter(d=>d.type===type).sort((a,b)=>b.ts-a.ts);
+  const el=document.getElementById('content');
+  el.innerHTML=`
+  ${docHint(type)}
+  <div class="panel">
+    <div class="panel-h"><h2>${cfg.label}</h2><div class="desc">${docs.length} เอกสาร</div>
+      <div class="right"><button class="btn pri" onclick="openDocForm('${type}')">+ สร้าง${cfg.label}</button></div>
+    </div>
+    <div class="panel-b nopad">
+      ${docs.length?`<div class="tbl-wrap"><table><thead><tr>
+        <th>เลขที่</th><th>วันที่</th><th>รายละเอียด</th><th class="num">จำนวน</th><th>สถานะ</th><th></th>
+      </tr></thead><tbody>
+      ${docs.map(d=>docRow(d)).join('')}
+      </tbody></table></div>`:`<div class="empty"><div class="big">${cfg.icon}</div><div class="t">ยังไม่มีเอกสาร</div><div>กดปุ่ม "สร้าง${cfg.label}" เพื่อเริ่มต้น</div></div>`}
+    </div>
+  </div>`;
+}
+function docHint(type){
+  const h={
+    PO:'สั่งซื้อวัตถุดิบจาก Supplier → เมื่ออนุมัติแล้วใช้เป็นฐานในการ "รับวัตถุดิบ" เข้าสต๊อค',
+    GR:'รับวัตถุดิบจริงเข้าคลัง → เมื่ออนุมัติ ระบบ <b>เพิ่มยอดวัตถุดิบคงเหลืออัตโนมัติ</b>',
+    PRD:'ใบสั่งผลิตชิ้นงาน ระบุวัตถุดิบที่ใช้ (BOM) → เป็นฐานในการเบิกวัตถุดิบและรายงานผลิต',
+    WD:'เบิกวัตถุดิบไปผลิต → เมื่ออนุมัติ ระบบ <b>ตัดยอดวัตถุดิบคงเหลืออัตโนมัติ</b>',
+    DP:'รายงานจำนวนผลิตเสร็จประจำวัน → เข้าบัญชี WIP (ผลิตเสร็จรอดำเนินการ)',
+    QC:'คัดแยกของดี (OK) / ของเสีย (NG) → OK เข้า "คัดผ่านรอรับเข้า", NG บันทึกแยก',
+    SI:'รับชิ้นงานที่คัดผ่านเข้าสต๊อคสำเร็จรูป → <b>เพิ่มยอดคงเหลือพร้อมขายอัตโนมัติ</b>',
+    INV:'เปิด Invoice ส่งลูกค้า → เมื่ออนุมัติ ระบบ <b>ตัดยอดสต๊อคสำเร็จรูปอัตโนมัติ</b>',
+    ADJ:'ปรับยอด/ตรวจนับ → ตั้งยอดตามการนับจริง หรือปรับเพิ่ม-ลด พร้อมประวัติ',
+  };
+  return h[type]?`<div class="hint"><span class="i">💡</span><div>${h[type]}</div></div>`:'';
+}
+function docRow(d){
+  const cfg=DT[d.type];let detail='',qty='';
+  if(cfg.multi){detail=(d.lines||[]).map(l=>{const p=P(l.productId);return p?p.pn:'?'}).slice(0,3).join(', ')+((d.lines||[]).length>3?` +${d.lines.length-3}`:'');qty=fmt((d.lines||[]).reduce((s,l)=>s+l.qty,0));
+    if(d.type==='PO'||d.type==='GR')detail=(d.supplier?'Supplier: '+d.supplier+' · ':'')+detail;
+    if(d.type==='INV')detail=(d.customer?d.customer+' · ':'')+detail;
+  } else {
+    const p=P(d.productId);detail=p?`<span class="pn">${p.pn}</span> ${p.name}`:'-';
+    if(d.type==='QC')qty=`OK ${fmt(d.qtyOk)} / NG ${fmt(d.qtyNg)}`;
+    else if(d.type==='ADJ')qty=(d.mode==='set'?'ตั้งเป็น ':'ปรับ ')+fmt(d.qty);
+    else if(d.type==='PRD'){qty=fmt(d.qty);detail+= ` <span class="muted">(ผลิต)</span>`;}
+    else qty=fmt(d.qty);
+  }
+  return `<tr>
+    <td class="pn">${d.no}</td><td class="muted">${d.date}</td><td>${detail}${d.note?' <span class="muted">· '+esc(d.note)+'</span>':''}</td>
+    <td class="num">${qty}</td><td>${statusTag(d.status)}</td>
+    <td style="text-align:right;white-space:nowrap">
+      <button class="btn sm" onclick="viewDoc('${d.id}')">ดู</button>
+      ${d.status==='pending'?`<button class="btn sm ok" onclick="approveDoc('${d.id}')">อนุมัติ</button>`:''}
+      ${d.status==='approved'?`<button class="btn sm danger" onclick="cancelDoc('${d.id}')">ยกเลิก</button>`:''}
+    </td></tr>`;
+}
+
+/* ---------- Doc form builder ---------- */
+function openDocForm(type){
+  const cfg=DT[type];
+  let body='';
+  const dateF=`<div class="field"><label>วันที่</label><input type="date" id="d_date" value="${todayISO()}"></div>`;
+  if(type==='PO'||type==='GR'){
+    body=`<div class="row c2">${dateF}
+      <div class="field"><label>Supplier</label><input id="d_supplier" list="dl_sup" placeholder="ผู้ขาย"><datalist id="dl_sup">${DB.settings.suppliers.map(s=>`<option value="${esc(s)}">`).join('')}</datalist></div></div>
+      ${type==='GR'?`<div class="field"><label>อ้างอิงใบสั่งซื้อ (PO)</label><select id="d_refpo" onchange="loadPOLines(this.value)"><option value="">— ไม่อ้างอิง —</option>${DB.docs.filter(x=>x.type==='PO'&&x.status==='approved').map(x=>`<option value="${x.id}">${x.no} (${x.supplier||''})</option>`).join('')}</select></div>`:''}
+      <label style="font-size:12.5px;color:var(--ink2);font-weight:500;margin:6px 0">รายการวัตถุดิบ</label>
+      <div id="lineRoot"></div>
+      <button class="btn sm" style="margin-top:6px" onclick="addLine('RM')">+ เพิ่มรายการ</button>`;
+  } else if(type==='INV'){
+    body=`<div class="row c2">${dateF}
+      <div class="field"><label>ลูกค้า</label><input id="d_customer" list="dl_cust2" placeholder="ลูกค้า"><datalist id="dl_cust2">${DB.settings.customers.map(s=>`<option value="${esc(s)}">`).join('')}</datalist></div></div>
+      <label style="font-size:12.5px;color:var(--ink2);font-weight:500;margin:6px 0">รายการสินค้า (ตัดจากสต๊อคสำเร็จรูป)</label>
+      <div id="lineRoot"></div>
+      <button class="btn sm" style="margin-top:6px" onclick="addLine('FG')">+ เพิ่มรายการ</button>`;
+  } else if(type==='WD'){
+    body=`<div class="row c2">${dateF}
+      <div class="field"><label>อ้างอิงใบสั่งผลิต</label><select id="d_refprd" onchange="loadBOM(this.value)"><option value="">— เลือก —</option>${DB.docs.filter(x=>x.type==='PRD'&&x.status==='approved').map(x=>{const p=P(x.productId);return `<option value="${x.id}">${x.no} · ${p?p.pn:''}</option>`}).join('')}</select></div></div>
+      <label style="font-size:12.5px;color:var(--ink2);font-weight:500;margin:6px 0">รายการวัตถุดิบที่เบิก (ตัดจากสต๊อควัตถุดิบ)</label>
+      <div id="lineRoot"></div>
+      <button class="btn sm" style="margin-top:6px" onclick="addLine('RM')">+ เพิ่มรายการ</button>`;
+  } else if(type==='PRD'){
+    body=`<div class="row c2">${dateF}
+      <div class="field"><label>ชิ้นงานที่ผลิต <span class="req">*</span></label><select id="d_prod">${prodOptions('FG')}</select></div></div>
+      <div class="row c2">
+        <div class="field"><label>จำนวนสั่งผลิต <span class="req">*</span></label><input type="number" id="d_qty" placeholder="0"></div>
+        <div class="field"><label>กำหนดเสร็จ</label><input type="date" id="d_due"></div>
+      </div>
+      <div class="hint"><span class="i">📐</span><div>BOM — ระบุวัตถุดิบที่ใช้ (ไว้อ้างอิงตอนเบิก). เว้นว่างได้</div></div>
+      <div id="lineRoot"></div>
+      <button class="btn sm" style="margin-top:6px" onclick="addLine('RM')">+ เพิ่มวัตถุดิบใน BOM</button>`;
+  } else if(type==='DP'||type==='SI'){
+    const stage=type==='SI'?'passedQC':'';
+    body=`<div class="row c2">${dateF}
+      <div class="field"><label>ชิ้นงาน <span class="req">*</span></label><select id="d_prod" onchange="docStageInfo('${type}')">${prodOptions('FG')}</select></div></div>
+      <div class="field"><label>จำนวน <span class="req">*</span></label><input type="number" id="d_qty" placeholder="0"></div>
+      <div id="stageInfo"></div>`;
+  } else if(type==='QC'){
+    body=`<div class="row c2">${dateF}
+      <div class="field"><label>ชิ้นงาน <span class="req">*</span></label><select id="d_prod" onchange="docStageInfo('QC')">${prodOptions('FG')}</select></div></div>
+      <div class="row c2">
+        <div class="field"><label>OK (ดี) <span class="req">*</span></label><input type="number" id="d_ok" placeholder="0"></div>
+        <div class="field"><label>NG (เสีย)</label><input type="number" id="d_ng" placeholder="0" value="0"></div>
+      </div>
+      <div id="stageInfo"></div>`;
+  } else if(type==='ADJ'){
+    body=`<div class="row c2">${dateF}
+      <div class="field"><label>สินค้า <span class="req">*</span></label><select id="d_prod" onchange="docStageInfo('ADJ')">${prodOptions()}</select></div></div>
+      <div class="row c2">
+        <div class="field"><label>วิธีปรับ</label><select id="d_mode" onchange="docStageInfo('ADJ')"><option value="set">ตั้งยอดตามนับจริง</option><option value="delta">ปรับเพิ่ม/ลด (+/-)</option></select></div>
+        <div class="field"><label>จำนวน <span class="req">*</span></label><input type="number" id="d_qty" placeholder="0" oninput="docStageInfo('ADJ')"></div>
+      </div>
+      <div id="stageInfo"></div>`;
+  }
+  // plating handled separately (PS/PR via viewPlate) but allow direct create here too:
+  if(type==='PS'||type==='PR'){
+    body=`<div class="row c2">${dateF}
+      <div class="field"><label>ชิ้นงาน <span class="req">*</span></label><select id="d_prod" onchange="docStageInfo('${type}')">${prodOptions('FG')}</select></div></div>
+      <div class="field"><label>จำนวน <span class="req">*</span></label><input type="number" id="d_qty" placeholder="0"></div>
+      ${type==='PS'?`<div class="field"><label>โรงชุบ</label><input id="d_vendor" placeholder="ผู้รับชุบ"></div>`:''}
+      <div id="stageInfo"></div>`;
+  }
+  body+=`<div class="field" style="margin-top:6px"><label>หมายเหตุ</label><input id="d_note" placeholder="(ถ้ามี)"></div>`;
+  modal({title:cfg.icon+' สร้าง'+cfg.label,size:(cfg.multi?'lg':''),body,
+    footer:`<button class="btn" onclick="closeModal()">ยกเลิก</button>
+      <button class="btn" onclick="submitDoc('${type}','pending')">บันทึก (รออนุมัติ)</button>
+      <button class="btn pri" onclick="submitDoc('${type}','approved')">บันทึก + อนุมัติทันที</button>`});
+  if(cfg.multi){lineState=[];addLine(type==='INV'?'FG':'RM');}
+  setTimeout(()=>docStageInfo(type),20);
+}
+/* line items for multi docs */
+let lineState=[];
+function addLine(ptype){lineState.push({ptype,productId:'',qty:'',price:''});renderLines()}
+function rmLine(i){lineState.splice(i,1);renderLines()}
+function renderLines(){
+  const root=document.getElementById('lineRoot');if(!root)return;
+  root.innerHTML=lineState.map((l,i)=>`<div class="lineitem">
+    <select onchange="lineState[${i}].productId=this.value;lineHint(${i})">${'<option value=\"\">— เลือกสินค้า —</option>'+prodOptions(l.ptype)}</select>
+    <input type="number" placeholder="จำนวน" value="${l.qty}" oninput="lineState[${i}].qty=this.value">
+    <input type="number" placeholder="ราคา/หน่วย" value="${l.price}" oninput="lineState[${i}].price=this.value">
+    <div class="rm-x" onclick="rmLine(${i})">✕</div>
+  </div><div id="lh_${i}" class="muted" style="font-size:11.5px;margin:-4px 0 8px 2px"></div>`).join('');
+  lineState.forEach((l,i)=>{const sel=root.querySelectorAll('select')[i];if(sel)sel.value=l.productId;lineHint(i)});
+}
+function lineHint(i){const l=lineState[i];const e=document.getElementById('lh_'+i);if(!e)return;const p=P(l.productId);e.innerHTML=p?`คงเหลือปัจจุบัน: <b>${fmt(p.onHand)}</b>`:'';}
+function loadPOLines(poId){if(!poId)return;const po=DB.docs.find(d=>d.id===poId);if(!po)return;lineState=po.lines.map(l=>({ptype:'RM',productId:l.productId,qty:l.qty,price:l.price||''}));renderLines();const s=document.getElementById('d_supplier');if(s&&po.supplier)s.value=po.supplier;}
+function loadBOM(prdId){if(!prdId)return;const prd=DB.docs.find(d=>d.id===prdId);if(!prd||!prd.lines)return;lineState=prd.lines.map(l=>({ptype:'RM',productId:l.productId,qty:l.qty,price:''}));renderLines();}
+/* stage info for single docs */
+function docStageInfo(type){
+  const el=document.getElementById('stageInfo');if(!el)return;
+  const prod=document.getElementById('d_prod');if(!prod)return;const p=P(prod.value);if(!p){el.innerHTML='';return}
+  const rows=[['คงเหลือพร้อมขาย',p.onHand],['ผลิตเสร็จ/WIP',p.wip],['ระหว่างชุบ',p.atPlating],['คัดผ่านรอรับเข้า',p.passedQC]];
+  let warn='';
+  const qty=Number((document.getElementById('d_qty')||{}).value)||0;
+  if(type==='PS'&&qty>p.wip)warn='⚠️ จำนวนเกิน WIP ที่มี';
+  if(type==='PR'&&qty>p.atPlating)warn='⚠️ จำนวนเกินที่ส่งชุบ';
+  if(type==='SI'&&qty>p.passedQC)warn='⚠️ จำนวนเกินที่คัดผ่าน';
+  if(type==='QC'){const ok=Number((document.getElementById('d_ok')||{}).value)||0;const ng=Number((document.getElementById('d_ng')||{}).value)||0;if(ok+ng>p.wip)warn='⚠️ OK+NG เกิน WIP';}
+  el.innerHTML=`<div class="panel" style="box-shadow:none;margin:6px 0 0"><div class="panel-b" style="padding:10px 14px">
+    ${rows.map(r=>`<div class="kv"><span class="k">${r[0]}</span><b>${fmt(r[1])}</b></div>`).join('')}
+    ${p.needPlating&&(type==='DP'||type==='SI')?`<div class="kv"><span class="k">การชุบ</span><span class="tag cyan">${p.plating||'ต้องชุบ'}</span></div>`:''}
+    ${warn?`<div style="color:var(--red);font-size:12.5px;margin-top:6px;font-weight:600">${warn}</div>`:''}
+  </div></div>`;
+}
+/* submit */
+function submitDoc(type,status){
+  const cfg=DT[type];const v=k=>(document.getElementById(k)||{}).value;
+  const d={id:uid(),type,no:nextNo(cfg.prefix),date:v('d_date')||todayISO(),ts:Date.now(),status:'pending',note:v('d_note')||''};
+  if(cfg.multi){
+    const lines=lineState.filter(l=>l.productId&&Number(l.qty)>0).map(l=>({productId:l.productId,qty:Number(l.qty),price:Number(l.price)||0}));
+    if(!lines.length){toast('กรุณาเพิ่มรายการอย่างน้อย 1 บรรทัด','err');return}
+    d.lines=lines;
+    if(type==='PO'||type==='GR')d.supplier=v('d_supplier')||'';
+    if(type==='GR')d.refPO=v('d_refpo')||'';
+    if(type==='INV'){d.customer=v('d_customer')||'';
+      for(const l of lines){const p=P(l.productId);if(l.qty>p.onHand){toast(`${p.pn}: จำนวนขายเกินคงเหลือ (${fmt(p.onHand)})`,'err');return}}}
+    if(type==='WD'){d.refPRD=(()=>{const id=v('d_refprd');const x=DB.docs.find(z=>z.id===id);return x?x.no:''})();
+      for(const l of lines){const p=P(l.productId);if(l.qty>p.onHand){toast(`${p.pn}: เบิกเกินคงเหลือ (${fmt(p.onHand)})`,'err');return}}}
+  } else {
+    const pid=v('d_prod');if(!pid){toast('กรุณาเลือกสินค้า','err');return}
+    d.productId=pid;
+    if(type==='QC'){d.qtyOk=Number(v('d_ok'))||0;d.qtyNg=Number(v('d_ng'))||0;if(d.qtyOk+d.qtyNg<=0){toast('กรุณากรอกจำนวน','err');return}}
+    else if(type==='ADJ'){d.mode=v('d_mode');d.qty=Number(v('d_qty'))||0;}
+    else if(type==='PRD'){d.qty=Number(v('d_qty'))||0;d.due=v('d_due')||'';if(d.qty<=0){toast('กรุณากรอกจำนวนผลิต','err');return}
+      d.lines=lineState.filter(l=>l.productId&&Number(l.qty)>0).map(l=>({productId:l.productId,qty:Number(l.qty)}));}
+    else {d.qty=Number(v('d_qty'))||0;if(d.qty<=0){toast('กรุณากรอกจำนวน','err');return}}
+    if(type==='PS')d.vendor=v('d_vendor')||'';
+    // validation against buckets
+    const p=P(pid);const err=validateStage(type,d,p);if(err){toast(err,'err');return}
+  }
+  DB.docs.push(d);
+  if(status==='approved'){const r=doApprove(d);if(!r.ok){toast('อนุมัติไม่สำเร็จ: '+r.err,'err');}else toast('สร้างและอนุมัติแล้ว: '+d.no,'ok');}
+  else toast('บันทึกเอกสาร '+d.no+' (รออนุมัติ)','ok');
+  closeModal();render();
+}
+function validateStage(type,d,p){
+  if(type==='PS'&&d.qty>p.wip)return `WIP ไม่พอ (มี ${fmt(p.wip)})`;
+  if(type==='PR'&&d.qty>p.atPlating)return `จำนวนเกินที่ส่งชุบ (มี ${fmt(p.atPlating)})`;
+  if(type==='QC'&&(d.qtyOk+d.qtyNg)>p.wip)return `OK+NG เกิน WIP (มี ${fmt(p.wip)})`;
+  if(type==='SI'&&d.qty>p.passedQC)return `เกินที่คัดผ่าน (มี ${fmt(p.passedQC)})`;
+  return '';
+}
+
+/* view a doc */
+function viewDoc(id){
+  const d=DB.docs.find(x=>x.id===id);if(!d)return;const cfg=DT[d.type];
+  let rows='';
+  if(cfg.multi){rows=`<table style="margin-top:8px"><thead><tr><th>Part</th><th>ชื่อ</th><th class="num">จำนวน</th>${d.type!=='WD'?'<th class="num">ราคา</th>':''}</tr></thead><tbody>
+    ${d.lines.map(l=>{const p=P(l.productId);return `<tr><td class="pn">${p?p.pn:'?'}</td><td>${p?p.name:''}</td><td class="num">${fmt(l.qty)}</td>${d.type!=='WD'?'<td class="num">'+fmt(l.price)+'</td>':''}</tr>`}).join('')}
+    </tbody></table>`;}
+  else {const p=P(d.productId);rows=`<div class="kv"><span class="k">สินค้า</span><span>${p?p.pn+' — '+p.name:'-'}</span></div>
+    ${d.type==='QC'?`<div class="kv"><span class="k">OK</span><b>${fmt(d.qtyOk)}</b></div><div class="kv"><span class="k">NG</span><b style="color:var(--red)">${fmt(d.qtyNg)}</b></div>`:
+      d.type==='ADJ'?`<div class="kv"><span class="k">วิธี</span>${d.mode==='set'?'ตั้งยอดตามนับจริง':'ปรับเพิ่ม/ลด'}</div><div class="kv"><span class="k">จำนวน</span><b>${fmt(d.qty)}</b></div>${d.delta!==undefined?`<div class="kv"><span class="k">ผลต่างที่ปรับ</span><b>${d.delta>=0?'+':''}${fmt(d.delta)}</b></div>`:''}`:
+      `<div class="kv"><span class="k">จำนวน</span><b>${fmt(d.qty)}</b></div>`}`;}
+  modal({title:cfg.icon+' '+d.no,size:cfg.multi?'lg':'',body:`
+    <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">${statusTag(d.status)}<span class="tag gray">${cfg.label}</span><span class="tag gray">วันที่ ${d.date}</span></div>
+    ${d.supplier?`<div class="kv"><span class="k">Supplier</span>${d.supplier}</div>`:''}
+    ${d.customer?`<div class="kv"><span class="k">ลูกค้า</span>${d.customer}</div>`:''}
+    ${d.refPRD?`<div class="kv"><span class="k">อ้างอิงสั่งผลิต</span>${d.refPRD}</div>`:''}
+    ${d.due?`<div class="kv"><span class="k">กำหนดเสร็จ</span>${d.due}</div>`:''}
+    ${rows}
+    ${d.note?`<div class="kv" style="margin-top:8px"><span class="k">หมายเหตุ</span>${esc(d.note)}</div>`:''}
+    ${d.approvedAt?`<div class="kv"><span class="k">อนุมัติเมื่อ</span>${d.approvedAt}</div>`:''}
+  `,footer:`${d.status==='pending'?`<button class="btn danger" onclick="deleteDoc('${d.id}')">ลบ</button><button class="btn ok" onclick="approveDoc('${d.id}')">✓ อนุมัติ</button>`:d.status==='approved'?`<button class="btn danger" onclick="cancelDoc('${d.id}')">ยกเลิก (คืนยอด)</button>`:''}<button class="btn pri" onclick="closeModal()">ปิด</button>`});
+}
+function doApprove(d){
+  const r=applyDoc(d);if(!r.ok)return r;
+  d.status='approved';d.approvedAt=new Date().toLocaleString('th-TH');return {ok:true};
+}
+function approveDoc(id){const d=DB.docs.find(x=>x.id===id);if(!d||d.status!=='pending')return;
+  // re-validate single-bucket docs
+  if(!DT[d.type].multi&&d.productId){const err=validateStage(d.type,d,P(d.productId));if(err){toast('อนุมัติไม่ได้: '+err,'err');return}}
+  if(DT[d.type].multi&&(d.type==='INV'||d.type==='WD')){for(const l of d.lines){const p=P(l.productId);if(l.qty>p.onHand){toast(`${p.pn}: ยอดไม่พอ (${fmt(p.onHand)})`,'err');return}}}
+  const r=doApprove(d);if(r.ok){closeModal();render();toast('อนุมัติแล้ว: '+d.no+' — ยอดอัปเดตอัตโนมัติ','ok')}else toast('ผิดพลาด: '+r.err,'err')}
+function cancelDoc(id){const d=DB.docs.find(x=>x.id===id);if(!d||d.status!=='approved')return;
+  confirmBox('ยกเลิกเอกสาร '+d.no+'?','ระบบจะคืนยอดสต๊อคที่เคยปรับกลับทั้งหมด',()=>{reverseDoc(d);d.status='cancelled';closeModal();render();toast('ยกเลิกและคืนยอดแล้ว','ok')})}
+function deleteDoc(id){const d=DB.docs.find(x=>x.id===id);if(!d||d.status!=='pending')return;DB.docs=DB.docs.filter(x=>x.id!==id);closeModal();render();toast('ลบเอกสารแล้ว','ok')}
+
+/* ============================================================
+   PLATING combined view (ส่งชุบ / รับชุบ)
+   ============================================================ */
+function viewPlate(el){
+  setTitle('✨ ส่งชุบ / รับชุบ','สำหรับงานที่ต้องชุบผิว');
+  const atPlate=DB.products.filter(p=>p.type==='FG'&&(p.atPlating>0||p.wip>0));
+  const ps=DB.docs.filter(d=>d.type==='PS').sort((a,b)=>b.ts-a.ts).slice(0,20);
+  const pr=DB.docs.filter(d=>d.type==='PR').sort((a,b)=>b.ts-a.ts).slice(0,20);
+  el.innerHTML=`
+  <div class="hint"><span class="i">💡</span><div>ขั้นตอน: <b>ส่งชุบ</b> ตัดจาก WIP → เข้า "ระหว่างชุบ" · <b>รับชุบ</b> คืนจาก "ระหว่างชุบ" → กลับเข้า WIP เพื่อไปคัดแยกต่อ</div></div>
+  <div class="row c2" style="margin-bottom:22px">
+    <div class="panel" style="margin:0"><div class="panel-h"><h2>🚚 ส่งชุบ</h2><div class="right"><button class="btn pri sm" onclick="openDocForm('PS')">+ ส่งชุบ</button></div></div>
+      <div class="panel-b nopad">${ps.length?docMiniTable(ps):emptyMini('ยังไม่มีรายการส่งชุบ')}</div></div>
+    <div class="panel" style="margin:0"><div class="panel-h"><h2>✨ รับคืนจากชุบ</h2><div class="right"><button class="btn pri sm" onclick="openDocForm('PR')">+ รับชุบ</button></div></div>
+      <div class="panel-b nopad">${pr.length?docMiniTable(pr):emptyMini('ยังไม่มีรายการรับชุบ')}</div></div>
+  </div>
+  <div class="panel"><div class="panel-h"><h2>📍 สถานะงานชุบปัจจุบัน</h2></div>
+    <div class="panel-b nopad">${atPlate.length?`<div class="tbl-wrap"><table><thead><tr><th>Part</th><th>ชื่อ</th><th>การชุบ</th><th class="num">WIP รอส่ง</th><th class="num">อยู่ระหว่างชุบ</th></tr></thead><tbody>
+      ${atPlate.map(p=>`<tr><td class="pn linkish" onclick="openProduct('${p.id}')">${p.pn}</td><td>${p.name}</td><td>${p.plating?'<span class="tag cyan">'+p.plating+'</span>':'<span class="muted">—</span>'}</td><td class="num">${fmt(p.wip)}</td><td class="num"><b>${fmt(p.atPlating)}</b></td></tr>`).join('')}
+      </tbody></table></div>`:emptyMini('ไม่มีงานในกระบวนการชุบ')}</div></div>`;
+}
+function docMiniTable(docs){return `<div class="tbl-wrap"><table><thead><tr><th>เลขที่</th><th>Part</th><th class="num">จำนวน</th><th>สถานะ</th><th></th></tr></thead><tbody>
+  ${docs.map(d=>{const p=P(d.productId);return `<tr><td class="pn">${d.no}</td><td>${p?p.pn:'?'}</td><td class="num">${fmt(d.qty)}</td><td>${statusTag(d.status)}</td><td style="text-align:right">${d.status==='pending'?`<button class="btn sm ok" onclick="approveDoc('${d.id}')">อนุมัติ</button>`:`<button class="btn sm" onclick="viewDoc('${d.id}')">ดู</button>`}</td></tr>`}).join('')}
+  </tbody></table></div>`}
+function emptyMini(t){return `<div class="empty" style="padding:30px"><div class="big" style="font-size:30px">📭</div><div>${t}</div></div>`}
+
+/* ============================================================
+   APPROVALS CENTER
+   ============================================================ */
+function viewApprovals(el){
+  setTitle('✅ ศูนย์อนุมัติ','เอกสารทุกประเภทที่รออนุมัติ');
+  const pend=DB.docs.filter(d=>d.status==='pending').sort((a,b)=>a.ts-b.ts);
+  const byType={};pend.forEach(d=>{(byType[d.type]=byType[d.type]||[]).push(d)});
+  el.innerHTML=`
+  <div class="cards">
+    <div class="card"><div class="lbl"><span class="dot d-amber">⏳</span>รออนุมัติทั้งหมด</div><div class="val">${fmt(pend.length)}</div></div>
+    <div class="card"><div class="lbl"><span class="dot d-teal">✓</span>อนุมัติแล้ว</div><div class="val">${fmt(DB.docs.filter(d=>d.status==='approved').length)}</div></div>
+    <div class="card"><div class="lbl"><span class="dot d-red">✕</span>ยกเลิก</div><div class="val">${fmt(DB.docs.filter(d=>d.status==='cancelled').length)}</div></div>
+  </div>
+  ${pend.length?`<div class="panel"><div class="panel-h"><h2>รายการรออนุมัติ</h2><div class="right"><button class="btn ok" onclick="approveAll()">✓ อนุมัติทั้งหมด</button></div></div>
+    <div class="panel-b nopad"><div class="tbl-wrap"><table><thead><tr><th>เลขที่</th><th>ประเภท</th><th>วันที่</th><th>รายละเอียด</th><th class="num">จำนวน</th><th></th></tr></thead><tbody>
+    ${pend.map(d=>{const cfg=DT[d.type];let det,qty;if(cfg.multi){det=(d.lines||[]).map(l=>{const p=P(l.productId);return p?p.pn:''}).slice(0,2).join(', ');qty=fmt((d.lines||[]).reduce((s,l)=>s+l.qty,0))}else{const p=P(d.productId);det=p?p.pn+' '+p.name:'';qty=d.type==='QC'?`OK${fmt(d.qtyOk)}/NG${fmt(d.qtyNg)}`:fmt(d.qty)}
+      return `<tr><td class="pn">${d.no}</td><td>${cfg.icon} ${cfg.label}</td><td class="muted">${d.date}</td><td>${det}</td><td class="num">${qty}</td><td style="text-align:right;white-space:nowrap"><button class="btn sm" onclick="viewDoc('${d.id}')">ดู</button> <button class="btn sm ok" onclick="approveDoc('${d.id}')">อนุมัติ</button> <button class="btn sm danger" onclick="deleteDoc('${d.id}')">ลบ</button></td></tr>`}).join('')}
+    </tbody></table></div></div></div>`:`<div class="panel"><div class="empty"><div class="big">🎉</div><div class="t">ไม่มีเอกสารรออนุมัติ</div><div>ทุกอย่างได้รับการอนุมัติเรียบร้อย</div></div></div>`}`;
+}
+function approveAll(){const pend=DB.docs.filter(d=>d.status==='pending');let ok=0,fail=0;
+  pend.forEach(d=>{if(!DT[d.type].multi&&d.productId){if(validateStage(d.type,d,P(d.productId))){fail++;return}}
+    if((d.type==='INV'||d.type==='WD')){let bad=false;d.lines.forEach(l=>{if(l.qty>P(l.productId).onHand)bad=true});if(bad){fail++;return}}
+    const r=doApprove(d);r.ok?ok++:fail++;});
+  render();toast(`อนุมัติ ${ok} รายการ${fail?` · ข้าม ${fail} (ยอดไม่พอ)`:''}`,fail?'err':'ok')}
+
+/* ============================================================
+   MOVEMENTS
+   ============================================================ */
+let moveFilter={q:'',bucket:'all'};
+function viewMoves(el){
+  setTitle('🔁 ความเคลื่อนไหวสินค้า','บันทึกการเข้า-ออกทุกบัญชี (Stock Ledger)');
+  el.innerHTML=`<div class="panel"><div class="panel-h">
+    <div class="searchbox"><input id="mvQ" placeholder="ค้นหา PN / เอกสาร..." value="${moveFilter.q}" oninput="moveFilter.q=this.value;renderMoves()"></div>
+    <div class="right"><button class="btn sm" onclick="exportMovesCSV()">⬇ Export CSV</button></div>
+  </div><div class="panel-b nopad" id="mvWrap"></div></div>`;
+  renderMoves();
+}
+function renderMoves(){
+  const wrap=document.getElementById('mvWrap');if(!wrap)return;
+  const q=moveFilter.q.trim().toLowerCase();
+  let ms=[...DB.movements].sort((a,b)=>b.ts-a.ts);
+  if(q)ms=ms.filter(m=>{const p=P(m.productId);return ((p?p.pn+p.name:'')+' '+m.docNo+' '+m.note).toLowerCase().includes(q)});
+  const bk={onHand:'คงเหลือ',wip:'ผลิตเสร็จ',atPlating:'ระหว่างชุบ',passedQC:'คัดผ่าน',ng:'NG'};
+  if(!ms.length){wrap.innerHTML=`<div class="empty"><div class="big">📭</div><div class="t">ไม่มีความเคลื่อนไหว</div></div>`;return}
+  wrap.innerHTML=`<div class="tbl-wrap"><table><thead><tr><th>วันที่</th><th>Part</th><th>ชื่อ</th><th>รายการ</th><th>บัญชี</th><th class="num">เข้า/ออก</th><th>เอกสาร</th></tr></thead><tbody>
+  ${ms.slice(0,400).map(m=>{const p=P(m.productId);return `<tr><td class="muted">${m.date}</td><td class="pn">${p?p.pn:'-'}</td><td>${p?p.name:''}</td><td>${m.note}</td><td><span class="tag gray">${bk[m.bucket]||m.bucket}</span></td><td class="num"><b style="color:${m.qty>=0?'var(--teal)':'var(--red)'}">${m.qty>=0?'+':''}${fmt(m.qty)}</b></td><td class="muted pn">${m.docNo}</td></tr>`}).join('')}
+  </tbody></table></div><div style="padding:10px 16px;color:var(--ink3);font-size:12px">แสดง ${Math.min(ms.length,400)} จาก ${ms.length} รายการ</div>`;
+}
+function exportMovesCSV(){
+  const bk={onHand:'คงเหลือ',wip:'ผลิตเสร็จ',atPlating:'ระหว่างชุบ',passedQC:'คัดผ่าน',ng:'NG'};
+  let csv='﻿วันที่,PartNumber,ชื่อ,รายการ,บัญชี,จำนวน,เอกสาร\n';
+  [...DB.movements].sort((a,b)=>a.ts-b.ts).forEach(m=>{const p=P(m.productId);csv+=`${m.date},"${p?p.pn:''}","${p?p.name:''}","${m.note}","${bk[m.bucket]||m.bucket}",${m.qty},${m.docNo}\n`});
+  downloadFile(csv,'movements_'+todayISO()+'.csv','text/csv');toast('ส่งออก CSV แล้ว','ok');
+}
+
+/* ============================================================
+   SETTINGS
+   ============================================================ */
+function viewSettings(el){
+  setTitle('⚙️ ตั้งค่า','ข้อมูลพื้นฐาน & การสำรองข้อมูล');
+  const s=DB.settings;
+  el.innerHTML=`
+  <div class="row c2" style="align-items:start">
+    <div>
+      ${listEditor('customers','👥 ลูกค้า')}
+      ${listEditor('suppliers','🏢 ผู้ขาย (Supplier)')}
+      ${listEditor('platings','✨ ประเภทการชุบ')}
+    </div>
+    <div>
+      <div class="panel"><div class="panel-h"><h2>💾 ข้อมูล & การสำรอง</h2></div><div class="panel-b">
+        <div class="kv"><span class="k">สินค้าทั้งหมด</span><b>${fmt(DB.products.length)}</b></div>
+        <div class="kv"><span class="k">เอกสาร</span><b>${fmt(DB.docs.length)}</b></div>
+        <div class="kv"><span class="k">ความเคลื่อนไหว</span><b>${fmt(DB.movements.length)}</b></div>
+        <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
+          <button class="btn pri" onclick="exportData()">⬇ สำรองข้อมูล (JSON)</button>
+          <button class="btn" onclick="document.getElementById('importFile').click()">⬆ นำเข้าข้อมูล</button>
+          <button class="btn" onclick="exportProductsCSV()">⬇ สินค้า (CSV)</button>
+        </div>
+        <div class="hint" style="margin-top:14px"><span class="i">ℹ️</span><div>ข้อมูลถูกบันทึกอัตโนมัติในเบราว์เซอร์เครื่องนี้ (Local Storage) ควรกด "สำรองข้อมูล" เป็นไฟล์เก็บไว้สม่ำเสมอ และนำเข้าเมื่อย้ายเครื่อง</div></div>
+      </div></div>
+      <div class="panel"><div class="panel-h"><h2>⚠️ ล้างข้อมูล</h2></div><div class="panel-b">
+        <p class="muted" style="font-size:12.5px;margin-bottom:10px">รีเซ็ตกลับเป็นข้อมูลตัวอย่างตั้งต้น (ลบเอกสาร/ความเคลื่อนไหวทั้งหมด)</p>
+        <button class="btn danger" onclick="resetAll()">🗑️ รีเซ็ตเป็นค่าเริ่มต้น</button>
+      </div></div>
+    </div>
+  </div>`;
+}
+function listEditor(key,title){
+  const arr=DB.settings[key];
+  return `<div class="panel"><div class="panel-h"><h2>${title}</h2><div class="right"><button class="btn sm" onclick="addSetting('${key}')">+ เพิ่ม</button></div></div>
+  <div class="panel-b"><div style="display:flex;flex-wrap:wrap;gap:7px">
+    ${arr.map((c,i)=>`<span class="tag gray" style="padding:5px 10px">${esc(c)} <span style="cursor:pointer;color:var(--red);margin-left:3px" onclick="delSetting('${key}',${i})">✕</span></span>`).join('')||'<span class="muted">ยังไม่มีข้อมูล</span>'}
+  </div></div></div>`;
+}
+function addSetting(key){const v=prompt('เพิ่มรายการใหม่:');if(v&&v.trim()){DB.settings[key].push(v.trim());render();toast('เพิ่มแล้ว','ok')}}
+function delSetting(key,i){DB.settings[key].splice(i,1);render()}
+function resetAll(){confirmBox('รีเซ็ตข้อมูลทั้งหมด?','การกระทำนี้ลบเอกสารและความเคลื่อนไหวทั้งหมด คืนค่าเป็นตัวอย่างตั้งต้น',()=>{DB=freshDB();saveDB();closeModal();go('dashboard');toast('รีเซ็ตเรียบร้อย','ok')})}
+function exportProductsCSV(){
+  let csv='﻿ประเภท,PartNumber,ชื่อ,ลูกค้า,วัตถุดิบ,ชุบ,คงเหลือ,WIP,ระหว่างชุบ,คัดผ่าน,NG,จุดสั่งซ้ำ\n';
+  DB.products.forEach(p=>{csv+=`${p.type==='FG'?'สำเร็จรูป':'วัตถุดิบ'},"${p.pn}","${p.name}","${p.customer}","${p.material}","${p.plating}",${p.onHand},${p.wip},${p.atPlating},${p.passedQC},${p.ng},${p.reorder}\n`});
+  downloadFile(csv,'products_'+todayISO()+'.csv','text/csv');toast('ส่งออกสินค้าแล้ว','ok');
+}
+
+/* ============================================================
+   Backup / Import
+   ============================================================ */
+function exportData(){downloadFile(JSON.stringify(DB,null,2),'RTK_backup_'+todayISO()+'.json','application/json');toast('สำรองข้อมูลเป็นไฟล์แล้ว','ok')}
+function importData(input){const f=input.files[0];if(!f)return;const r=new FileReader();
+  r.onload=e=>{try{const j=JSON.parse(e.target.result);if(!j.products)throw 0;DB=j;saveDB();go('dashboard');toast('นำเข้าข้อมูลสำเร็จ','ok')}catch(err){toast('ไฟล์ไม่ถูกต้อง','err')}input.value=''};
+  r.readAsText(f);}
+function downloadFile(content,name,mime){const b=new Blob([content],{type:mime});const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download=name;a.click();URL.revokeObjectURL(u)}
+
+/* ============================================================
+   UI primitives: modal, toast, confirm
+   ============================================================ */
+function modal({title,body,footer,size}){
+  document.getElementById('modalRoot').innerHTML=`<div class="overlay" onclick="if(event.target===this)closeModal()">
+    <div class="modal ${size==='lg'?'lg':''}"><div class="modal-h"><h3>${title}</h3><span class="x" onclick="closeModal()">×</span></div>
+    <div class="modal-b">${body}</div>${footer?`<div class="modal-f">${footer}</div>`:''}</div></div>`;
+}
+function closeModal(){document.getElementById('modalRoot').innerHTML=''}
+function confirmBox(title,msg,onYes){
+  window.__yes=onYes;
+  document.getElementById('modalRoot').innerHTML=`<div class="overlay"><div class="modal" style="max-width:440px"><div class="modal-h"><h3>${title}</h3></div>
+  <div class="modal-b"><p style="color:var(--ink2)">${msg}</p></div>
+  <div class="modal-f"><button class="btn" onclick="closeModal()">ยกเลิก</button><button class="btn danger" onclick="(window.__yes&&window.__yes())">ยืนยัน</button></div></div></div>`;
+}
+let toastN=0;
+function toast(msg,type){const id='t'+(++toastN);const w=document.getElementById('toasts');
+  const e=document.createElement('div');e.className='toast '+(type||'');e.id=id;e.innerHTML=`<span>${type==='ok'?'✓':type==='err'?'⚠':'ℹ'}</span><span>${msg}</span>`;
+  w.appendChild(e);setTimeout(()=>{e.style.opacity='0';e.style.transform='translateX(20px)';e.style.transition='.3s';setTimeout(()=>e.remove(),300)},3000)}
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+
+/* ---------- boot (RTK Store Control v2) ---------- */
+loadDB();render();
+</script>
+</body>
+</html>
