@@ -41,7 +41,7 @@ body{font-family:'Noto Sans Thai','Inter',system-ui,sans-serif;background:var(--
 .nav a:hover{background:rgba(255,255,255,.06);color:#fff}
 .nav a.active{background:linear-gradient(135deg,rgba(92,124,250,.22),rgba(59,91,219,.14));color:#fff;font-weight:600}
 .nav a.active::before{content:"";position:absolute;left:0;top:8px;bottom:8px;width:3px;border-radius:3px;background:#5c7cfa}
-.nav a .ico{width:18px;text-align:center;font-size:15px;opacity:.95}
+.nav a .ico{width:18px;text-align:center;font-size:15px;opacity:.95}.nav a .ab{display:none}
 .nav a .badge{margin-left:auto;background:#e03131;color:#fff;font-size:10.5px;font-weight:700;border-radius:20px;padding:1px 7px;min-width:18px;text-align:center}
 .nav a .badge.amber{background:#f59f00}
 
@@ -174,7 +174,7 @@ td.num,th.num{text-align:right;font-family:'Inter',sans-serif;font-variant-numer
 .timeline .ev{position:relative;padding:0 0 16px}
 .timeline .ev::before{content:"";position:absolute;left:-15px;top:4px;width:9px;height:9px;border-radius:50%;background:var(--brand);border:2px solid #fff;box-shadow:0 0 0 2px var(--brandL)}
 .timeline::after{content:"";position:absolute;left:-11px;top:6px;bottom:6px;width:2px;background:var(--line)}
-@media(max-width:880px){.sidebar{width:64px}.brand .t1,.brand .t2,.nav a span.lbl,.nav-group{display:none}.main{margin-left:64px}.nav a{justify-content:center}.row.c2,.row.c3,.row.c4{grid-template-columns:1fr}}
+@media(max-width:880px){.sidebar{width:70px}.brand .t1,.brand .t2,.nav-group{display:none}.nav a .lbl{display:none}.nav a{flex-direction:column;justify-content:center;gap:2px;padding:7px 2px;text-align:center}.nav a .ab{display:block;font-size:9px;font-weight:700;letter-spacing:.2px;line-height:1.1}.nav a .ico{font-size:18px;width:auto}.nav a .badge{position:absolute;top:3px;right:6px}.main{margin-left:70px}.nav a.active::before{top:5px;bottom:auto;height:auto;width:auto;left:6px;right:6px;bottom:auto}.row.c2,.row.c3,.row.c4{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -398,13 +398,14 @@ const NAV=[
 ];
 let route='dashboard';
 function pendingCount(){return DB.docs.filter(d=>d.status==='pending').length}
+const ABBR={dashboard:'HOME',inventory:'STOCK',approvals:'APPR',po:'PO',gr:'RECV',prd:'PROD',wd:'ISSUE',dp:'DAILY',plate:'PLATE',qc:'QC',si:'STK-IN',inv:'INV',adj:'ADJ',moves:'MOVE',demand:'PLAN',mrp:'MRP',settings:'SET'};
 function renderNav(){
   const nav=document.getElementById('nav');let h='';
   NAV.forEach(n=>{
     if(n.g){h+=`<div class="nav-group">${n.g}</div>`;return}
     let badge='';
     if(n.id==='approvals'){const c=pendingCount();if(c)badge=`<span class="badge">${c}</span>`}
-    h+=`<a class="${route===n.id?'active':''}" onclick="go('${n.id}')"><span class="ico">${n.ico}</span><span class="lbl">${n.label}</span>${badge}</a>`;
+    h+=`<a class="${route===n.id?'active':''}" onclick="go('${n.id}')"><span class="ico">${n.ico}</span><span class="lbl">${n.label}</span><span class="ab">${ABBR[n.id]||''}</span>${badge}</a>`;
   });
   nav.innerHTML=h;
 }
