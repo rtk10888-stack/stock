@@ -504,7 +504,10 @@ function viewInventory(el){
         <button class="${invFilter.type==='RM'?'on':''}" onclick="invSet('RM')">วัตถุดิบ</button>
       </div>
       <div class="searchbox"><input id="invQ" placeholder="ค้นหา PN / ชื่อ / ลูกค้า..." value="${invFilter.q}" oninput="invFilter.q=this.value;renderInvTable()"></div>
-      <div class="right"><button class="btn pri" onclick="openProductForm()">+ เพิ่มสินค้าใหม่</button></div>
+      <div class="right">
+        <input type="file" id="balanceFile" accept=".json" style="display:none" onchange="applyBalanceUpdate(this)">
+        <button class="btn" onclick="document.getElementById('balanceFile').click()">📊 อัปเดตยอดคงเหลือ</button>
+        <button class="btn pri" onclick="openProductForm()">+ เพิ่มสินค้าใหม่</button></div>
     </div>
     <div class="panel-b nopad" id="invTableWrap"></div>
   </div>`;
@@ -1184,6 +1187,36 @@ function importData(input){const f=input.files[0];if(!f)return;const r=new FileR
   r.onload=e=>{try{const j=JSON.parse(e.target.result);if(!j.products)throw 0;DB=j;saveDB();go('dashboard');toast('นำเข้าข้อมูลสำเร็จ','ok')}catch(err){toast('ไฟล์ไม่ถูกต้อง','err')}input.value=''};
   r.readAsText(f);}
 function downloadFile(content,name,mime){const b=new Blob([content],{type:mime});const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download=name;a.click();URL.revokeObjectURL(u)}
+/* อัปเดตเฉพาะยอดคงเหลือ (onHand) จับคู่ตาม Part Number — ไม่แตะเอกสาร/ใบสั่งผลิต/ประวัติ */
+function applyBalanceUpdate(input){
+  const f=input.files[0];if(!f)return;const r=new FileReader();
+  r.onload=e=>{
+    let data;try{data=JSON.parse(e.target.result)}catch(err){toast('ไฟล์ไม่ถูกต้อง','err');input.value='';return}
+    const bals=Array.isArray(data)?data:(data.balances||[]);
+    if(!bals.length){toast('ไม่พบข้อมูลยอดในไฟล์','err');input.value='';return}
+    const byPn={};DB.products.forEach(p=>{(byPn[p.pn]=byPn[p.pn]||[]).push(p)});
+    const used=new Set();let updated=0,unchanged=0,notfound=0;const nf=[];const docNo='UPD-'+(data.date||todayISO());
+    bals.forEach(b=>{
+      const pn=(b.pn||'').trim();const cand=byPn[pn];
+      if(!cand||!cand.length){notfound++;if(nf.length<30)nf.push(pn);return}
+      const p=cand.find(x=>!used.has(x.id)&&(x.name||'')===(b.name||''))||cand.find(x=>!used.has(x.id))||cand[0];
+      used.add(p.id);
+      const nv=Number(b.onHand)||0;const delta=nv-(p.onHand||0);
+      if(delta!==0){p.onHand=nv;move(p.id,'onHand',delta,'IMPORT',docNo,'อัปเดตยอดคงเหลือจากไฟล์');updated++;}
+      else unchanged++;
+    });
+    saveDB();render();
+    modal({title:'📊 ผลการอัปเดตยอดคงเหลือ',body:`
+      <div class="kv"><span class="k">อัปเดตยอดใหม่</span><b style="color:var(--teal)">${fmt(updated)} รายการ</b></div>
+      <div class="kv"><span class="k">ยอดเท่าเดิม</span><b>${fmt(unchanged)} รายการ</b></div>
+      <div class="kv"><span class="k">ไม่พบ Part Number ในระบบ</span><b style="color:${notfound?'var(--red)':'var(--ink)'}">${fmt(notfound)} รายการ</b></div>
+      ${nf.length?`<div class="hint" style="margin-top:10px"><span class="i">⚠️</span><div>ไม่พบ: ${nf.map(esc).join(', ')}${notfound>nf.length?' ...':''}</div></div>`:''}
+      <div class="hint" style="margin-top:8px"><span class="i">✓</span><div>เอกสาร / ใบสั่งผลิต / ประวัติเดิม ไม่ถูกแตะต้อง และบันทึกการปรับยอดไว้ในเมนูความเคลื่อนไหวแล้ว</div></div>
+    `,footer:`<button class="btn pri" onclick="closeModal()">ตกลง</button>`});
+    input.value='';
+  };
+  r.readAsText(f);
+}
 
 /* ============================================================
    UI primitives: modal, toast, confirm
