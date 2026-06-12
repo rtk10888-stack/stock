@@ -519,18 +519,25 @@ function renderInvTable(){
   list=list.slice().sort((a,b)=>a.pn.localeCompare(b.pn));
   if(!list.length){wrap.innerHTML=`<div class="empty"><div class="big">🔍</div><div class="t">ไม่พบรายการ</div></div>`;return}
   wrap.innerHTML=`<div class="tbl-wrap"><table><thead><tr>
-    <th>ประเภท</th><th>Part Number</th><th>ชื่อ</th><th>ลูกค้า</th><th>วัตถุดิบ/ชุบ</th>
+    <th>ประเภท</th><th>Part Number</th><th>ชื่อ</th><th>ลูกค้า</th><th class="num">MOQ</th><th class="num">ราคาขาย</th><th>การชุบ</th><th>เงื่อนไขวัตถุดิบ</th>
     <th class="num">คงเหลือ</th><th class="num">WIP</th><th class="num">ชุบ</th><th class="num">รอรับเข้า</th><th></th>
   </tr></thead><tbody>
   ${list.map(p=>{
-    const total=p.onHand+p.wip+p.atPlating+p.passedQC;
     const low=p.onHand<=(p.reorder||0)&&(p.reorder>0||p.onHand===0);
+    const moq=p.moq||p.reorder||0;
+    const plt = p.type==='RM' ? '<span class="muted">—</span>' : (p.needPlating?'<span class="tag cyan">'+esc(p.plating||'ชุบ')+'</span>':'<span class="muted">ไม่ชุบ</span>');
+    const matTag = p.material?'<span class="tag gray">'+esc(p.material)+'</span> ':'';
+    const cond = p.type==='RM' ? (p.material?'<span class="tag gray">'+esc(p.material)+'</span>':'<span class="muted">—</span>')
+      : matTag+(p.custSupplyMat?'<span class="tag violet">ลูกค้าจ่ายแมท</span>':'<span class="tag gray">บริษัทซื้อแมท</span>');
     return `<tr>
       <td>${typeTag(p.type)}</td>
       <td><span class="pn linkish" onclick="openProduct('${p.id}')">${p.pn}</span></td>
       <td>${p.name}</td>
       <td>${p.customer==='ไม่ระบุ'?'<span class="muted">—</span>':p.customer}</td>
-      <td>${p.material?'<span class="tag gray">'+p.material+'</span> ':''}${p.needPlating?'<span class="tag cyan">'+(p.plating||'ชุบ')+'</span>':''}${p.custSupplyMat?'<span class="tag violet">ลูกค้าจ่ายแมท</span>':''}</td>
+      <td class="num ${moq?'':'muted'}">${fmt(moq)}</td>
+      <td class="num">${p.salePrice>0?fmt2(p.salePrice):'<span class="muted">—</span>'}</td>
+      <td>${plt}</td>
+      <td>${cond}</td>
       <td class="num"><b style="color:${low?'var(--red)':'var(--ink)'}">${fmt(p.onHand)}</b></td>
       <td class="num ${p.wip?'':'muted'}">${fmt(p.wip)}</td>
       <td class="num ${p.atPlating?'':'muted'}">${fmt(p.atPlating)}</td>
