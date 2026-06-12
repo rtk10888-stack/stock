@@ -641,7 +641,7 @@ function viewDocs(type){
   ${docHint(type)}
   <div class="panel">
     <div class="panel-h"><h2>${cfg.label}</h2><div class="desc">${docs.length} เอกสาร</div>
-      <div class="right">${type==='PRD'?`<div class="searchbox"><input id="docSearch" placeholder="ค้นเลขที่ PO / Part / MAKER" oninput="filterDocRows()"></div><input type="file" id="prdImportFile" accept=".json" style="display:none" onchange="applyPRDImport(this)"><button class="btn" onclick="document.getElementById('prdImportFile').click()">📥 นำเข้า</button>`:''}<button class="btn pri" onclick="openDocForm('${type}')">+ สร้าง${cfg.label}</button></div>
+      <div class="right">${(type==='PRD'||type==='WD')?`<div class="searchbox"><input id="docSearch" placeholder="ค้นหา PO / Part / MAKER" oninput="filterDocRows()"></div>`:''}${type==='PRD'?`<input type="file" id="prdImportFile" accept=".json" style="display:none" onchange="applyPRDImport(this)"><button class="btn" onclick="document.getElementById('prdImportFile').click()">📥 นำเข้า</button>`:''}${type==='WD'?`<input type="file" id="wdImportFile" accept=".json" style="display:none" onchange="applyWDImport(this)"><button class="btn" onclick="document.getElementById('wdImportFile').click()">📥 นำเข้า</button>`:''}<button class="btn pri" onclick="openDocForm('${type}')">+ สร้าง${cfg.label}</button></div>
     </div>
     <div class="panel-b nopad">
       ${docs.length?`<div class="tbl-wrap"><table><thead><tr>
@@ -1018,6 +1018,34 @@ function printPO(id){
    ใบเบิกวัตถุดิบ (Material Requisition) — อ้าง PO ต่อบรรทัด + พิมพ์/LINE
    ============================================================ */
 let wdLines=[];
+function applyWDImport(input){
+  const f=input.files[0];if(!f)return;const r=new FileReader();
+  r.onload=e=>{
+    let data;try{data=JSON.parse(e.target.result)}catch(err){toast('ไฟล์ไม่ถูกต้อง','err');input.value='';return}
+    const docs=Array.isArray(data)?data:(data.docs||[]);
+    if(!docs.length){toast('ไม่พบรายการในไฟล์','err');input.value='';return}
+    ensureSettings();let added=0,skipped=0,lc=0;
+    docs.forEach(o=>{
+      const no=(o.no||'').trim();
+      if(no&&DB.docs.find(x=>x.type==='WD'&&x.no===no)){skipped++;return;}
+      const lns=(o.lines||[]).map(l=>{const mn=(l.matName||'').trim();const p=DB.products.find(x=>x.type==='RM'&&(x.pn===mn.split(' ')[0]||x.pn===mn));return {productId:p?p.id:'',matName:mn,price:Number(l.price)||0,qty:Number(l.qty)||0,unit:l.unit||'Kgs.',poNo:(l.poNo||'').trim(),fgPn:(l.fgPn||'').trim(),maker:(l.maker||'').trim(),date:l.date||'',ordered:Number(l.ordered)||0}}).filter(l=>l.matName||l.qty);
+      if(!lns.length)return;lc+=lns.length;
+      DB.docs.push({id:uid(),type:'WD',ts:Date.now(),status:'approved',imported:true,approvedAt:'(นำเข้า)',
+        no:no||nextNo('WD'),date:o.date||lns[0].date||todayISO(),supplier:(o.supplier||'').trim(),note:o.note||'',
+        lines:lns,subtotal:lns.reduce((s,l)=>s+l.price*l.qty,0),totalQty:lns.reduce((s,l)=>s+l.qty,0)});
+      added++;
+    });
+    saveDB();render();
+    modal({title:'📥 ผลการนำเข้าใบเบิกวัตถุดิบ',body:`
+      <div class="kv"><span class="k">นำเข้าใหม่</span><b style="color:var(--teal)">${fmt(added)} ใบ</b></div>
+      <div class="kv"><span class="k">รวมรายการเบิก</span><b>${fmt(lc)} บรรทัด</b></div>
+      <div class="kv"><span class="k">ข้าม (เลขซ้ำ)</span><b>${fmt(skipped)} ใบ</b></div>
+      <div class="hint" style="margin-top:10px"><span class="i">ℹ️</span><div>เป็นข้อมูลย้อนหลัง (อนุมัติแล้ว) <b>ไม่ตัดยอดซ้ำ</b> เพราะยอดคงเหลือปัจจุบันรวมการเบิกเหล่านี้แล้ว · ค้น/ดู/พิมพ์ PDF/ส่ง LINE ได้</div></div>
+    `,footer:`<button class="btn pri" onclick="closeModal()">ตกลง</button>`});
+    input.value='';
+  };
+  r.readAsText(f);
+}
 function openWDForm(edit){
   ensureSettings();const makers=DB.settings.makers||[];
   modal({title:'📤 '+(edit?'แก้ไข':'สร้าง')+'ใบเบิกวัตถุดิบ',size:'lg',body:`
