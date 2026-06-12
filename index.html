@@ -841,6 +841,7 @@ function validateStage(type,d,p){
    ============================================================ */
 let prdLines=[];
 function filterDocRows(){const q=((document.getElementById('docSearch')||{}).value||'').trim().toLowerCase();document.querySelectorAll('#docRows tr').forEach(tr=>{tr.style.display=(!q||tr.textContent.toLowerCase().includes(q))?'':'none'})}
+function filterMrpRows(){const q=((document.getElementById('mrpSearch')||{}).value||'').trim().toLowerCase();document.querySelectorAll('#mrpRows tr').forEach(tr=>{tr.style.display=(!q||tr.textContent.toLowerCase().includes(q))?'':'none'})}
 function prdRow(d){
   const first=(d.lines&&d.lines[0])||{};
   const more=(d.lines||[]).length>1?` <span class="muted">+${d.lines.length-1}</span>`:'';
@@ -1458,11 +1459,11 @@ function viewMRP(el){
     <div class="card"><div class="lbl"><span class="dot d-violet">📈</span>ความต้องการรวม</div><div class="val">${fmt(totDemand)}</div></div>
   </div>
   <div class="panel"><div class="panel-h"><h2>ตารางความเพียงพอ (MRP)</h2>
-    <div class="right"><div class="seg"><button class="${!mrpOnlyShort?'on':''}" onclick="mrpOnlyShort=false;render()">ทั้งหมด</button><button class="${mrpOnlyShort?'on':''}" onclick="mrpOnlyShort=true;render()">เฉพาะที่ขาด</button></div></div>
+    <div class="right"><div class="searchbox"><input id="mrpSearch" placeholder="ค้นหา PN / ชื่อ / ลูกค้า" oninput="filterMrpRows()"></div><div class="seg"><button class="${!mrpOnlyShort?'on':''}" onclick="mrpOnlyShort=false;render()">ทั้งหมด</button><button class="${mrpOnlyShort?'on':''}" onclick="mrpOnlyShort=true;render()">เฉพาะที่ขาด</button></div></div>
   </div><div class="panel-b nopad">
     ${rows.length?`<div class="tbl-wrap"><table><thead><tr>
       <th>Part Number</th><th>ลูกค้า</th><th class="num">Forecast</th><th class="num">PO</th><th class="num">แผนส่ง</th><th class="num">รวมต้องการ</th><th class="num">ของที่มี</th><th class="num">กำลังผลิต</th><th class="num">คงเหลือสุทธิ</th><th>สถานะ</th><th>ดำเนินการ</th>
-    </tr></thead><tbody>
+    </tr></thead><tbody id="mrpRows">
     ${rows.map(r=>`<tr>
       <td><span class="pn ${r.pid?'linkish':''}" ${r.pid?`onclick="openProduct('${r.pid}')"`:''}>${esc(r.pn)}</span><br><span class="muted" style="font-size:11px">${esc(r.name||'')}</span></td>
       <td>${esc(r.cust||'-')}</td>
