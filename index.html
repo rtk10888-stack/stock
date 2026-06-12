@@ -323,7 +323,7 @@ function nextNo(prefix){
   return `${prefix}-${String(ym.getFullYear()+543).slice(2)}${String(ym.getMonth()+1).padStart(2,'0')}${String(DB.counters[k]).padStart(4,'0')}`;
 }
 function peekPO(){ const y=String(new Date().getFullYear()+543).slice(2); return `PO${y}${String((DB.counters['PO']||0)+1).padStart(5,'0')}`; }
-function commitPONo(no){ const m=/^PO\d{2}(\d{5})$/.exec(no); if(m){ const n=parseInt(m[1],10); if(n>(DB.counters['PO']||0))DB.counters['PO']=n; } }
+function commitPONo(no){ const m=/^PO(\d{2})(\d{5})$/.exec(no); if(m){ const cy=String(new Date().getFullYear()+543).slice(2); if(m[1]===cy){ const n=parseInt(m[2],10); if(n>(DB.counters['PO']||0))DB.counters['PO']=n; } } }
 
 /* ---------- Doc type registry ----------
    Each doc has status pending->approved (or cancelled). Stock effect applies on approve. */
@@ -641,7 +641,7 @@ function viewDocs(type){
   ${docHint(type)}
   <div class="panel">
     <div class="panel-h"><h2>${cfg.label}</h2><div class="desc">${docs.length} เอกสาร</div>
-      <div class="right">${type==='PRD'?`<div class="searchbox"><input id="docSearch" placeholder="ค้นเลขที่ PO / Part / MAKER" oninput="filterDocRows()"></div>`:''}<button class="btn pri" onclick="openDocForm('${type}')">+ สร้าง${cfg.label}</button></div>
+      <div class="right">${type==='PRD'?`<div class="searchbox"><input id="docSearch" placeholder="ค้นเลขที่ PO / Part / MAKER" oninput="filterDocRows()"></div><input type="file" id="prdImportFile" accept=".json" style="display:none" onchange="applyPRDImport(this)"><button class="btn" onclick="document.getElementById('prdImportFile').click()">📥 นำเข้า</button>`:''}<button class="btn pri" onclick="openDocForm('${type}')">+ สร้าง${cfg.label}</button></div>
     </div>
     <div class="panel-b nopad">
       ${docs.length?`<div class="tbl-wrap"><table><thead><tr>
@@ -858,6 +858,37 @@ function prdRow(d){
       <button class="btn sm" onclick="printPO('${d.id}')">🖨️</button>
       ${d.status==='pending'?`<button class="btn sm ok" onclick="approveDoc('${d.id}')">อนุมัติ</button>`:''}
     </td></tr>`;
+}
+function applyPRDImport(input){
+  const f=input.files[0];if(!f)return;const r=new FileReader();
+  r.onload=e=>{
+    let data;try{data=JSON.parse(e.target.result)}catch(err){toast('ไฟล์ไม่ถูกต้อง','err');input.value='';return}
+    const orders=Array.isArray(data)?data:(data.orders||[]);
+    if(!orders.length){toast('ไม่พบรายการในไฟล์','err');input.value='';return}
+    ensureSettings();let added=0,skipped=0,matched=0;
+    orders.forEach(o=>{
+      const no=(o.no||'').trim();if(!no)return;
+      if(DB.docs.find(x=>x.type==='PRD'&&x.no===no)){skipped++;return;}
+      const pn=(o.pn||'').trim();const p=DB.products.find(x=>x.type==='FG'&&x.pn===pn);if(p)matched++;
+      const qty=Number(o.qty)||0,price=Number(o.price)||0;const maker=(o.maker||'').trim();
+      DB.docs.push({id:uid(),type:'PRD',ts:Date.now(),status:'approved',imported:true,approvedAt:'(นำเข้า)',
+        no,date:o.date||todayISO(),maker,makerInfo:makerByCode(maker)||{code:maker},producer:'',customer:(o.customer||'').trim(),
+        lines:[{fgId:p?p.id:'',name:p?(p.pn+(p.name&&p.name!=='-'?' '+p.name:'')):(pn+(o.name?' '+o.name:'')),qty,price,due:o.due||''}],
+        wht3:false,subtotal:qty*price,wht:0,net:qty*price,note:o.customer?('ลูกค้า: '+o.customer):''});
+      commitPONo(no);
+      if(maker&&!makerByCode(maker))DB.settings.makers.push({code:maker,name:'',taxId:'',address:'',tel:''});
+      added++;
+    });
+    saveDB();render();
+    modal({title:'📥 ผลการนำเข้าใบสั่งผลิต',body:`
+      <div class="kv"><span class="k">นำเข้าใหม่</span><b style="color:var(--teal)">${fmt(added)} ใบ</b></div>
+      <div class="kv"><span class="k">จับคู่ Part Number ได้</span><b>${fmt(matched)} ใบ</b></div>
+      <div class="kv"><span class="k">ข้าม (เลข PO ซ้ำ)</span><b>${fmt(skipped)} ใบ</b></div>
+      <div class="hint" style="margin-top:10px"><span class="i">ℹ️</span><div>เป็นข้อมูลย้อนหลัง (สถานะอนุมัติแล้ว) ใช้ค้น/อ้างอิงในใบเบิกวัตถุดิบได้ และไม่ถูกนับเป็น "กำลังผลิต" ในหน้าเช็คความเพียงพอ</div></div>
+    `,footer:`<button class="btn pri" onclick="closeModal()">ตกลง</button>`});
+    input.value='';
+  };
+  r.readAsText(f);
 }
 function openPRDForm(edit,prefill){
   ensureSettings();
@@ -1548,7 +1579,7 @@ function mrpRows(){
   DB.docs.filter(d=>d.type==='FC').forEach(d=>d.lines.forEach(l=>{const a=ens(keyOf(l),l);a.fc+=(l.m1||0)+(l.m2||0)+(l.m3||0)+(l.m4||0)}));
   DB.docs.filter(d=>d.type==='CPO').forEach(d=>d.lines.forEach(l=>{const a=ens(keyOf(l),l);a.po+=l.qty||0}));
   DB.docs.filter(d=>d.type==='PL').forEach(d=>d.lines.forEach(l=>{const a=ens(keyOf(l),l);a.pl+=l.qty||0}));
-  const onOrder={};DB.docs.filter(d=>d.type==='PRD'&&(d.status==='approved'||d.status==='pending')).forEach(d=>(d.lines||[]).forEach(l=>{const k=l.fgId||('pn:'+((l.name||'').split(' ')[0]));onOrder[k]=(onOrder[k]||0)+(l.qty||0)}));
+  const onOrder={};DB.docs.filter(d=>d.type==='PRD'&&(d.status==='approved'||d.status==='pending')&&!d.imported).forEach(d=>(d.lines||[]).forEach(l=>{const k=l.fgId||('pn:'+((l.name||'').split(' ')[0]));onOrder[k]=(onOrder[k]||0)+(l.qty||0)}));
   return Object.keys(agg).map(k=>{const a=agg[k];const p=a.fgId?P(a.fgId):DB.products.find(x=>x.type==='FG'&&x.pn===a.pn);
     const avail=p?(p.onHand+p.wip+p.atPlating+p.passedQC):0;const oo=onOrder[k]||(p&&onOrder[p.id])||0;
     const demand=a.fc+a.po+a.pl;const supply=avail+oo;const bal=supply-demand;
