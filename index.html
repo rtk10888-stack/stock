@@ -511,9 +511,9 @@ function viewInventory(el){
         <button class="${invFilter.type==='RM'?'on':''}" onclick="invSet('RM')">วัตถุดิบ</button>
       </div>
       <div class="searchbox"><input id="invQ" placeholder="ค้นหา PN / ชื่อ / ลูกค้า..." value="${esc(invFilter.q)}" oninput="invFilter.q=this.value;renderInvTable()"></div>
-      <select onchange="invFilter.cust=this.value;renderInvTable()" style="max-width:170px;width:auto"><option value="">👥 ลูกค้าทั้งหมด</option>${custs.map(v=>'<option value="'+esc(v)+'" '+(invFilter.cust===v?'selected':'')+'>'+esc(v)+'</option>').join('')}</select>
-      <select onchange="invFilter.plating=this.value;renderInvTable()" style="max-width:150px;width:auto"><option value="">✨ การชุบทั้งหมด</option><option value="none" ${invFilter.plating==='none'?'selected':''}>ไม่ชุบ</option>${plts.map(v=>'<option value="'+esc(v)+'" '+(invFilter.plating===v?'selected':'')+'>'+esc(v)+'</option>').join('')}</select>
-      <select onchange="invFilter.cond=this.value;renderInvTable()" style="max-width:180px;width:auto"><option value="">🧱 เงื่อนไขวัตถุดิบ</option><option value="cust" ${invFilter.cond==='cust'?'selected':''}>ลูกค้าจ่ายแมท</option><option value="own" ${invFilter.cond==='own'?'selected':''}>บริษัทซื้อแมท</option></select>
+      <input list="dl_invcust" placeholder="👥 ลูกค้า (พิมพ์ค้นหา)" value="${esc(invFilter.cust)}" oninput="invFilter.cust=this.value;renderInvTable()" style="max-width:170px;width:auto"><datalist id="dl_invcust">${custs.map(v=>'<option value="'+esc(v)+'">').join('')}</datalist>
+      <input list="dl_invplt" placeholder="✨ การชุบ (พิมพ์ค้นหา)" value="${esc(invFilter.plating)}" oninput="invFilter.plating=this.value;renderInvTable()" style="max-width:150px;width:auto"><datalist id="dl_invplt"><option value="ไม่ชุบ">${plts.map(v=>'<option value="'+esc(v)+'">').join('')}</datalist>
+      <input list="dl_invcond" placeholder="🧱 เงื่อนไขวัตถุดิบ" value="${esc(invFilter.cond)}" oninput="invFilter.cond=this.value;renderInvTable()" style="max-width:180px;width:auto"><datalist id="dl_invcond"><option value="ลูกค้าจ่ายแมท"><option value="บริษัทซื้อแมท"></datalist>
       <div class="right">
         <input type="file" id="balanceFile" accept=".json" style="display:none" onchange="applyBalanceUpdate(this)">
         <button class="btn" onclick="document.getElementById('balanceFile').click()">📊 อัปเดตยอดคงเหลือ</button>
@@ -529,9 +529,9 @@ function renderInvTable(){
   const q=invFilter.q.trim().toLowerCase();
   let list=DB.products.filter(p=>invFilter.type==='all'||p.type===invFilter.type);
   if(q)list=list.filter(p=>(p.pn+' '+p.name+' '+p.customer+' '+p.material).toLowerCase().includes(q));
-  if(invFilter.cust)list=list.filter(p=>p.customer===invFilter.cust);
-  if(invFilter.plating){ if(invFilter.plating==='none')list=list.filter(p=>p.type==='FG'&&!p.needPlating); else list=list.filter(p=>p.needPlating&&(p.plating||'')===invFilter.plating); }
-  if(invFilter.cond){ if(invFilter.cond==='cust')list=list.filter(p=>p.custSupplyMat); else if(invFilter.cond==='own')list=list.filter(p=>p.type==='FG'&&!p.custSupplyMat); }
+  if(invFilter.cust){const cv=invFilter.cust.toLowerCase();list=list.filter(p=>(p.customer||'').toLowerCase().includes(cv));}
+  if(invFilter.plating){const pv=invFilter.plating.toLowerCase(); if(pv==='none'||pv.indexOf('ไม่ชุบ')>=0)list=list.filter(p=>p.type==='FG'&&!p.needPlating); else list=list.filter(p=>p.needPlating&&(p.plating||'').toLowerCase().includes(pv)); }
+  if(invFilter.cond){const cv=invFilter.cond.toLowerCase(); if(cv==='cust'||cv.indexOf('ลูกค้า')>=0)list=list.filter(p=>p.custSupplyMat); else if(cv==='own'||cv.indexOf('บริษัท')>=0)list=list.filter(p=>p.type==='FG'&&!p.custSupplyMat); }
   list=list.slice().sort((a,b)=>a.pn.localeCompare(b.pn));
   if(!list.length){wrap.innerHTML=`<div class="empty"><div class="big">🔍</div><div class="t">ไม่พบรายการ</div></div>`;return}
   const sum=f=>list.reduce((s,p)=>s+(Number(f(p))||0),0);
