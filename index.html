@@ -1150,7 +1150,7 @@ function openPurchaseForm(edit){
   ensureSettings();const sups=DB.settings.suppliers||[];
   modal({title:'🛒 '+(edit?'แก้ไข':'สร้าง')+'ใบสั่งซื้อวัตถุดิบ',size:'lg',body:`
     <div class="row c3">
-      <div class="field"><label>เลขที่ (PO NO.)</label><input id="pu_no" value="${edit?esc(edit.no):esc(peekPU())}"></div>
+      <div class="field"><label>เลขที่ (PO NO.)</label><input id="pu_no" list="dl_puno" value="${edit?esc(edit.no):esc(peekPU())}"><datalist id="dl_puno">${DB.docs.filter(x=>x.type==='PO').sort((a,b)=>b.ts-a.ts).map(x=>`<option value="${esc(x.no)}">${esc(x.supplier||'')}</option>`).join('')}</datalist></div>
       <div class="field"><label>วันที่</label><input type="date" id="pu_date" value="${edit?edit.date:todayISO()}"></div>
       <div class="field"><label>กำหนดส่ง</label><input type="date" id="pu_due" value="${edit?(edit.deliveryDate||''):''}"></div>
     </div>
