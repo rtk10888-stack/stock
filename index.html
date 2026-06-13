@@ -182,7 +182,7 @@ td.num,th.num{text-align:right;font-family:'Inter',sans-serif;font-variant-numer
   <aside class="sidebar">
     <div class="brand">
       <div class="logo">RTK</div>
-      <div><div class="t1">Store Control</div><div class="t2">ระบบควบคุมสต๊อค · build GR-2026.06.13b</div></div>
+      <div><div class="t1">Store Control</div><div class="t2">ระบบควบคุมสต๊อค · build GR-2026.06.13c (inline)</div></div>
     </div>
     <nav class="nav" id="nav"></nav>
   </aside>
@@ -672,9 +672,10 @@ function viewDocs(type){
   const makerFn=isPRD?'filterPrdRows()':isWD?'filterWdRows()':'filterDocRows()';
   el.innerHTML=`
   ${docHint(type)}
+  ${isGR?grPanelHTML():''}
   <div class="panel">
     <div class="panel-h" style="flex-wrap:wrap;gap:8px"><h2>${cfg.label}</h2><div class="desc">${docs.length} เอกสาร</div>
-      <div class="right" style="flex-wrap:wrap;gap:6px"><div class="searchbox"><input id="docSearch" placeholder="ค้นหา เลขที่ / Part / รายการ" oninput="${searchFn}"></div>${isPO?`<input id="poNoF" list="dl_pono" placeholder="🔢 เลขที่ PO" oninput="filterPORows()" style="max-width:140px;width:auto"><datalist id="dl_pono">${docs.map(d=>`<option value="${esc(d.no)}">${esc(d.supplier||'')}</option>`).join('')}</datalist><input id="poMon" list="dl_pomon" placeholder="📅 เดือน" oninput="filterPORows()" style="max-width:120px;width:auto"><datalist id="dl_pomon">${poMons.map(m=>`<option value="${m}">`).join('')}</datalist><input id="poSup" list="dl_posup" placeholder="🏢 ผู้ขาย" oninput="filterPORows()" style="max-width:150px;width:auto"><datalist id="dl_posup">${poSups.map(s=>`<option value="${esc(s)}">`).join('')}</datalist><input id="poItem" list="dl_poitem" placeholder="📦 สินค้า" oninput="filterPORows()" style="max-width:180px;width:auto"><datalist id="dl_poitem">${poItems.map(it=>`<option value="${esc(it)}">`).join('')}</datalist>`:''}${isGR?`<select id="grMon" onchange="filterGrRows()" style="max-width:130px;width:auto"><option value="">📅 ทุกเดือน</option>${grMons.map(m=>`<option value="${m}">${m}</option>`).join('')}</select><select id="grSup" onchange="filterGrRows()" style="max-width:150px;width:auto"><option value="">🏢 ผู้ขายทั้งหมด</option>${grSups.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('')}</select><select id="grItem" onchange="filterGrRows()" style="max-width:190px;width:auto"><option value="">📦 สินค้าทั้งหมด</option>${grItems.map(it=>`<option value="${esc(it)}">${esc(it.length>42?it.slice(0,42)+'…':it)}</option>`).join('')}</select>`:''}${isWD?`<select id="wdMon" onchange="filterWdRows()" style="max-width:130px;width:auto"><option value="">📅 ทุกเดือน</option>${wdMons.map(m=>`<option value="${m}">${m}</option>`).join('')}</select>`:''}${isPRD?`<select id="prdMon" onchange="filterPrdRows()" style="max-width:130px;width:auto"><option value="">📅 ทุกเดือน</option>${prdMons.map(m=>`<option value="${m}">${m}</option>`).join('')}</select>`:''}${(type==='PRD'||type==='WD')?`<select id="docMaker" onchange="${makerFn}" style="max-width:160px;width:auto"><option value="">🏭 MAKER ทั้งหมด</option>${(DB.settings.makers||[]).map(m=>`<option value="${esc(m.code)}">${esc(m.code)}${m.name?' — '+esc(m.name):''}</option>`).join('')}</select>`:''}${isWD?`<select id="wdItem" onchange="filterWdRows()" style="max-width:190px;width:auto"><option value="">📦 วัตถุดิบทั้งหมด</option>${wdItems.map(it=>`<option value="${esc(it)}">${esc(it.length>42?it.slice(0,42)+'…':it)}</option>`).join('')}</select>`:''}${isPRD?`<select id="prdItem" onchange="filterPrdRows()" style="max-width:190px;width:auto"><option value="">📦 สินค้าทั้งหมด</option>${prdItems.map(it=>`<option value="${esc(it)}">${esc(it.length>42?it.slice(0,42)+'…':it)}</option>`).join('')}</select>`:''}${type==='PRD'?`<input type="file" id="prdImportFile" accept=".json" style="display:none" onchange="applyPRDImport(this)"><button class="btn" onclick="document.getElementById('prdImportFile').click()">📥 นำเข้า</button>`:''}${type==='WD'?`<input type="file" id="wdImportFile" accept=".json" style="display:none" onchange="applyWDImport(this)"><button class="btn" onclick="document.getElementById('wdImportFile').click()">📥 นำเข้า</button>`:''}${type==='PO'?`<input type="file" id="poImportFile" accept=".json" style="display:none" onchange="applyPurchaseImport(this)"><button class="btn" onclick="document.getElementById('poImportFile').click()">📥 นำเข้า</button>`:''}<button class="btn pri" onclick="openDocForm('${type}')">+ สร้าง${cfg.label}</button></div>
+      <div class="right" style="flex-wrap:wrap;gap:6px"><div class="searchbox"><input id="docSearch" placeholder="ค้นหา เลขที่ / Part / รายการ" oninput="${searchFn}"></div>${isPO?`<select id="poMon" onchange="filterPORows()" style="max-width:130px;width:auto"><option value="">📅 ทุกเดือน</option>${poMons.map(m=>`<option value="${m}">${m}</option>`).join('')}</select><select id="poSup" onchange="filterPORows()" style="max-width:150px;width:auto"><option value="">🏢 ผู้ขายทั้งหมด</option>${poSups.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('')}</select><select id="poItem" onchange="filterPORows()" style="max-width:190px;width:auto"><option value="">📦 สินค้าทั้งหมด</option>${poItems.map(it=>`<option value="${esc(it)}">${esc(it.length>42?it.slice(0,42)+'…':it)}</option>`).join('')}</select>`:''}${isGR?`<select id="grMon" onchange="filterGrRows()" style="max-width:130px;width:auto"><option value="">📅 ทุกเดือน</option>${grMons.map(m=>`<option value="${m}">${m}</option>`).join('')}</select><select id="grSup" onchange="filterGrRows()" style="max-width:150px;width:auto"><option value="">🏢 ผู้ขายทั้งหมด</option>${grSups.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('')}</select><select id="grItem" onchange="filterGrRows()" style="max-width:190px;width:auto"><option value="">📦 สินค้าทั้งหมด</option>${grItems.map(it=>`<option value="${esc(it)}">${esc(it.length>42?it.slice(0,42)+'…':it)}</option>`).join('')}</select>`:''}${isWD?`<select id="wdMon" onchange="filterWdRows()" style="max-width:130px;width:auto"><option value="">📅 ทุกเดือน</option>${wdMons.map(m=>`<option value="${m}">${m}</option>`).join('')}</select>`:''}${isPRD?`<select id="prdMon" onchange="filterPrdRows()" style="max-width:130px;width:auto"><option value="">📅 ทุกเดือน</option>${prdMons.map(m=>`<option value="${m}">${m}</option>`).join('')}</select>`:''}${(type==='PRD'||type==='WD')?`<select id="docMaker" onchange="${makerFn}" style="max-width:160px;width:auto"><option value="">🏭 MAKER ทั้งหมด</option>${(DB.settings.makers||[]).map(m=>`<option value="${esc(m.code)}">${esc(m.code)}${m.name?' — '+esc(m.name):''}</option>`).join('')}</select>`:''}${isWD?`<select id="wdItem" onchange="filterWdRows()" style="max-width:190px;width:auto"><option value="">📦 วัตถุดิบทั้งหมด</option>${wdItems.map(it=>`<option value="${esc(it)}">${esc(it.length>42?it.slice(0,42)+'…':it)}</option>`).join('')}</select>`:''}${isPRD?`<select id="prdItem" onchange="filterPrdRows()" style="max-width:190px;width:auto"><option value="">📦 สินค้าทั้งหมด</option>${prdItems.map(it=>`<option value="${esc(it)}">${esc(it.length>42?it.slice(0,42)+'…':it)}</option>`).join('')}</select>`:''}${type==='PRD'?`<input type="file" id="prdImportFile" accept=".json" style="display:none" onchange="applyPRDImport(this)"><button class="btn" onclick="document.getElementById('prdImportFile').click()">📥 นำเข้า</button>`:''}${type==='WD'?`<input type="file" id="wdImportFile" accept=".json" style="display:none" onchange="applyWDImport(this)"><button class="btn" onclick="document.getElementById('wdImportFile').click()">📥 นำเข้า</button>`:''}${type==='PO'?`<input type="file" id="poImportFile" accept=".json" style="display:none" onchange="applyPurchaseImport(this)"><button class="btn" onclick="document.getElementById('poImportFile').click()">📥 นำเข้า</button>`:''}${isGR?`<button class="btn pri" onclick="grClear();window.scrollTo({top:0,behavior:'smooth'})">+ รายการใหม่</button>`:`<button class="btn pri" onclick="openDocForm('${type}')">+ สร้าง${cfg.label}</button>`}</div>
     </div>
     <div class="panel-b nopad">
       ${docs.length?`<div class="tbl-wrap"><table><thead><tr>
@@ -684,6 +685,7 @@ function viewDocs(type){
       </tbody>${isPO?`<tfoot><tr style="font-weight:700;background:var(--panel2);border-top:2px solid var(--line)"><td colspan="3">SUBTOTAL (รวมยอดเงินตามที่กรอง)</td><td class="num" id="poSubtotal">${fmt2(poTotal)}</td><td colspan="2"></td></tr></tfoot>`:''}${isPRD?`<tfoot><tr style="font-weight:700;background:var(--panel2);border-top:2px solid var(--line)"><td colspan="3">SUBTOTAL (รวมจำนวนผลิตตามที่กรอง)</td><td class="num" id="prdSubtotal">${fmt(prdTotal)}</td><td colspan="2"></td></tr></tfoot>`:''}${isGR?`<tfoot><tr style="font-weight:700;background:var(--panel2);border-top:2px solid var(--line)"><td colspan="3">SUBTOTAL (รวมจำนวนรับตามที่กรอง)</td><td class="num" id="grSubtotal">${fmt(grTotal)}</td><td colspan="2"></td></tr></tfoot>`:''}${isWD?`<tfoot><tr style="font-weight:700;background:var(--panel2);border-top:2px solid var(--line)"><td colspan="3">SUBTOTAL (รวมจำนวนเบิกตามที่กรอง)</td><td class="num" id="wdSubtotal">${fmt(wdTotal)}</td><td colspan="2"></td></tr></tfoot>`:''}</table></div>`:`<div class="empty"><div class="big">${cfg.icon}</div><div class="t">ยังไม่มีเอกสาร</div><div>กดปุ่ม "สร้าง${cfg.label}" เพื่อเริ่มต้น</div></div>`}
     </div>
   </div>`;
+  if(isGR){ if(!Array.isArray(grLines)||!grLines.length)grLines=[grBlank()]; setTimeout(renderGrLines,20); }
 }
 function docHint(type){
   const h={
@@ -944,6 +946,7 @@ function grRow(d){
     <td style="text-align:right;white-space:nowrap">
       <button class="btn sm" onclick="viewDoc('${d.id}')">ดู</button>
       <button class="btn sm" onclick="printGR('${d.id}')">🖨️</button>
+      <button class="btn sm" onclick="editGRInline('${d.id}')">✏️</button>
       ${d.status==='pending'?`<button class="btn sm ok" onclick="approveDoc('${d.id}')">อนุมัติ</button>`:''}
       ${d.status==='approved'?`<button class="btn sm danger" onclick="cancelDoc('${d.id}')">ยกเลิก</button>`:''}
     </td></tr>`;
@@ -958,6 +961,40 @@ function filterGrRows(){
   const st=document.getElementById('grSubtotal');if(st)st.textContent=fmt(sum);
 }
 var grLines=[];
+function grBlank(){return {date:todayISO(),deliveryNote:'',poNo:'',poId:'',productId:'',name:'',orderedQty:'',unit:'Pcs.',supplier:'',dueDate:'',receivedQty:'',remark:'',sampleCount:'',sampleWeight:'',totalWeight:'',computed:0};}
+function grPanelHTML(){
+  return `<div class="panel" style="margin-bottom:14px;border:1.5px solid var(--brand)">
+    <div class="panel-h"><h2>📥 บันทึกรับวัตถุดิบ (กรอกบนหน้านี้ได้เลย)</h2><div class="desc" id="grEditTag">รายการใหม่</div></div>
+    <div class="panel-b">
+      <div class="row c3">
+        <div class="field"><label>เลขที่ (Doc No.)</label><input id="gr_no" value="(สร้างอัตโนมัติ)" readonly style="background:var(--panel2);color:var(--ink3)"></div>
+        <div class="field"><label>วันที่เอกสาร</label><input type="date" id="gr_date" value="${todayISO()}"></div>
+        <div class="field"><label>หมายเหตุรวม</label><input id="gr_note" placeholder="(ถ้ามี)"></div>
+      </div>
+      <input type="hidden" id="gr_editid" value="">
+      <div class="hint"><span class="i">💡</span><div>พิมพ์ <b>เลขที่ PO</b> แล้วคลิกออก → ดึง รายการ/จำนวนสั่งซื้อ/หน่วย/ผู้ขาย/กำหนดส่ง อัตโนมัติ · ช่อง <b>MASTER</b> กรอก จำนวนตัวอย่าง + น้ำหนักตัวอย่าง(กก.) + น้ำหนักรวม → คำนวณ <b>ได้งานทั้งหมด</b> แล้วตั้งเป็นจำนวนส่ง</div></div>
+      <div id="grRoot"></div>
+      <button class="btn sm" style="margin-top:6px" onclick="grAddLine()">+ เพิ่มรายการรับ</button>
+      <div class="field" style="margin-top:8px;max-width:380px"><label>ผู้รับของ / หมายเหตุ</label><input id="gr_recv" placeholder="ชื่อผู้รับของ"></div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px">
+        <button class="btn" onclick="grClear()">🧹 ล้างฟอร์ม</button>
+        <button class="btn" onclick="submitGRInline('pending')">บันทึก (รออนุมัติ)</button>
+        <button class="btn pri" onclick="submitGRInline('approved')">บันทึก + อนุมัติ (รับเข้าสต๊อค)</button>
+      </div>
+    </div>
+  </div>`;
+}
+function submitGRInline(status){const id=(document.getElementById('gr_editid')||{}).value||'';submitGR(status,id);}
+function grClear(){grLines=[grBlank()];const set=(k,v)=>{const e=document.getElementById(k);if(e)e.value=v;};set('gr_editid','');set('gr_note','');set('gr_recv','');set('gr_date',todayISO());set('gr_no','(สร้างอัตโนมัติ)');const et=document.getElementById('grEditTag');if(et)et.textContent='รายการใหม่';renderGrLines();}
+function editGRInline(id){
+  const d=DB.docs.find(x=>x.id===id);if(!d)return;
+  grLines=(d.lines||[]).map(l=>Object.assign(grBlank(),{date:l.date||'',deliveryNote:l.deliveryNote||'',poNo:l.poNo||'',poId:l.poId||'',productId:l.productId||'',name:l.name||'',orderedQty:l.orderedQty||'',unit:l.unit||'Pcs.',supplier:l.supplier||'',dueDate:l.dueDate||'',receivedQty:(l.receivedQty!=null?l.receivedQty:l.qty)||'',remark:l.remark||'',sampleCount:l.sampleCount||'',sampleWeight:l.sampleWeight||'',totalWeight:l.totalWeight||'',computed:l.computed||0}));
+  if(!grLines.length)grLines=[grBlank()];
+  const set=(k,v)=>{const e=document.getElementById(k);if(e)e.value=v;};
+  set('gr_editid',d.id);set('gr_date',d.date||todayISO());set('gr_note',d.note||'');set('gr_recv',d.receiver||'');set('gr_no',d.no);
+  const et=document.getElementById('grEditTag');if(et)et.textContent='✏️ กำลังแก้ไข: '+d.no;
+  renderGrLines();try{window.scrollTo({top:0,behavior:'smooth'});}catch(e){}
+}
 function openGRForm(edit){
   ensureSettings();
   const blank=()=>({date:todayISO(),deliveryNote:'',poNo:'',poId:'',productId:'',name:'',orderedQty:'',unit:'Pcs.',supplier:'',dueDate:'',receivedQty:'',remark:'',sampleCount:'',sampleWeight:'',totalWeight:'',computed:0});
@@ -1083,7 +1120,7 @@ function submitGR(status,editId){
   d.totalQty=lines.reduce((s,l)=>s+l.qty,0);d.totalWeight=lines.reduce((s,l)=>s+l.totalWeight,0);
   if(status==='approved'){const r=doApprove(d);if(!r.ok){toast('อนุมัติไม่สำเร็จ: '+r.err,'err');return}toast('รับเข้าสต๊อคแล้ว: '+d.no,'ok');}
   else toast((editId?'บันทึกการแก้ไข ':'สร้างใบรับ ')+d.no+' (รออนุมัติ)','ok');
-  closeModal();render();
+  grLines=[];closeModal();render();
 }
 function printGR(id,mode){
   const d=DB.docs.find(x=>x.id===id);if(!d)return;ensureSettings();const co=DB.settings.company||{};
