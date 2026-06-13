@@ -1116,10 +1116,10 @@ function viewPurchase(d){
     <div style="overflow-x:auto"><table style="margin-top:4px"><thead><tr><th>#</th><th>รายการ</th><th class="num">จำนวน</th><th>หน่วย</th><th class="num">ราคา</th><th class="num">จำนวนเงิน</th></tr></thead><tbody>${rows}</tbody></table></div>
     <div style="margin-top:10px"><div class="kv"><span class="k">TOTAL (รวมเป็นเงิน)</span><b>${fmt2(d.subtotal||0)}</b></div>${d.discount?`<div class="kv"><span class="k">Discount (ส่วนลด)</span><b style="color:var(--red)">-${fmt2(d.discount)}</b></div>`:''}<div class="kv"><span class="k">AMOUNT</span><b>${fmt2((d.amount!=null)?d.amount:(d.subtotal||0))}</b></div>${d.vat7?`<div class="kv"><span class="k">VAT 7%</span><b>${fmt2(d.vat||0)}</b></div>`:''}<div class="kv"><span class="k">GRAND TOTAL (ยอดสุทธิ)</span><b style="color:var(--teal)">${fmt2((d.grandTotal!=null)?d.grandTotal:(d.total||d.subtotal||0))} บาท</b></div></div>
     ${d.note?`<div class="kv" style="margin-top:6px"><span class="k">หมายเหตุ</span>${esc(d.note)}</div>`:''}
-  `,footer:`${d.status==='pending'?`<button class="btn ok" onclick="approveDoc('${d.id}')">✓ อนุมัติ</button><button class="btn" onclick="closeModal();openPurchaseForm(DB.docs.find(x=>x.id==='${d.id}'))">✏️ แก้ไข</button>`:''}<button class="btn" onclick="sharePurchaseLine('${d.id}')">📤 LINE</button><button class="btn pri" onclick="printPurchase('${d.id}')">🖨️ พิมพ์/PDF</button>`});
+  `,footer:`${d.status==='pending'?`<button class="btn ok" onclick="approveDoc('${d.id}')">✓ อนุมัติ</button><button class="btn" onclick="closeModal();openPurchaseForm(DB.docs.find(x=>x.id==='${d.id}'))">✏️ แก้ไข</button>`:''}<button class="btn" onclick="printPurchase('${d.id}','image')">📤 ส่งรูป (LINE)</button><button class="btn pri" onclick="printPurchase('${d.id}')">🖨️ พิมพ์/PDF</button>`});
 }
 function sharePurchaseLine(id){const d=DB.docs.find(x=>x.id===id);if(!d)return;const items=(d.lines||[]).map(l=>`• ${l.name||''} x ${fmt(l.qty)}${l.unit||''} @ ${fmt2(l.price)}`).join('\n');const txt=`🛒 ใบสั่งซื้อวัตถุดิบ ${d.no}\nวันที่ ${d.date}\nผู้ขาย: ${d.supplier||'-'}\n${items}\nยอดสุทธิ: ${fmt2(d.total||d.subtotal||0)} บาท\n\nระบบสต๊อค: ${location.origin+location.pathname}`;window.open('https://line.me/R/msg/text/?'+encodeURIComponent(txt),'_blank');}
-function printPurchase(id){
+function printPurchase(id,mode){
   const d=DB.docs.find(x=>x.id===id);if(!d)return;ensureSettings();const co=DB.settings.company||{};const si=d.supplierInfo||{};
   const rows=(d.lines||[]).map((l,i)=>'<tr><td style="text-align:center">'+(i+1)+'</td><td>'+esc(l.name||'')+'</td><td class="r">'+fmt(l.qty)+'</td><td style="text-align:center">'+esc(l.unit||'')+'</td><td class="r">'+fmt2(l.price)+'</td><td class="r">'+fmt2(l.qty*l.price)+'</td></tr>').join('');
   const blanks=Array.from({length:Math.max(0,6-(d.lines||[]).length)}).map(()=>'<tr><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td></tr>').join('');
@@ -1149,9 +1149,36 @@ function printPurchase(id){
    +'<div class="tot"><div><span>TOTAL</span><span>'+fmt2(sub)+'</span></div><div><span>ส่วนลด / Discount</span><span>'+fmt2(disc)+'</span></div><div><span>AMOUNT</span><span>'+fmt2(amount)+'</span></div><div><span>VAT 7%</span><span>'+fmt2(vat)+'</span></div><div class="g"><span>GRAND TOTAL</span><span>'+fmt2(grand)+'</span></div></div></div>'
    +'<table class="sg"><tr>'+sigCell('SUPPLIER','','เมื่อได้รับ P/O. แล้ว กรุณาเซ็นต์ตอบกลับ<br>Please sign and return after receiving the P/O.')+sigCell('PURCHASED',sg.purchased)+sigCell('ISSUED',sg.issued)+sigCell('CHECKED',sg.checked)+sigCell('APPROVED',sg.approved)+'</tr></table>'
    +'<div class="fm">FM-PC-05 Rev.01</div>'
-   +'<div class="noprint" style="text-align:center;margin-top:14px"><button onclick="window.print()" style="padding:8px 22px;font-size:14px;cursor:pointer">🖨️ พิมพ์ / บันทึก PDF</button></div>'
-   +'<scr'+'ipt>setTimeout(function(){window.print()},500)</scr'+'ipt></body></html>';
+   +(mode==='image'?'':'<div class="noprint" style="text-align:center;margin-top:14px"><button onclick="window.print()" style="padding:8px 22px;font-size:14px;cursor:pointer">🖨️ พิมพ์ / บันทึก PDF</button></div><scr'+'ipt>setTimeout(function(){window.print()},500)</scr'+'ipt>')+'</body></html>';
+  if(mode==='image'){return poShareImage(html,d);}
   const w=window.open('','_blank');if(!w){toast('เบราว์เซอร์บล็อก popup','err');return}w.document.write(html);w.document.close();
+}
+async function poShareImage(html,d){
+  const frame=document.createElement('iframe');
+  frame.setAttribute('aria-hidden','true');
+  frame.style.cssText='position:fixed;left:0;top:0;width:980px;height:1500px;border:0;opacity:0.01;pointer-events:none;z-index:-1';
+  document.body.appendChild(frame);
+  const fd=frame.contentDocument||frame.contentWindow.document;
+  fd.open();fd.write(html);fd.close();
+  toast('กำลังสร้างรูปใบสั่งซื้อ...','ok');
+  await new Promise(r=>setTimeout(r,500));
+  try{
+    await loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');
+    const body=fd.body;
+    const canvas=await window.html2canvas(body,{scale:2,backgroundColor:'#ffffff',width:body.scrollWidth,height:body.scrollHeight,windowWidth:980});
+    const blob=await new Promise(res=>canvas.toBlob(res,'image/png'));
+    if(frame.parentNode)document.body.removeChild(frame);
+    const fname='PO-'+(d.no||'')+'.png';
+    const file=new File([blob],fname,{type:'image/png'});
+    if(navigator.canShare&&navigator.canShare({files:[file]})){
+      try{ await navigator.share({files:[file],title:'ใบสั่งซื้อ '+d.no,text:'ใบสั่งซื้อวัตถุดิบ '+d.no}); return; }catch(err){ if(err&&err.name==='AbortError')return; }
+    }
+    const url=URL.createObjectURL(blob);
+    const w=window.open('','_blank');
+    if(w){w.document.write('<title>'+fname+'</title><body style="margin:0;background:#444;text-align:center"><img src="'+url+'" style="max-width:100%;height:auto;display:block;margin:0 auto"></body>');w.document.close();}
+    const a=document.createElement('a');a.href=url;a.download=fname;a.click();
+    toast('บันทึกรูปใบสั่งซื้อแล้ว — เปิด LINE แล้วแนบรูปส่งได้','ok');
+  }catch(err){ if(frame.parentNode)document.body.removeChild(frame); toast('สร้างรูปไม่สำเร็จ: '+err.message,'err'); }
 }
 function purchaseRow(d){
   const items=(d.lines||[]).map(l=>l.name||(l.productId&&P(l.productId)?P(l.productId).pn:'')).slice(0,1).join(', ')+((d.lines||[]).length>1?` +${d.lines.length-1}`:'');
