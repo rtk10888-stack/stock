@@ -1170,14 +1170,17 @@ async function poShareImage(html,d){
     if(frame.parentNode)document.body.removeChild(frame);
     const fname='PO-'+(d.no||'')+'.png';
     const file=new File([blob],fname,{type:'image/png'});
-    if(navigator.canShare&&navigator.canShare({files:[file]})){
-      try{ await navigator.share({files:[file],title:'ใบสั่งซื้อ '+d.no,text:'ใบสั่งซื้อวัตถุดิบ '+d.no}); return; }catch(err){ if(err&&err.name==='AbortError')return; }
+    const isMobile=/Android|iPhone|iPad|iPod|Mobile|Mobi/i.test(navigator.userAgent||'');
+    if(isMobile&&navigator.canShare&&navigator.canShare({files:[file]})){
+      try{ await navigator.share({files:[file],title:'ใบสั่งซื้อ '+d.no}); return; }catch(err){ if(err&&err.name==='AbortError')return; }
     }
+    let copied=false;
+    try{ if(navigator.clipboard&&window.ClipboardItem){ await navigator.clipboard.write([new window.ClipboardItem({'image/png':blob})]); copied=true; } }catch(e){}
     const url=URL.createObjectURL(blob);
     const w=window.open('','_blank');
-    if(w){w.document.write('<title>'+fname+'</title><body style="margin:0;background:#444;text-align:center"><img src="'+url+'" style="max-width:100%;height:auto;display:block;margin:0 auto"></body>');w.document.close();}
+    if(w){w.document.write('<title>'+fname+'</title><body style="margin:0;background:#444;text-align:center;font-family:sans-serif"><div style="color:#ddd;padding:8px;font-size:13px">'+(copied?'✓ คัดลอกรูปแล้ว — ไปที่แชต LINE กด Ctrl+V วางรูปได้เลย':'คลิกขวาที่รูป → Copy แล้ววางใน LINE')+'</div><img src="'+url+'" style="max-width:100%;height:auto;display:block;margin:0 auto"></body>');w.document.close();}
     const a=document.createElement('a');a.href=url;a.download=fname;a.click();
-    toast('บันทึกรูปใบสั่งซื้อแล้ว — เปิด LINE แล้วแนบรูปส่งได้','ok');
+    toast(copied?'✓ คัดลอกรูปแล้ว — เปิดแชต LINE แล้วกด Ctrl+V วางรูป':'บันทึกรูปแล้ว — แนบส่งใน LINE ได้','ok');
   }catch(err){ if(frame.parentNode)document.body.removeChild(frame); toast('สร้างรูปไม่สำเร็จ: '+err.message,'err'); }
 }
 function purchaseRow(d){
