@@ -979,7 +979,7 @@ function viewPO(d){
   `,footer:`
     ${d.status==='pending'?`<button class="btn ok" onclick="approveDoc('${d.id}')">✓ อนุมัติ</button>`:''}
     <button class="btn" onclick="closeModal();openPRDForm(DB.docs.find(x=>x.id==='${d.id}'))">✏️ แก้ไข</button>
-    <button class="btn" onclick="sharePOLine('${d.id}')">📤 ส่ง LINE</button>
+    <button class="btn" onclick="printPO('${d.id}','image')">📤 ส่งรูป (LINE)</button>
     <button class="btn pri" onclick="printPO('${d.id}')">🖨️ พิมพ์ / PDF</button>`});
 }
 function sharePOLine(id){
@@ -988,7 +988,7 @@ function sharePOLine(id){
   const txt=`📋 ใบสั่งผลิต ${d.no}\nวันที่ ${d.date}\nผู้ผลิต(MAKER): ${d.maker||'-'}\n${items}\nยอดสุทธิ: ${fmt2(d.net||0)} บาท\n\nระบบสต๊อค: ${location.origin+location.pathname}`;
   window.open('https://line.me/R/msg/text/?'+encodeURIComponent(txt),'_blank');
 }
-function printPO(id){
+function printPO(id,mode){
   const d=DB.docs.find(x=>x.id===id);if(!d)return;ensureSettings();
   const co=DB.settings.company||{};const mk=d.makerInfo||makerByCode(d.maker)||{code:d.maker};
   const rows=(d.lines||[]).map((l,i)=>{const pn=l.fgId&&P(l.fgId)?P(l.fgId).pn+' '+P(l.fgId).name:(l.name||'');return `<tr><td style="text-align:center">${i+1}</td><td>${esc(pn)}</td><td class="r">${fmt(l.qty)}</td><td class="r">${fmt2(l.price)}</td><td class="r">${fmt2(l.qty*l.price)}</td><td style="text-align:center">${l.due||''}</td></tr>`}).join('');
@@ -1150,17 +1150,18 @@ function printPurchase(id,mode){
    +'<table class="sg"><tr>'+sigCell('SUPPLIER','','เมื่อได้รับ P/O. แล้ว กรุณาเซ็นต์ตอบกลับ<br>Please sign and return after receiving the P/O.')+sigCell('PURCHASED',sg.purchased)+sigCell('ISSUED',sg.issued)+sigCell('CHECKED',sg.checked)+sigCell('APPROVED',sg.approved)+'</tr></table>'
    +'<div class="fm">FM-PC-05 Rev.01</div>'
    +(mode==='image'?'':'<div class="noprint" style="text-align:center;margin-top:14px"><button onclick="window.print()" style="padding:8px 22px;font-size:14px;cursor:pointer">🖨️ พิมพ์ / บันทึก PDF</button></div><scr'+'ipt>setTimeout(function(){window.print()},500)</scr'+'ipt>')+'</body></html>';
-  if(mode==='image'){return poShareImage(html,d);}
+  if(mode==='image'){return shareDocImage(html,'PO-'+(d.no||'')+'.png','ใบสั่งซื้อ '+d.no);}
+  if(mode==='image'){return shareDocImage(html.replace(/<div class="noprint"[\s\S]*?<\/script>/i,''),(d.no||'doc')+'.png',(d.no||'เอกสาร'));}
   const w=window.open('','_blank');if(!w){toast('เบราว์เซอร์บล็อก popup','err');return}w.document.write(html);w.document.close();
 }
-async function poShareImage(html,d){
+async function shareDocImage(html,fname0,title0){
   const frame=document.createElement('iframe');
   frame.setAttribute('aria-hidden','true');
   frame.style.cssText='position:fixed;left:0;top:0;width:980px;height:1500px;border:0;opacity:0.01;pointer-events:none;z-index:-1';
   document.body.appendChild(frame);
   const fd=frame.contentDocument||frame.contentWindow.document;
   fd.open();fd.write(html);fd.close();
-  toast('กำลังสร้างรูปใบสั่งซื้อ...','ok');
+  toast('กำลังสร้างรูปเอกสาร...','ok');
   await new Promise(r=>setTimeout(r,500));
   try{
     await loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');
@@ -1168,11 +1169,11 @@ async function poShareImage(html,d){
     const canvas=await window.html2canvas(body,{scale:2,backgroundColor:'#ffffff',width:body.scrollWidth,height:body.scrollHeight,windowWidth:980});
     const blob=await new Promise(res=>canvas.toBlob(res,'image/png'));
     if(frame.parentNode)document.body.removeChild(frame);
-    const fname='PO-'+(d.no||'')+'.png';
+    const fname=fname0||'doc.png';
     const file=new File([blob],fname,{type:'image/png'});
     const isMobile=/Android|iPhone|iPad|iPod|Mobile|Mobi/i.test(navigator.userAgent||'');
     if(isMobile&&navigator.canShare&&navigator.canShare({files:[file]})){
-      try{ await navigator.share({files:[file],title:'ใบสั่งซื้อ '+d.no}); return; }catch(err){ if(err&&err.name==='AbortError')return; }
+      try{ await navigator.share({files:[file],title:(title0||'เอกสาร')}); return; }catch(err){ if(err&&err.name==='AbortError')return; }
     }
     let copied=false;
     try{ if(navigator.clipboard&&window.ClipboardItem){ await navigator.clipboard.write([new window.ClipboardItem({'image/png':blob})]); copied=true; } }catch(e){}
@@ -1286,10 +1287,10 @@ function viewWD(d){
     <div style="overflow-x:auto"><table style="font-size:12px;min-width:820px"><thead><tr><th>#</th><th>วันที่</th><th>รายการเบิก</th><th class="num">ราคา</th><th class="num">จำนวน</th><th>หน่วย</th><th class="num">รวมเงิน</th><th>PO</th><th>PART NUMBER</th><th>MAKER</th></tr></thead><tbody>${rows}</tbody></table></div>
     <div style="display:flex;gap:24px;justify-content:flex-end;margin-top:8px"><div>รวมเบิก: <b>${fmt(d.totalQty||0)}</b></div><div>รวมเงิน: <b style="color:var(--teal)">${fmt2(d.subtotal||0)}</b> บาท</div></div>
     ${d.note?`<div class="kv" style="margin-top:8px"><span class="k">ผู้จ่าย/หมายเหตุ</span>${esc(d.note)}</div>`:''}
-  `,footer:`${d.status==='pending'?`<button class="btn ok" onclick="approveDoc('${d.id}')">✓ อนุมัติ (ตัดยอด)</button><button class="btn" onclick="closeModal();openWDForm(DB.docs.find(x=>x.id==='${d.id}'))">✏️ แก้ไข</button>`:d.status==='approved'?`<button class="btn danger" onclick="cancelDoc('${d.id}')">ยกเลิก (คืนยอด)</button>`:''}<button class="btn" onclick="shareWDLine('${d.id}')">📤 LINE</button><button class="btn pri" onclick="printWD('${d.id}')">🖨️ พิมพ์/PDF</button>`});
+  `,footer:`${d.status==='pending'?`<button class="btn ok" onclick="approveDoc('${d.id}')">✓ อนุมัติ (ตัดยอด)</button><button class="btn" onclick="closeModal();openWDForm(DB.docs.find(x=>x.id==='${d.id}'))">✏️ แก้ไข</button>`:d.status==='approved'?`<button class="btn danger" onclick="cancelDoc('${d.id}')">ยกเลิก (คืนยอด)</button>`:''}<button class="btn" onclick="printWD('${d.id}','image')">📤 ส่งรูป (LINE)</button><button class="btn pri" onclick="printWD('${d.id}')">🖨️ พิมพ์/PDF</button>`});
 }
 function shareWDLine(id){const d=DB.docs.find(x=>x.id===id);if(!d)return;const items=(d.lines||[]).map(l=>`• ${l.matName||''} ${fmt(l.qty)}${l.unit||''}${l.poNo?' [PO '+l.poNo+']':''}`).join('\n');const txt=`📤 ใบเบิกวัตถุดิบ ${d.no}\nวันที่ ${d.date}\n${items}\nรวมเงิน: ${fmt2(d.subtotal||0)} บาท\n\nระบบสต๊อค: ${location.origin+location.pathname}`;window.open('https://line.me/R/msg/text/?'+encodeURIComponent(txt),'_blank');}
-function printWD(id){
+function printWD(id,mode){
   const d=DB.docs.find(x=>x.id===id);if(!d)return;ensureSettings();const co=DB.settings.company||{};const sup=makerByCode(d.supplier)||{};
   const rows=(d.lines||[]).map((l,i)=>'<tr><td style="text-align:center">'+(i+1)+'</td><td style="text-align:center">'+(l.date||'')+'</td><td>'+esc(l.matName||'')+'</td><td class="r">'+fmt2(l.price)+'</td><td class="r">'+fmt(l.qty)+'</td><td style="text-align:center">'+esc(l.unit||'')+'</td><td class="r">'+fmt2(l.price*l.qty)+'</td><td style="text-align:center">'+esc(l.poNo||'')+'</td><td>'+esc(l.fgPn||'')+'</td><td style="text-align:center">'+esc(l.maker||'')+'</td></tr>').join('');
   const blanks=Array.from({length:Math.max(0,6-(d.lines||[]).length)}).map(()=>'<tr><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>').join('');
@@ -1309,6 +1310,7 @@ function printWD(id){
    +'<div class="sign"><div><div class="line">VENDER</div></div><div><div class="line">ISSUE / ผู้จ่าย</div></div><div><div class="line">CHECKED</div></div><div><div class="line">APPROVED</div></div></div>'
    +'<div class="noprint" style="text-align:center;margin-top:18px"><button onclick="window.print()" style="padding:8px 22px;font-size:14px;cursor:pointer">🖨️ พิมพ์ / บันทึก PDF</button></div>'
    +'<scr'+'ipt>setTimeout(function(){window.print()},500)</scr'+'ipt></body></html>';
+  if(mode==='image'){return shareDocImage(html.replace(/<div class="noprint"[\s\S]*?<\/script>/i,''),(d.no||'doc')+'.png',(d.no||'เอกสาร'));}
   const w=window.open('','_blank');if(!w){toast('เบราว์เซอร์บล็อก popup','err');return}w.document.write(html);w.document.close();
 }
 function wdRow(d){
@@ -1744,10 +1746,10 @@ function viewPlan(id){
   modal({title:PLAN[d.type].icon+' '+d.no,size:'lg',body:`
     <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap"><span class="tag violet">${PLAN[d.type].label}</span><span class="tag gray">ลูกค้า: ${esc(d.customer||'-')}</span>${d.custPo?'<span class="tag gray">PO ลูกค้า: '+esc(d.custPo)+'</span>':''}${d.shipDate?'<span class="tag gray">ส่ง: '+d.shipDate+'</span>':''}</div>
     ${rows}`,
-    footer:`<button class="btn" onclick="closeModal();openPlanForm('${d.type}',DB.docs.find(x=>x.id==='${d.id}'))">✏️ แก้ไข</button><button class="btn danger" onclick="delPlan('${d.id}')">ลบ</button><button class="btn pri" onclick="printPlanDoc('${d.id}')">🖨️ พิมพ์ / PDF</button>`});
+    footer:`<button class="btn" onclick="closeModal();openPlanForm('${d.type}',DB.docs.find(x=>x.id==='${d.id}'))">✏️ แก้ไข</button><button class="btn danger" onclick="delPlan('${d.id}')">ลบ</button><button class="btn" onclick="printPlanDoc('${d.id}','image')">📤 ส่งรูป (LINE)</button><button class="btn pri" onclick="printPlanDoc('${d.id}')">🖨️ พิมพ์ / PDF</button>`});
 }
 function delPlan(id){confirmBox('ลบเอกสารนี้?','',()=>{DB.docs=DB.docs.filter(x=>x.id!==id);closeModal();render();toast('ลบแล้ว','ok')})}
-function printPlanDoc(id){
+function printPlanDoc(id,mode){
   const d=DB.docs.find(x=>x.id===id);if(!d)return;ensureSettings();const co=DB.settings.company||{};const ml=monthLabels();
   let thead,body;
   if(d.type==='FC'){thead='<th>#</th><th>Part Number</th><th>'+ml[0]+'</th><th>'+ml[1]+'</th><th>'+ml[2]+'</th><th>'+ml[3]+'</th><th>รวม</th>';
@@ -1771,6 +1773,7 @@ function printPlanDoc(id){
    +'<div class="sign"><div><div class="line">ผู้จัดทำ</div></div><div><div class="line">ผู้ตรวจสอบ</div></div><div><div class="line">ผู้อนุมัติ</div></div></div>'
    +'<div class="noprint" style="text-align:center;margin-top:22px"><button onclick="window.print()" style="padding:8px 22px;font-size:14px;cursor:pointer">🖨️ พิมพ์ / บันทึก PDF</button></div>'
    +'<scr'+'ipt>setTimeout(function(){window.print()},500)</scr'+'ipt></body></html>';
+  if(mode==='image'){return shareDocImage(html.replace(/<div class="noprint"[\s\S]*?<\/script>/i,''),(d.no||'doc')+'.png',(d.no||'เอกสาร'));}
   const w=window.open('','_blank');if(!w){toast('เบราว์เซอร์บล็อก popup','err');return}w.document.write(html);w.document.close();
 }
 /* MRP — เช็คความเพียงพอ */
