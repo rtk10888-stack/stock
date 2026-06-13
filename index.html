@@ -1166,16 +1166,30 @@ async function poShareImage(html,d){
     await loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');
     const body=fd.body;
     const canvas=await window.html2canvas(body,{scale:2,backgroundColor:'#ffffff',width:body.scrollWidth,height:body.scrollHeight,windowWidth:980});
-    const blob=await new Promise(res=>canvas.toBlob(res,'image/png'));
+    const blob=await new Promise(res=>canvas.toBlob(res,'image/jpeg',0.82));
     if(frame.parentNode)document.body.removeChild(frame);
-    const fname='PO-'+(d.no||'')+'.png';
-    const file=new File([blob],fname,{type:'image/png'});
+    const fname='PO-'+(d.no||'')+'.jpg';
+    const file=new File([blob],fname,{type:'image/jpeg'});
+    const grand=(d.grandTotal!=null)?d.grandTotal:(d.total||d.subtotal||0);
     const isMobile=/Android|iPhone|iPad|iPod|Mobile|Mobi/i.test(navigator.userAgent||'');
     if(isMobile&&navigator.canShare&&navigator.canShare({files:[file]})){
       try{ await navigator.share({files:[file],title:'ใบสั่งซื้อ '+d.no}); return; }catch(err){ if(err&&err.name==='AbortError')return; }
     }
+    if(supa){
+      try{
+        const path='po/'+(d.no||'x')+'-'+Date.now()+'.jpg';
+        const up=await supa.storage.from('shares').upload(path,blob,{contentType:'image/jpeg',upsert:true});
+        if(!up.error){
+          const purl=supa.storage.from('shares').getPublicUrl(path).data.publicUrl;
+          try{ if(navigator.clipboard&&window.ClipboardItem){ await navigator.clipboard.write([new window.ClipboardItem({'image/jpeg':blob})]); } }catch(e){}
+          window.open('https://line.me/R/msg/text/?'+encodeURIComponent('🛒 ใบสั่งซื้อวัตถุดิบ '+d.no+'\nผู้ขาย: '+(d.supplier||'-')+'\nยอดสุทธิ: '+fmt2(grand)+' บาท\nรูปใบสั่งซื้อ: '+purl),'_blank');
+          toast('เปิด LINE พร้อมลิงก์รูปแล้ว — เลือกผู้รับแล้วส่งได้เลย','ok');
+          return;
+        }
+      }catch(e){}
+    }
     let copied=false;
-    try{ if(navigator.clipboard&&window.ClipboardItem){ await navigator.clipboard.write([new window.ClipboardItem({'image/png':blob})]); copied=true; } }catch(e){}
+    try{ if(navigator.clipboard&&window.ClipboardItem){ await navigator.clipboard.write([new window.ClipboardItem({'image/jpeg':blob})]); copied=true; } }catch(e){}
     const url=URL.createObjectURL(blob);
     const w=window.open('','_blank');
     if(w){w.document.write('<title>'+fname+'</title><body style="margin:0;background:#444;text-align:center;font-family:sans-serif"><div style="color:#ddd;padding:8px;font-size:13px">'+(copied?'✓ คัดลอกรูปแล้ว — ไปที่แชต LINE กด Ctrl+V วางรูปได้เลย':'คลิกขวาที่รูป → Copy แล้ววางใน LINE')+'</div><img src="'+url+'" style="max-width:100%;height:auto;display:block;margin:0 auto"></body>');w.document.close();}
