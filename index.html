@@ -182,7 +182,7 @@ td.num,th.num{text-align:right;font-family:'Inter',sans-serif;font-variant-numer
   <aside class="sidebar">
     <div class="brand">
       <div class="logo">RTK</div>
-      <div><div class="t1">Store Control</div><div class="t2">ระบบควบคุมสต๊อค · build GR-2026.06.13e</div></div>
+      <div><div class="t1">Store Control</div><div class="t2">ระบบควบคุมสต๊อค · build RW-2026.06.13f</div></div>
     </div>
     <nav class="nav" id="nav"></nav>
   </aside>
@@ -334,6 +334,7 @@ const DT={
   PRD:{label:'ใบสั่งผลิต',icon:'📋',color:'violet',prefix:'PO',multi:false}, // production order, PO NO format
   WD:{label:'ใบเบิกวัตถุดิบ',icon:'📤',color:'amber',prefix:'WD',multi:true},
   DP:{label:'รายงานผลิตประจำวัน',icon:'🏭',color:'brand',prefix:'DP',multi:false},
+  RW:{label:'รับชิ้นงาน (จากผู้ผลิต)',icon:'📦',color:'violet',prefix:'RW',multi:true},
   PS:{label:'ส่งชุบ',icon:'🚚',color:'cyan',prefix:'PS',multi:false},
   PR:{label:'รับคืนจากชุบ',icon:'✨',color:'violet',prefix:'PR',multi:false},
   QC:{label:'คัดแยก OK/NG',icon:'🔎',color:'amber',prefix:'QC',multi:false},
@@ -351,6 +352,7 @@ function applyDoc(d){
   const t=d.type;
   try{
     if(t==='GR'){ d.lines.forEach(l=>{const p=P(l.productId);if(p){p.onHand+=l.qty;move(p.id,'onHand',+l.qty,'GR',d.no,'รับซื้อ '+(d.supplier||''));}}); }
+    else if(t==='RW'){ d.lines.forEach(l=>{const p=P(l.productId);if(p){p.wip+=l.qty;move(p.id,'wip',+l.qty,'RW',d.no,'รับชิ้นงานจากผู้ผลิต '+(l.maker||''));}}); }
     else if(t==='WD'){ d.lines.forEach(l=>{const p=P(l.productId);if(p){p.onHand-=l.qty;move(p.id,'onHand',-l.qty,'WD',d.no,'เบิกผลิต '+(l.poNo||d.refPRD||''));}}); }
     else if(t==='DP'){ const p=P(d.productId);p.wip+=d.qty;move(p.id,'wip',+d.qty,'DP',d.no,'ผลิตเสร็จ'); }
     else if(t==='PS'){ const p=P(d.productId);p.wip-=d.qty;p.atPlating+=d.qty;move(p.id,'wip',-d.qty,'PS',d.no,'ส่งชุบ '+(d.vendor||''));move(p.id,'atPlating',+d.qty,'PS',d.no,'ส่งชุบ'); }
@@ -383,6 +385,7 @@ const NAV=[
   {id:'prd',ico:'📋',label:'ใบสั่งผลิต',dt:'PRD'},
   {id:'wd',ico:'📤',label:'เบิกวัตถุดิบ',dt:'WD'},
   {id:'dp',ico:'🏭',label:'ผลิตประจำวัน',dt:'DP'},
+  {id:'rw',ico:'📦',label:'รับชิ้นงาน',dt:'RW'},
   {id:'plate',ico:'✨',label:'ส่งชุบ / รับชุบ',dt:'PS'},
   {id:'qc',ico:'🔎',label:'คัดแยก OK/NG',dt:'QC'},
   {id:'si',ico:'📦',label:'รับเข้าสต๊อค',dt:'SI'},
@@ -398,7 +401,7 @@ const NAV=[
 ];
 let route='dashboard';
 function pendingCount(){return DB.docs.filter(d=>d.status==='pending').length}
-const ABBR={dashboard:'HOME',inventory:'STOCK',approvals:'APPR',po:'PO',gr:'RECV',prd:'PROD',wd:'ISSUE',dp:'DAILY',plate:'PLATE',qc:'QC',si:'STK-IN',inv:'INV',adj:'ADJ',moves:'MOVE',demand:'PLAN',mrp:'MRP',settings:'SET'};
+const ABBR={dashboard:'HOME',inventory:'STOCK',approvals:'APPR',po:'PO',gr:'RECV',prd:'PROD',wd:'ISSUE',dp:'DAILY',rw:'RECV-W',plate:'PLATE',qc:'QC',si:'STK-IN',inv:'INV',adj:'ADJ',moves:'MOVE',demand:'PLAN',mrp:'MRP',settings:'SET'};
 function renderNav(){
   const nav=document.getElementById('nav');let h='';
   NAV.forEach(n=>{
@@ -416,7 +419,7 @@ function render(){
   const el=document.getElementById('content');
   const map={dashboard:viewDashboard,inventory:viewInventory,approvals:viewApprovals,
     po:()=>viewDocs('PO'),gr:()=>viewDocs('GR'),prd:()=>viewDocs('PRD'),wd:()=>viewDocs('WD'),
-    dp:()=>viewDocs('DP'),plate:viewPlate,qc:()=>viewDocs('QC'),si:()=>viewDocs('SI'),
+    dp:()=>viewDocs('DP'),rw:()=>viewDocs('RW'),plate:viewPlate,qc:()=>viewDocs('QC'),si:()=>viewDocs('SI'),
     inv:()=>viewDocs('INV'),adj:()=>viewDocs('ADJ'),moves:viewMoves,settings:viewSettings,
     demand:viewDemand,mrp:viewMRP};
   (map[route]||viewDashboard)(el);
@@ -652,7 +655,7 @@ function viewDocs(type){
   setTitle(cfg.icon+' '+cfg.label,'สร้าง / อนุมัติ / ติดตามสถานะ');
   const docs=DB.docs.filter(d=>d.type===type).sort((a,b)=>b.ts-a.ts);
   const el=document.getElementById('content');
-  const isPO=type==='PO', isPRD=type==='PRD', isGR=type==='GR', isWD=type==='WD';
+  const isPO=type==='PO', isPRD=type==='PRD', isGR=type==='GR', isWD=type==='WD', isRW=type==='RW';
   const liName=l=>l.productId&&P(l.productId)?P(l.productId).pn:(l.name||'');
   const poSups=isPO?[...new Set(docs.map(d=>d.supplier).filter(Boolean))].sort():[];
   const poMons=isPO?[...new Set(docs.map(d=>(d.date||'').slice(0,7)).filter(Boolean))].sort().reverse():[];
@@ -668,24 +671,28 @@ function viewDocs(type){
   const wdMons=isWD?[...new Set(docs.map(d=>(d.date||'').slice(0,7)).filter(Boolean))].sort().reverse():[];
   const wdItems=isWD?[...new Set(docs.flatMap(d=>(d.lines||[]).map(l=>l.matName||(l.productId&&P(l.productId)?P(l.productId).pn:''))).filter(Boolean))].sort():[];
   const wdTotal=isWD?docs.reduce((s,d)=>s+(d.totalQty||0),0):0;
-  const searchFn=isPO?'filterPORows()':isPRD?'filterPrdRows()':isGR?'filterGrRows()':isWD?'filterWdRows()':'filterDocRows()';
+  const rwMons=isRW?[...new Set(docs.map(d=>(d.date||'').slice(0,7)).filter(Boolean))].sort().reverse():[];
+  const rwItems=isRW?[...new Set(docs.flatMap(d=>(d.lines||[]).map(l=>l.productId&&P(l.productId)?P(l.productId).pn:l.name)).filter(Boolean))].sort():[];
+  const rwTotal=isRW?docs.reduce((s,d)=>s+(d.totalQty||0),0):0;
+  const searchFn=isPO?'filterPORows()':isPRD?'filterPrdRows()':isGR?'filterGrRows()':isWD?'filterWdRows()':isRW?'filterRwRows()':'filterDocRows()';
   const makerFn=isPRD?'filterPrdRows()':isWD?'filterWdRows()':'filterDocRows()';
   el.innerHTML=`
   ${docHint(type)}
-  ${isGR?grPanelHTML():''}
+  ${isGR?grPanelHTML():''}${isRW?rwPanelHTML():''}
   <div class="panel">
     <div class="panel-h" style="flex-wrap:wrap;gap:8px"><h2>${cfg.label}</h2><div class="desc">${docs.length} เอกสาร</div>
-      <div class="right" style="flex-wrap:wrap;gap:6px"><div class="searchbox"><input id="docSearch" placeholder="ค้นหา เลขที่ / Part / รายการ" oninput="${searchFn}"></div>${isPO?`<select id="poMon" onchange="filterPORows()" style="max-width:130px;width:auto"><option value="">📅 ทุกเดือน</option>${poMons.map(m=>`<option value="${m}">${m}</option>`).join('')}</select><select id="poSup" onchange="filterPORows()" style="max-width:150px;width:auto"><option value="">🏢 ผู้ขายทั้งหมด</option>${poSups.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('')}</select><select id="poItem" onchange="filterPORows()" style="max-width:190px;width:auto"><option value="">📦 สินค้าทั้งหมด</option>${poItems.map(it=>`<option value="${esc(it)}">${esc(it.length>42?it.slice(0,42)+'…':it)}</option>`).join('')}</select>`:''}${isGR?`<input id="grMon" list="dl_grfmon" placeholder="📅 เดือน" oninput="filterGrRows()" style="max-width:120px;width:auto"><datalist id="dl_grfmon">${grMons.map(m=>`<option value="${m}">`).join('')}</datalist><input id="grSup" list="dl_grfsup" placeholder="🏢 ผู้ขาย" oninput="filterGrRows()" style="max-width:150px;width:auto"><datalist id="dl_grfsup">${grSups.map(s=>`<option value="${esc(s)}">`).join('')}</datalist><input id="grItem" list="dl_grfitem" placeholder="📦 สินค้า" oninput="filterGrRows()" style="max-width:180px;width:auto"><datalist id="dl_grfitem">${grItems.map(it=>`<option value="${esc(it)}">`).join('')}</datalist>`:''}${isWD?`<input id="wdMon" list="dl_wdfmon" placeholder="📅 เดือน" oninput="filterWdRows()" style="max-width:120px;width:auto"><datalist id="dl_wdfmon">${wdMons.map(m=>`<option value="${m}">`).join('')}</datalist>`:''}${isPRD?`<input id="prdMon" list="dl_prdfmon" placeholder="📅 เดือน" oninput="filterPrdRows()" style="max-width:120px;width:auto"><datalist id="dl_prdfmon">${prdMons.map(m=>`<option value="${m}">`).join('')}</datalist>`:''}${(type==='PRD'||type==='WD')?`<input id="docMaker" list="dl_fmaker" placeholder="🏭 MAKER" oninput="${makerFn}" style="max-width:150px;width:auto"><datalist id="dl_fmaker">${(DB.settings.makers||[]).map(m=>`<option value="${esc(m.code)}">${m.name?esc(m.name):''}</option>`).join('')}</datalist>`:''}${isWD?`<select id="wdItem" onchange="filterWdRows()" style="max-width:190px;width:auto"><option value="">📦 วัตถุดิบทั้งหมด</option>${wdItems.map(it=>`<option value="${esc(it)}">${esc(it.length>42?it.slice(0,42)+'…':it)}</option>`).join('')}</select>`:''}${isPRD?`<input id="prdItem" list="dl_prdfitem" placeholder="📦 สินค้า" oninput="filterPrdRows()" style="max-width:180px;width:auto"><datalist id="dl_prdfitem">${prdItems.map(it=>`<option value="${esc(it)}">`).join('')}</datalist>`:''}${type==='PRD'?`<input type="file" id="prdImportFile" accept=".json" style="display:none" onchange="applyPRDImport(this)"><button class="btn" onclick="document.getElementById('prdImportFile').click()">📥 นำเข้า</button>`:''}${type==='WD'?`<input type="file" id="wdImportFile" accept=".json" style="display:none" onchange="applyWDImport(this)"><button class="btn" onclick="document.getElementById('wdImportFile').click()">📥 นำเข้า</button>`:''}${type==='PO'?`<input type="file" id="poImportFile" accept=".json" style="display:none" onchange="applyPurchaseImport(this)"><button class="btn" onclick="document.getElementById('poImportFile').click()">📥 นำเข้า</button>`:''}${isGR?`<button class="btn pri" onclick="grClear();window.scrollTo({top:0,behavior:'smooth'})">+ รายการใหม่</button>`:`<button class="btn pri" onclick="openDocForm('${type}')">+ สร้าง${cfg.label}</button>`}</div>
+      <div class="right" style="flex-wrap:wrap;gap:6px"><div class="searchbox"><input id="docSearch" placeholder="ค้นหา เลขที่ / Part / รายการ" oninput="${searchFn}"></div>${isPO?`<select id="poMon" onchange="filterPORows()" style="max-width:130px;width:auto"><option value="">📅 ทุกเดือน</option>${poMons.map(m=>`<option value="${m}">${m}</option>`).join('')}</select><select id="poSup" onchange="filterPORows()" style="max-width:150px;width:auto"><option value="">🏢 ผู้ขายทั้งหมด</option>${poSups.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('')}</select><select id="poItem" onchange="filterPORows()" style="max-width:190px;width:auto"><option value="">📦 สินค้าทั้งหมด</option>${poItems.map(it=>`<option value="${esc(it)}">${esc(it.length>42?it.slice(0,42)+'…':it)}</option>`).join('')}</select>`:''}${isGR?`<input id="grMon" list="dl_grfmon" placeholder="📅 เดือน" oninput="filterGrRows()" style="max-width:120px;width:auto"><datalist id="dl_grfmon">${grMons.map(m=>`<option value="${m}">`).join('')}</datalist><input id="grSup" list="dl_grfsup" placeholder="🏢 ผู้ขาย" oninput="filterGrRows()" style="max-width:150px;width:auto"><datalist id="dl_grfsup">${grSups.map(s=>`<option value="${esc(s)}">`).join('')}</datalist><input id="grItem" list="dl_grfitem" placeholder="📦 สินค้า" oninput="filterGrRows()" style="max-width:180px;width:auto"><datalist id="dl_grfitem">${grItems.map(it=>`<option value="${esc(it)}">`).join('')}</datalist>`:''}${isRW?`<input id="rwMon" list="dl_rwfmon" placeholder="📅 เดือน" oninput="filterRwRows()" style="max-width:120px;width:auto"><datalist id="dl_rwfmon">${rwMons.map(m=>`<option value="${m}">`).join('')}</datalist><input id="rwMkr" list="dl_rwfmkr" placeholder="🏭 ผู้ผลิต" oninput="filterRwRows()" style="max-width:150px;width:auto"><datalist id="dl_rwfmkr">${(DB.settings.makers||[]).map(m=>`<option value="${esc(m.code)}">${m.name?esc(m.name):''}</option>`).join('')}</datalist><input id="rwItem" list="dl_rwfitem" placeholder="📦 สินค้า" oninput="filterRwRows()" style="max-width:180px;width:auto"><datalist id="dl_rwfitem">${rwItems.map(it=>`<option value="${esc(it)}">`).join('')}</datalist>`:''}${isWD?`<input id="wdMon" list="dl_wdfmon" placeholder="📅 เดือน" oninput="filterWdRows()" style="max-width:120px;width:auto"><datalist id="dl_wdfmon">${wdMons.map(m=>`<option value="${m}">`).join('')}</datalist>`:''}${isPRD?`<input id="prdMon" list="dl_prdfmon" placeholder="📅 เดือน" oninput="filterPrdRows()" style="max-width:120px;width:auto"><datalist id="dl_prdfmon">${prdMons.map(m=>`<option value="${m}">`).join('')}</datalist>`:''}${(type==='PRD'||type==='WD')?`<input id="docMaker" list="dl_fmaker" placeholder="🏭 MAKER" oninput="${makerFn}" style="max-width:150px;width:auto"><datalist id="dl_fmaker">${(DB.settings.makers||[]).map(m=>`<option value="${esc(m.code)}">${m.name?esc(m.name):''}</option>`).join('')}</datalist>`:''}${isWD?`<select id="wdItem" onchange="filterWdRows()" style="max-width:190px;width:auto"><option value="">📦 วัตถุดิบทั้งหมด</option>${wdItems.map(it=>`<option value="${esc(it)}">${esc(it.length>42?it.slice(0,42)+'…':it)}</option>`).join('')}</select>`:''}${isPRD?`<input id="prdItem" list="dl_prdfitem" placeholder="📦 สินค้า" oninput="filterPrdRows()" style="max-width:180px;width:auto"><datalist id="dl_prdfitem">${prdItems.map(it=>`<option value="${esc(it)}">`).join('')}</datalist>`:''}${type==='PRD'?`<input type="file" id="prdImportFile" accept=".json" style="display:none" onchange="applyPRDImport(this)"><button class="btn" onclick="document.getElementById('prdImportFile').click()">📥 นำเข้า</button>`:''}${type==='WD'?`<input type="file" id="wdImportFile" accept=".json" style="display:none" onchange="applyWDImport(this)"><button class="btn" onclick="document.getElementById('wdImportFile').click()">📥 นำเข้า</button>`:''}${type==='PO'?`<input type="file" id="poImportFile" accept=".json" style="display:none" onchange="applyPurchaseImport(this)"><button class="btn" onclick="document.getElementById('poImportFile').click()">📥 นำเข้า</button>`:''}${isGR?`<button class="btn pri" onclick="grClear();window.scrollTo({top:0,behavior:'smooth'})">+ รายการใหม่</button>`:isRW?`<button class="btn pri" onclick="rwClear();window.scrollTo({top:0,behavior:'smooth'})">+ รายการใหม่</button>`:`<button class="btn pri" onclick="openDocForm('${type}')">+ สร้าง${cfg.label}</button>`}</div>
     </div>
     <div class="panel-b nopad">
       ${docs.length?`<div class="tbl-wrap"><table><thead><tr>
-        <th>เลขที่</th><th>วันที่</th>${isGR?'<th>PO เลขที่</th>':''}<th>รายละเอียด</th><th class="num">จำนวน</th><th>สถานะ</th><th></th>
+        <th>เลขที่</th><th>วันที่</th>${(isGR||isRW)?'<th>PO เลขที่</th>':''}<th>รายละเอียด</th><th class="num">จำนวน</th><th>สถานะ</th><th></th>
       </tr></thead><tbody id="docRows">
       ${docs.map(d=>docRow(d)).join('')}
-      </tbody>${isPO?`<tfoot><tr style="font-weight:700;background:var(--panel2);border-top:2px solid var(--line)"><td colspan="3">SUBTOTAL (รวมยอดเงินตามที่กรอง)</td><td class="num" id="poSubtotal">${fmt2(poTotal)}</td><td colspan="2"></td></tr></tfoot>`:''}${isPRD?`<tfoot><tr style="font-weight:700;background:var(--panel2);border-top:2px solid var(--line)"><td colspan="3">SUBTOTAL (รวมจำนวนผลิตตามที่กรอง)</td><td class="num" id="prdSubtotal">${fmt(prdTotal)}</td><td colspan="2"></td></tr></tfoot>`:''}${isGR?`<tfoot><tr style="font-weight:700;background:var(--panel2);border-top:2px solid var(--line)"><td colspan="4">SUBTOTAL (รวมจำนวนรับตามที่กรอง)</td><td class="num" id="grSubtotal">${fmt(grTotal)}</td><td colspan="2"></td></tr></tfoot>`:''}${isWD?`<tfoot><tr style="font-weight:700;background:var(--panel2);border-top:2px solid var(--line)"><td colspan="3">SUBTOTAL (รวมจำนวนเบิกตามที่กรอง)</td><td class="num" id="wdSubtotal">${fmt(wdTotal)}</td><td colspan="2"></td></tr></tfoot>`:''}</table></div>`:`<div class="empty"><div class="big">${cfg.icon}</div><div class="t">ยังไม่มีเอกสาร</div><div>กดปุ่ม "สร้าง${cfg.label}" เพื่อเริ่มต้น</div></div>`}
+      </tbody>${isPO?`<tfoot><tr style="font-weight:700;background:var(--panel2);border-top:2px solid var(--line)"><td colspan="3">SUBTOTAL (รวมยอดเงินตามที่กรอง)</td><td class="num" id="poSubtotal">${fmt2(poTotal)}</td><td colspan="2"></td></tr></tfoot>`:''}${isPRD?`<tfoot><tr style="font-weight:700;background:var(--panel2);border-top:2px solid var(--line)"><td colspan="3">SUBTOTAL (รวมจำนวนผลิตตามที่กรอง)</td><td class="num" id="prdSubtotal">${fmt(prdTotal)}</td><td colspan="2"></td></tr></tfoot>`:''}${isGR?`<tfoot><tr style="font-weight:700;background:var(--panel2);border-top:2px solid var(--line)"><td colspan="4">SUBTOTAL (รวมจำนวนรับตามที่กรอง)</td><td class="num" id="grSubtotal">${fmt(grTotal)}</td><td colspan="2"></td></tr></tfoot>`:''}${isRW?`<tfoot><tr style="font-weight:700;background:var(--panel2);border-top:2px solid var(--line)"><td colspan="4">SUBTOTAL (รวมจำนวนรับชิ้นงานตามที่กรอง)</td><td class="num" id="rwSubtotal">${fmt(rwTotal)}</td><td colspan="2"></td></tr></tfoot>`:''}${isWD?`<tfoot><tr style="font-weight:700;background:var(--panel2);border-top:2px solid var(--line)"><td colspan="3">SUBTOTAL (รวมจำนวนเบิกตามที่กรอง)</td><td class="num" id="wdSubtotal">${fmt(wdTotal)}</td><td colspan="2"></td></tr></tfoot>`:''}</table></div>`:`<div class="empty"><div class="big">${cfg.icon}</div><div class="t">ยังไม่มีเอกสาร</div><div>กดปุ่ม "สร้าง${cfg.label}" เพื่อเริ่มต้น</div></div>`}
     </div>
   </div>`;
   if(isGR){ if(!Array.isArray(grLines)||!grLines.length)grLines=[grBlank()]; setTimeout(renderGrLines,20); }
+  if(isRW){ if(!Array.isArray(rwLines)||!rwLines.length)rwLines=[rwBlank()]; setTimeout(renderRwLines,20); }
 }
 function docHint(type){
   const h={
@@ -706,6 +713,7 @@ function docRow(d){
   if(d.type==='WD')return wdRow(d);
   if(d.type==='PO')return purchaseRow(d);
   if(d.type==='GR')return grRow(d);
+  if(d.type==='RW')return rwRow(d);
   const cfg=DT[d.type];let detail='',qty='';
   if(cfg.multi){detail=(d.lines||[]).map(l=>{const p=P(l.productId);return p?p.pn:'?'}).slice(0,3).join(', ')+((d.lines||[]).length>3?` +${d.lines.length-3}`:'');qty=fmt((d.lines||[]).reduce((s,l)=>s+l.qty,0));
     if(d.type==='PO'||d.type==='GR')detail=(d.supplier?'Supplier: '+d.supplier+' · ':'')+detail;
@@ -964,6 +972,215 @@ function filterGrRows(){
   const st=document.getElementById('grSubtotal');if(st)st.textContent=fmt(sum);
 }
 var grLines=[];
+var rwLines=[];
+function rwBlank(){return {date:todayISO(),deliveryNote:'',poNo:'',prdId:'',productId:'',name:'',orderedQty:'',unit:'Pcs.',maker:'',dueDate:'',receivedQty:'',remark:'',sampleCount:'',sampleWeight:'',totalWeight:'',computed:0};}
+function rwPanelHTML(){
+  return `<div class="panel" style="margin-bottom:14px;border:1.5px solid var(--violet,#7c5cff)">
+    <div class="panel-h"><h2>📦 รับชิ้นงานจากผู้ผลิต (กรอกบนหน้านี้ได้เลย)</h2><div class="desc" id="rwEditTag">รายการใหม่</div></div>
+    <div class="panel-b">
+      <div class="row c3">
+        <div class="field"><label>เลขที่ (Doc No.)</label><input id="rw_no" value="(สร้างอัตโนมัติ)" readonly style="background:var(--panel2);color:var(--ink3)"></div>
+        <div class="field"><label>วันที่เอกสาร</label><input type="date" id="rw_date" value="${todayISO()}"></div>
+        <div class="field"><label>หมายเหตุรวม</label><input id="rw_note" placeholder="(ถ้ามี)"></div>
+      </div>
+      <input type="hidden" id="rw_editid" value="">
+      <div class="hint"><span class="i">💡</span><div>พิมพ์ <b>เลขที่ PO สั่งผลิต</b> แล้วคลิกออก → ดึง รายการ/จำนวนสั่งผลิต/หน่วย/ผู้ผลิต/กำหนดส่ง อัตโนมัติ · ช่อง <b>MASTER</b> กรอก จำนวนตัวอย่าง + น้ำหนักตัวอย่าง(กก.) + น้ำหนักรวม → คำนวณ <b>ได้งานทั้งหมด</b> แล้วตั้งเป็นจำนวนส่ง · เมื่ออนุมัติจะเพิ่มเป็น <b>งานผลิตเสร็จ (WIP)</b></div></div>
+      <div id="rwRoot"></div>
+      <button class="btn sm" style="margin-top:6px" onclick="rwAddLine()">+ เพิ่มรายการรับชิ้นงาน</button>
+      <div class="field" style="margin-top:8px;max-width:380px"><label>ผู้รับของ / หมายเหตุ</label><input id="rw_recv" placeholder="ชื่อผู้รับของ"></div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px">
+        <button class="btn" onclick="rwClear()">🧹 ล้างฟอร์ม</button>
+        <button class="btn" onclick="submitRWInline('pending')">บันทึก (รออนุมัติ)</button>
+        <button class="btn pri" onclick="submitRWInline('approved')">บันทึก + อนุมัติ (รับเข้า WIP)</button>
+      </div>
+    </div>
+  </div>`;
+}
+function rwAddLine(){rwLines.push(rwBlank());renderRwLines();}
+function rwRmLine(i){rwLines.splice(i,1);if(!rwLines.length)rwAddLine();else renderRwLines();}
+function rwPoLookup(i,val){
+  const no=(val||'').trim();rwLines[i].poNo=no;if(!no){renderRwLines();return;}
+  const key=no.replace(/^PO/i,'');
+  const prd=DB.docs.find(d=>d.type==='PRD'&&d.no.replace(/^PO/i,'')===key);
+  if(!prd){rwLines[i].prdId='';toast('ไม่พบเลขที่ PO '+no+' ในใบสั่งผลิต','err');renderRwLines();return;}
+  const it=(prd.lines||[])[0]||{};const p=it.fgId?P(it.fgId):null;
+  rwLines[i].prdId=prd.id;rwLines[i].productId=it.fgId||'';
+  rwLines[i].name=p?(p.pn+(p.name&&p.name!=='-'?' '+p.name:'')):(it.name||'');
+  rwLines[i].orderedQty=it.qty||prd.qty||0;rwLines[i].unit=it.unit||'Pcs.';
+  rwLines[i].maker=prd.maker||'';rwLines[i].dueDate=prd.due||it.dueDate||'';
+  renderRwLines();
+}
+function rwLineCalc(i){
+  const l=rwLines[i];const sc=Number(l.sampleCount)||0,sw=Number(l.sampleWeight)||0,tw=Number(l.totalWeight)||0;
+  if(sc>0&&sw>0&&tw>0){l.computed=Math.round(tw/sw*sc);l.receivedQty=l.computed;}else{l.computed=0;}
+  const ce=document.getElementById('rwcomp_'+i);if(ce)ce.textContent=l.computed?fmt(l.computed):'-';
+  const re=document.getElementById('rwrecv_'+i);if(re&&l.computed)re.value=l.receivedQty;
+  rwTotals();
+}
+function rwTotals(){
+  let so=0,sr=0,sw=0,sc=0;
+  rwLines.forEach(l=>{so+=Number(l.orderedQty)||0;sr+=Number(l.receivedQty)||0;sw+=Number(l.totalWeight)||0;sc+=Number(l.computed)||0;});
+  const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
+  set('rwSubOrd',fmt(so));set('rwSubRecv',fmt(sr));set('rwSubWt',fmt2(sw));set('rwSubComp',fmt(sc));
+}
+function renderRwLines(){
+  const root=document.getElementById('rwRoot');if(!root)return;
+  const mkrs=(DB.settings.makers||[]).map(m=>m.code);
+  root.innerHTML=`<div style="overflow-x:auto"><table style="font-size:11.5px;min-width:1500px;border-collapse:collapse">
+  <thead>
+   <tr style="background:var(--panel2)">
+    <th rowspan="2" style="width:108px;border:1px solid var(--line);padding:4px">วันที่รับเข้า</th>
+    <th rowspan="2" style="width:120px;border:1px solid var(--line);padding:4px">ใบส่งงาน</th>
+    <th rowspan="2" style="width:104px;border:1px solid var(--line);padding:4px">PO สั่งผลิต</th>
+    <th rowspan="2" style="min-width:170px;border:1px solid var(--line);padding:4px">รายการ</th>
+    <th rowspan="2" style="width:78px;border:1px solid var(--line);padding:4px">จำนวนสั่งผลิต</th>
+    <th rowspan="2" style="width:56px;border:1px solid var(--line);padding:4px">หน่วย</th>
+    <th rowspan="2" style="width:100px;border:1px solid var(--line);padding:4px">ผู้ผลิต</th>
+    <th rowspan="2" style="width:84px;border:1px solid var(--line);padding:4px">กำหนดส่ง</th>
+    <th rowspan="2" style="width:78px;border:1px solid var(--line);padding:4px">จำนวนส่ง</th>
+    <th rowspan="2" style="width:150px;border:1px solid var(--line);padding:4px">หมายเหตุ</th>
+    <th colspan="4" style="border:1px solid var(--line);padding:4px;background:#f0ecfb">นับชิ้นงานจริงเป็น MASTER เพื่อทวนสอบจำนวน</th>
+    <th rowspan="2" style="width:30px;border:1px solid var(--line)"></th>
+   </tr>
+   <tr style="background:#f0ecfb">
+    <th style="width:62px;border:1px solid var(--line);padding:4px">จำนวน</th>
+    <th style="width:72px;border:1px solid var(--line);padding:4px">น้ำหนัก/หน่วย(กก.)</th>
+    <th style="width:80px;border:1px solid var(--line);padding:4px">รวมน้ำหนัก</th>
+    <th style="width:80px;border:1px solid var(--line);padding:4px">ได้งานทั้งหมด</th>
+   </tr>
+  </thead>
+  <tbody>
+  ${rwLines.map((l,i)=>`<tr>
+    <td style="border:1px solid var(--line);padding:2px"><input type="date" value="${l.date}" oninput="rwLines[${i}].date=this.value" style="padding:4px;width:100%"></td>
+    <td style="border:1px solid var(--line);padding:2px"><input value="${esc(l.deliveryNote||'')}" placeholder="เลขที่ใบส่งงาน" oninput="rwLines[${i}].deliveryNote=this.value" style="padding:4px;width:100%"></td>
+    <td style="border:1px solid var(--line);padding:2px"><input list="dl_rwpo" value="${esc(l.poNo||'')}" placeholder="เคาะ PO ผลิต" onchange="rwPoLookup(${i},this.value)" style="padding:4px;width:100%"></td>
+    <td style="border:1px solid var(--line);padding:2px"><input value="${esc(l.name||'')}" placeholder="(ดึงจากใบสั่งผลิต)" oninput="rwLines[${i}].name=this.value" style="padding:4px;width:100%"></td>
+    <td style="border:1px solid var(--line);padding:2px"><input type="number" step="any" value="${l.orderedQty}" oninput="rwLines[${i}].orderedQty=this.value;rwTotals()" style="padding:4px;width:100%;text-align:right"></td>
+    <td style="border:1px solid var(--line);padding:2px"><input list="dl_rwunit" value="${esc(l.unit||'')}" oninput="rwLines[${i}].unit=this.value" style="padding:4px;width:100%"></td>
+    <td style="border:1px solid var(--line);padding:2px"><input list="dl_rwmkr" value="${esc(l.maker||'')}" placeholder="ผู้ผลิต" oninput="rwLines[${i}].maker=this.value" style="padding:4px;width:100%"></td>
+    <td style="border:1px solid var(--line);padding:2px"><input value="${esc(l.dueDate||'')}" placeholder="กำหนดส่ง" oninput="rwLines[${i}].dueDate=this.value" style="padding:4px;width:100%"></td>
+    <td style="border:1px solid var(--line);padding:2px"><input id="rwrecv_${i}" type="number" step="any" value="${l.receivedQty}" oninput="rwLines[${i}].receivedQty=this.value;rwTotals()" style="padding:4px;width:100%;text-align:right;font-weight:600"></td>
+    <td style="border:1px solid var(--line);padding:2px"><input list="dl_rwremark" value="${esc(l.remark||'')}" placeholder="หมายเหตุ" oninput="rwLines[${i}].remark=this.value" style="padding:4px;width:100%"></td>
+    <td style="border:1px solid var(--line);padding:2px;background:#faf8ff"><input type="number" step="any" value="${l.sampleCount}" placeholder="ตัวอย่าง" oninput="rwLines[${i}].sampleCount=this.value;rwLineCalc(${i})" style="padding:4px;width:100%;text-align:right"></td>
+    <td style="border:1px solid var(--line);padding:2px;background:#faf8ff"><input type="number" step="any" value="${l.sampleWeight}" placeholder="กก." oninput="rwLines[${i}].sampleWeight=this.value;rwLineCalc(${i})" style="padding:4px;width:100%;text-align:right"></td>
+    <td style="border:1px solid var(--line);padding:2px;background:#faf8ff"><input type="number" step="any" value="${l.totalWeight}" placeholder="น้ำหนักรวม" oninput="rwLines[${i}].totalWeight=this.value;rwLineCalc(${i})" style="padding:4px;width:100%;text-align:right"></td>
+    <td class="num" id="rwcomp_${i}" style="border:1px solid var(--line);padding:4px;text-align:right;font-weight:700;background:#f0ecfb">${l.computed?fmt(l.computed):'-'}</td>
+    <td style="border:1px solid var(--line);text-align:center"><div class="rm-x" style="height:28px" onclick="rwRmLine(${i})">✕</div></td>
+  </tr>`).join('')}
+  </tbody>
+  <tfoot>
+   <tr style="font-weight:700;background:var(--panel2)">
+    <td colspan="4" style="border:1px solid var(--line);padding:5px;text-align:right">SUBTOTAL</td>
+    <td class="num" id="rwSubOrd" style="border:1px solid var(--line);padding:5px;text-align:right">0</td>
+    <td colspan="3" style="border:1px solid var(--line)"></td>
+    <td class="num" id="rwSubRecv" style="border:1px solid var(--line);padding:5px;text-align:right">0</td>
+    <td colspan="3" style="border:1px solid var(--line)"></td>
+    <td class="num" id="rwSubWt" style="border:1px solid var(--line);padding:5px;text-align:right">0</td>
+    <td class="num" id="rwSubComp" style="border:1px solid var(--line);padding:5px;text-align:right">0</td>
+    <td style="border:1px solid var(--line)"></td>
+   </tr>
+  </tfoot>
+  </table></div>
+  <datalist id="dl_rwpo">${DB.docs.filter(x=>x.type==='PRD').sort((a,b)=>b.ts-a.ts).map(x=>{const it=(x.lines||[])[0]||{};const p=it.fgId&&P(it.fgId)?P(it.fgId):null;return `<option value="${esc(x.no)}">${esc((x.maker||'')+' · '+(p?p.pn:(it.name||'')))}</option>`}).join('')}</datalist>
+  <datalist id="dl_rwmkr">${mkrs.map(s=>`<option value="${esc(s)}">`).join('')}</datalist>
+  <datalist id="dl_rwunit"><option value="Pcs."><option value="ชิ้น"><option value="อัน"><option value="ชุด"></datalist>
+  <datalist id="dl_rwremark"><option value="รับครบตามจำนวน"><option value="รับบางส่วน"><option value="กรณีไม่เป็นไปตามกำหนด"><option value="ทวนสอบด้วยการชั่งน้ำหนัก"></datalist>`;
+  rwTotals();
+}
+function submitRWInline(status){const id=(document.getElementById('rw_editid')||{}).value||'';submitRW(status,id);}
+function rwClear(){rwLines=[rwBlank()];const set=(k,v)=>{const e=document.getElementById(k);if(e)e.value=v;};set('rw_editid','');set('rw_note','');set('rw_recv','');set('rw_date',todayISO());set('rw_no','(สร้างอัตโนมัติ)');const et=document.getElementById('rwEditTag');if(et)et.textContent='รายการใหม่';renderRwLines();}
+function editRWInline(id){
+  const d=DB.docs.find(x=>x.id===id);if(!d)return;
+  rwLines=(d.lines||[]).map(l=>Object.assign(rwBlank(),{date:l.date||'',deliveryNote:l.deliveryNote||'',poNo:l.poNo||'',prdId:l.prdId||'',productId:l.productId||'',name:l.name||'',orderedQty:l.orderedQty||'',unit:l.unit||'Pcs.',maker:l.maker||'',dueDate:l.dueDate||'',receivedQty:(l.receivedQty!=null?l.receivedQty:l.qty)||'',remark:l.remark||'',sampleCount:l.sampleCount||'',sampleWeight:l.sampleWeight||'',totalWeight:l.totalWeight||'',computed:l.computed||0}));
+  if(!rwLines.length)rwLines=[rwBlank()];
+  const set=(k,v)=>{const e=document.getElementById(k);if(e)e.value=v;};
+  set('rw_editid',d.id);set('rw_date',d.date||todayISO());set('rw_note',d.note||'');set('rw_recv',d.receiver||'');set('rw_no',d.no);
+  const et=document.getElementById('rwEditTag');if(et)et.textContent='✏️ กำลังแก้ไข: '+d.no;
+  renderRwLines();try{window.scrollTo({top:0,behavior:'smooth'});}catch(e){}
+}
+function submitRW(status,editId){
+  const v=k=>(document.getElementById(k)||{}).value;
+  const lines=rwLines.filter(l=>(l.poNo||l.name)&&Number(l.receivedQty)>0).map(l=>({
+    date:l.date||'',deliveryNote:(l.deliveryNote||'').trim(),poNo:(l.poNo||'').trim(),prdId:l.prdId||'',
+    productId:l.productId||'',name:(l.name||'').trim(),orderedQty:Number(l.orderedQty)||0,unit:l.unit||'',
+    maker:(l.maker||'').trim(),dueDate:l.dueDate||'',qty:Number(l.receivedQty)||0,receivedQty:Number(l.receivedQty)||0,
+    remark:(l.remark||'').trim(),sampleCount:Number(l.sampleCount)||0,sampleWeight:Number(l.sampleWeight)||0,
+    totalWeight:Number(l.totalWeight)||0,computed:Number(l.computed)||0
+  }));
+  if(!lines.length){toast('กรุณาเพิ่มรายการรับชิ้นงาน (มีเลข PO/รายการ และจำนวนส่ง > 0)','err');return}
+  let d;
+  if(editId){d=DB.docs.find(x=>x.id===editId);if(!d)return;}else{d={id:uid(),type:'RW',ts:Date.now(),status:'pending'};DB.docs.push(d);}
+  if(!d.no)d.no=nextNo('RW');
+  d.date=v('rw_date')||todayISO();d.note=(v('rw_note')||'').trim();d.receiver=(v('rw_recv')||'').trim();
+  d.maker=(lines[0]&&lines[0].maker)||'';d.lines=lines;
+  d.totalQty=lines.reduce((s,l)=>s+l.qty,0);d.totalWeight=lines.reduce((s,l)=>s+l.totalWeight,0);
+  if(status==='approved'){const r=doApprove(d);if(!r.ok){toast('อนุมัติไม่สำเร็จ: '+r.err,'err');return}toast('รับชิ้นงานเข้า WIP แล้ว: '+d.no,'ok');}
+  else toast((editId?'บันทึกการแก้ไข ':'สร้างใบรับชิ้นงาน ')+d.no+' (รออนุมัติ)','ok');
+  rwLines=[];closeModal();render();
+}
+function rwRow(d){
+  const items=(d.lines||[]).map(l=>l.productId&&P(l.productId)?P(l.productId).pn:(l.name||'')).filter(Boolean);
+  const head=items.slice(0,1).join(', ')+(items.length>1?` +${items.length-1}`:'');
+  const totQty=(d.lines||[]).reduce((s,l)=>s+(l.qty||0),0);
+  const itemAll=items.join(' ').toLowerCase();
+  const mkAll=[...new Set((d.lines||[]).map(l=>l.maker).filter(Boolean))].join(' ');
+  const poNos=[...new Set((d.lines||[]).map(l=>l.poNo).filter(Boolean))];
+  const poTxt=poNos.length?poNos.join(', '):'-';
+  return `<tr data-amt="${totQty}" data-mon="${(d.date||'').slice(0,7)}" data-mk="${esc(mkAll)}" data-item="${esc(itemAll)}" data-po="${esc(poTxt)}">
+    <td class="pn linkish" onclick="viewDoc('${d.id}')">${d.no}</td><td class="muted">${d.date}</td>
+    <td><span class="tag violet">${esc(poTxt)}</span></td>
+    <td><span class="tag amber">${esc(d.maker||'-')}</span> <span class="muted">${esc(head)}</span></td>
+    <td class="num">${fmt(totQty)}</td><td>${statusTag(d.status)}</td>
+    <td style="text-align:right;white-space:nowrap">
+      <button class="btn sm" onclick="viewDoc('${d.id}')">ดู</button>
+      <button class="btn sm" onclick="printRW('${d.id}')">🖨️</button>
+      <button class="btn sm" onclick="editRWInline('${d.id}')">✏️</button>
+      ${d.status==='pending'?`<button class="btn sm ok" onclick="approveDoc('${d.id}')">อนุมัติ</button>`:''}
+      ${d.status==='approved'?`<button class="btn sm danger" onclick="cancelDoc('${d.id}')">ยกเลิก</button>`:''}
+    </td></tr>`;
+}
+function filterRwRows(){
+  const q=((document.getElementById('docSearch')||{}).value||'').trim().toLowerCase();
+  const mon=((document.getElementById('rwMon')||{}).value||'').trim();
+  const mk=((document.getElementById('rwMkr')||{}).value||'').trim().toLowerCase();
+  const it=((document.getElementById('rwItem')||{}).value||'').toLowerCase();
+  let sum=0;
+  document.querySelectorAll('#docRows tr').forEach(tr=>{const ds=tr.dataset||{};const t=tr.textContent.toLowerCase();const show=(!q||t.includes(q))&&(!mon||(ds.mon||'').includes(mon))&&(!mk||(ds.mk||'').toLowerCase().includes(mk))&&(!it||(ds.item||'').includes(it));tr.style.display=show?'':'none';if(show)sum+=Number(ds.amt||0);});
+  const st=document.getElementById('rwSubtotal');if(st)st.textContent=fmt(sum);
+}
+function printRW(id,mode){
+  const d=DB.docs.find(x=>x.id===id);if(!d)return;ensureSettings();const co=DB.settings.company||{};
+  const rows=(d.lines||[]).map(l=>{const wt=l.totalWeight?fmt2(l.totalWeight):'-';const comp=l.computed?fmt(l.computed):'-';const sc=l.sampleCount?fmt(l.sampleCount):'-';const sw=l.sampleWeight?fmt2(l.sampleWeight):'-';
+    return '<tr><td class="c">'+esc(l.date||'')+'</td><td class="c">'+esc(l.deliveryNote||'')+'</td><td class="c b">'+esc(l.poNo||'')+'</td><td>'+esc(l.name||'')+'</td><td class="r">'+fmt(l.orderedQty||0)+'</td><td class="c">'+esc(l.unit||'')+'</td><td class="c">'+esc(l.maker||'')+'</td><td class="c">'+esc(l.dueDate||'')+'</td><td class="r b">'+fmt(l.receivedQty||l.qty||0)+'</td><td>'+esc(l.remark||'')+'</td><td class="r">'+sc+'</td><td class="r">'+sw+'</td><td class="r">'+wt+'</td><td class="r b">'+comp+'</td></tr>';}).join('');
+  const blanks=Array.from({length:Math.max(0,4-(d.lines||[]).length)}).map(()=>'<tr>'+Array.from({length:14}).map(()=>'<td>&nbsp;</td>').join('')+'</tr>').join('');
+  const so=fmt((d.lines||[]).reduce((s,l)=>s+(l.orderedQty||0),0));
+  const sr=fmt((d.lines||[]).reduce((s,l)=>s+(l.receivedQty||l.qty||0),0));
+  const swt=fmt2((d.lines||[]).reduce((s,l)=>s+(l.totalWeight||0),0));
+  const scp=fmt((d.lines||[]).reduce((s,l)=>s+(l.computed||0),0));
+  const html='<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"><title>'+esc(d.no)+'</title><style>'
+   +"*{font-family:'Tahoma',sans-serif;box-sizing:border-box}body{margin:0;padding:10mm 8mm;color:#111;font-size:11px}"
+   +".hd{text-align:center;border-bottom:2px solid #111;padding-bottom:5px}.hd h1{font-size:14px;margin:0}.hd div{font-size:10px;color:#333}"
+   +".ttl{text-align:center;font-size:17px;font-weight:700;margin:7px 0}"
+   +".meta{display:flex;justify-content:space-between;font-size:11px;margin-bottom:6px}"
+   +"table{width:100%;border-collapse:collapse;font-size:10px}th,td{border:1px solid #555;padding:3px 4px}th{background:#eee;text-align:center;font-size:9.5px}td.c{text-align:center}td.r{text-align:right}td.b{font-weight:700}"
+   +"tfoot td{font-weight:700;background:#f3f3f3}"
+   +".sign{display:flex;justify-content:space-between;margin-top:30px;text-align:center;font-size:11px}.sign div{width:23%}.sign .line{border-top:1px dotted #555;margin-top:26px;padding-top:3px}"
+   +"@media print{.noprint{display:none}}</style></head><body>"
+   +'<div class="hd"><h1>'+esc(co.name||'')+'</h1><div>'+esc(co.address||'')+'</div><div>TEL : '+esc(co.tel||'')+'  E-Mail : '+esc(co.email||'')+'</div></div>'
+   +'<div class="ttl">รับชิ้นงาน (จากผู้ผลิต) / Receive Finished Work</div>'
+   +'<div class="meta"><div><b>เลขที่ :</b> '+esc(d.no)+'</div><div><b>วันที่ :</b> '+esc(d.date||'')+'</div></div>'
+   +'<table><thead>'
+   +'<tr><th rowspan="2">DATE<br>วันที่รับเข้า</th><th rowspan="2">ใบส่งงาน</th><th rowspan="2">PO<br>สั่งผลิต</th><th rowspan="2">รายการ</th><th rowspan="2">จำนวน<br>สั่งผลิต</th><th rowspan="2">หน่วย</th><th rowspan="2">ผู้ผลิต</th><th rowspan="2">กำหนด<br>ส่ง</th><th rowspan="2">จำนวน<br>ส่ง</th><th rowspan="2">หมายเหตุ</th><th colspan="4">นับชิ้นงานจริงเป็น MASTER เพื่อทวนสอบจำนวน</th></tr>'
+   +'<tr><th>จำนวน</th><th>นน./หน่วย(กก.)</th><th>รวมน้ำหนัก</th><th>ได้งานทั้งหมด</th></tr>'
+   +'</thead><tbody>'+rows+blanks+'</tbody>'
+   +'<tfoot><tr><td colspan="4" style="text-align:right">SUBTOTAL</td><td class="r">'+so+'</td><td colspan="3"></td><td class="r">'+sr+'</td><td></td><td></td><td></td><td class="r">'+swt+'</td><td class="r">'+scp+'</td></tr></tfoot>'
+   +'</table>'
+   +'<div class="sign"><div><div class="line">ผู้ส่งงาน / MAKER</div></div><div><div class="line">ผู้ตรวจนับ / CHECKED</div></div><div><div class="line">คลังสินค้า / STORE</div></div><div><div class="line">APPROVED</div></div></div>'
+   +'<div class="noprint" style="text-align:center;margin-top:16px"><button onclick="window.print()" style="padding:8px 22px;font-size:14px;cursor:pointer">🖨️ พิมพ์ / บันทึก PDF</button></div>'
+   +'<scr'+'ipt>setTimeout(function(){window.print()},500)</scr'+'ipt></body></html>';
+  if(mode==='image'){return shareDocImage(html.replace(/<div class="noprint"[\s\S]*?<\/script>/i,''),(d.no||'doc')+'.png',(d.no||'เอกสาร'));}
+  const w=window.open('','_blank');if(!w){toast('เบราว์เซอร์บล็อก popup','err');return}w.document.write(html);w.document.close();
+}
 function grBlank(){return {date:todayISO(),deliveryNote:'',poNo:'',poId:'',productId:'',name:'',orderedQty:'',unit:'Pcs.',supplier:'',dueDate:'',receivedQty:'',remark:'',sampleCount:'',sampleWeight:'',totalWeight:'',computed:0};}
 function grPanelHTML(){
   return `<div class="panel" style="margin-bottom:14px;border:1.5px solid var(--brand)">
