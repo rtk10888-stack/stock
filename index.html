@@ -656,7 +656,7 @@ function viewDocs(type){
   ${docHint(type)}
   <div class="panel">
     <div class="panel-h"><h2>${cfg.label}</h2><div class="desc">${docs.length} เอกสาร</div>
-      <div class="right">${(type==='PRD'||type==='WD'||type==='PO')?`<div class="searchbox"><input id="docSearch" placeholder="ค้นหา เลขที่ / Part / ผู้ขาย" oninput="filterDocRows()"></div>`:''}${type==='PRD'?`<input type="file" id="prdImportFile" accept=".json" style="display:none" onchange="applyPRDImport(this)"><button class="btn" onclick="document.getElementById('prdImportFile').click()">📥 นำเข้า</button>`:''}${type==='WD'?`<input type="file" id="wdImportFile" accept=".json" style="display:none" onchange="applyWDImport(this)"><button class="btn" onclick="document.getElementById('wdImportFile').click()">📥 นำเข้า</button>`:''}${type==='PO'?`<input type="file" id="poImportFile" accept=".json" style="display:none" onchange="applyPurchaseImport(this)"><button class="btn" onclick="document.getElementById('poImportFile').click()">📥 นำเข้า</button>`:''}<button class="btn pri" onclick="openDocForm('${type}')">+ สร้าง${cfg.label}</button></div>
+      <div class="right"><div class="searchbox"><input id="docSearch" placeholder="ค้นหา เลขที่ / Part / รายการ" oninput="filterDocRows()"></div>${(type==='PRD'||type==='WD')?`<select id="docMaker" onchange="filterDocRows()" style="max-width:160px;width:auto"><option value="">🏭 MAKER ทั้งหมด</option>${(DB.settings.makers||[]).map(m=>`<option value="${esc(m.code)}">${esc(m.code)}${m.name?' — '+esc(m.name):''}</option>`).join('')}</select>`:''}${type==='PRD'?`<input type="file" id="prdImportFile" accept=".json" style="display:none" onchange="applyPRDImport(this)"><button class="btn" onclick="document.getElementById('prdImportFile').click()">📥 นำเข้า</button>`:''}${type==='WD'?`<input type="file" id="wdImportFile" accept=".json" style="display:none" onchange="applyWDImport(this)"><button class="btn" onclick="document.getElementById('wdImportFile').click()">📥 นำเข้า</button>`:''}${type==='PO'?`<input type="file" id="poImportFile" accept=".json" style="display:none" onchange="applyPurchaseImport(this)"><button class="btn" onclick="document.getElementById('poImportFile').click()">📥 นำเข้า</button>`:''}<button class="btn pri" onclick="openDocForm('${type}')">+ สร้าง${cfg.label}</button></div>
     </div>
     <div class="panel-b nopad">
       ${docs.length?`<div class="tbl-wrap"><table><thead><tr>
@@ -859,8 +859,9 @@ function validateStage(type,d,p){
    ใบสั่งผลิต (Production Order) — full form, print/PDF, LINE
    ============================================================ */
 let prdLines=[];
-function filterDocRows(){const q=((document.getElementById('docSearch')||{}).value||'').trim().toLowerCase();document.querySelectorAll('#docRows tr').forEach(tr=>{tr.style.display=(!q||tr.textContent.toLowerCase().includes(q))?'':'none'})}
+function filterDocRows(){const q=((document.getElementById('docSearch')||{}).value||'').trim().toLowerCase();const mk=((document.getElementById('docMaker')||{}).value||'').trim().toLowerCase();document.querySelectorAll('#docRows tr').forEach(tr=>{const t=tr.textContent.toLowerCase();tr.style.display=((!q||t.includes(q))&&(!mk||t.includes(mk)))?'':'none'})}
 function filterMrpRows(){const q=((document.getElementById('mrpSearch')||{}).value||'').trim().toLowerCase();document.querySelectorAll('#mrpRows tr').forEach(tr=>{tr.style.display=(!q||tr.textContent.toLowerCase().includes(q))?'':'none'})}
+function filterPlanRows(){const q=((document.getElementById('planSearch')||{}).value||'').trim().toLowerCase();document.querySelectorAll('#planRows tr').forEach(tr=>{tr.style.display=(!q||tr.textContent.toLowerCase().includes(q))?'':'none'})}
 function prdRow(d){
   const first=(d.lines&&d.lines[0])||{};
   const more=(d.lines||[]).length>1?` <span class="muted">+${d.lines.length-1}</span>`:'';
@@ -1332,7 +1333,7 @@ function wdRow(d){
   const pos=[...new Set((d.lines||[]).map(l=>l.poNo).filter(Boolean))].slice(0,2).join(', ');
   return `<tr>
     <td class="pn linkish" onclick="viewDoc('${d.id}')">${d.no}</td><td class="muted">${d.date}</td>
-    <td>${pos?`<span class="tag violet">PO ${esc(pos)}</span> `:''}<span class="muted">${esc(mats)}</span></td>
+    <td>${pos?`<span class="tag violet">PO ${esc(pos)}</span> `:''}${d.supplier?`<span class="tag gray">${esc(d.supplier)}</span> `:''}<span class="muted">${esc(mats)}</span></td>
     <td class="num">${fmt(d.totalQty||0)}</td><td>${statusTag(d.status)}</td>
     <td style="text-align:right;white-space:nowrap"><button class="btn sm" onclick="viewDoc('${d.id}')">ดู</button> <button class="btn sm" onclick="printWD('${d.id}')">🖨️</button>${d.status==='pending'?` <button class="btn sm ok" onclick="approveDoc('${d.id}')">อนุมัติ</button>`:''}</td>
   </tr>`;
@@ -1597,7 +1598,7 @@ function viewDemand(el){
       <button class="${planTab==='CPO'?'on':''}" onclick="planSet('CPO')">📑 Customer PO</button>
       <button class="${planTab==='PL'?'on':''}" onclick="planSet('PL')">🚛 แผนจัดส่ง</button>
     </div>
-    <div class="right"><button class="btn pri" onclick="openPlanForm('${planTab}')">+ สร้าง${PLAN[planTab].label}</button></div>
+    <div class="right"><div class="searchbox"><input id="planSearch" placeholder="ค้นหา เลขที่ / ลูกค้า / Part" oninput="filterPlanRows()"></div><button class="btn pri" onclick="openPlanForm('${planTab}')">+ สร้าง${PLAN[planTab].label}</button></div>
   </div><div class="panel-b nopad" id="planList"></div></div>`;
   renderPlanList();
 }
@@ -1610,7 +1611,7 @@ function renderPlanList(){
   if(planTab==='FC')head=`<th>เลขที่</th><th>ลูกค้า</th><th>รายการ</th><th class="num">${ml[0]}</th><th class="num">${ml[1]}</th><th class="num">${ml[2]}</th><th class="num">${ml[3]}</th><th class="num">รวม</th><th></th>`;
   else if(planTab==='CPO')head=`<th>เลขที่</th><th>ลูกค้า</th><th>PO ลูกค้า</th><th>รายการ</th><th class="num">จำนวน</th><th>กำหนดส่ง</th><th></th>`;
   else head=`<th>เลขที่</th><th>ลูกค้า</th><th>วันที่ส่ง</th><th>รายการ</th><th class="num">จำนวน</th><th></th>`;
-  wrap.innerHTML=`<div class="tbl-wrap"><table><thead><tr>${head}</tr></thead><tbody>${docs.map(planRow).join('')}</tbody></table></div>`;
+  wrap.innerHTML=`<div class="tbl-wrap"><table><thead><tr>${head}</tr></thead><tbody id="planRows">${docs.map(planRow).join('')}</tbody></table></div>`;
 }
 function planRow(d){
   const cust=esc(d.customer||'-');
