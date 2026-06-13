@@ -182,7 +182,7 @@ td.num,th.num{text-align:right;font-family:'Inter',sans-serif;font-variant-numer
   <aside class="sidebar">
     <div class="brand">
       <div class="logo">RTK</div>
-      <div><div class="t1">Store Control</div><div class="t2">ระบบควบคุมสต๊อค · build GR-2026.06.13</div></div>
+      <div><div class="t1">Store Control</div><div class="t2">ระบบควบคุมสต๊อค · build GR-2026.06.13b</div></div>
     </div>
     <nav class="nav" id="nav"></nav>
   </aside>
@@ -730,7 +730,7 @@ function openDocForm(type){
   if(type==='PRD')return openPRDForm();
   if(type==='WD')return openWDForm();
   if(type==='PO')return openPurchaseForm();
-  if(type==='GR')return openGRForm(edit);
+  if(type==='GR')return openGRForm();
   const cfg=DT[type];
   let body='';
   const dateF=`<div class="field"><label>วันที่</label><input type="date" id="d_date" value="${todayISO()}"></div>`;
