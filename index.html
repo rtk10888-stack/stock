@@ -128,7 +128,7 @@ td.num,th.num{text-align:right;font-family:'Inter',sans-serif;font-variant-numer
 /* Modal */
 .overlay{position:fixed;inset:0;background:rgba(15,23,41,.5);backdrop-filter:blur(3px);z-index:50;display:flex;align-items:flex-start;justify-content:center;padding:40px 16px;overflow-y:auto}
 .modal{background:#fff;border-radius:16px;width:100%;max-width:620px;box-shadow:var(--shadow2);animation:pop .16s ease}
-.modal.lg{max-width:860px}
+.modal.lg{max-width:860px}.modal.xl{max-width:1240px}
 @keyframes pop{from{transform:translateY(8px) scale(.99);opacity:0}to{transform:none;opacity:1}}
 .modal-h{padding:18px 22px;border-bottom:1px solid var(--line2);display:flex;align-items:center;gap:12px}
 .modal-h h3{font-size:16px;font-weight:600;flex:1}
@@ -350,7 +350,7 @@ function move(productId,bucket,qty,docType,docNo,note){
 function applyDoc(d){
   const t=d.type;
   try{
-    if(t==='GR'){ d.lines.forEach(l=>{const p=P(l.productId);p.onHand+=l.qty;move(p.id,'onHand',+l.qty,'GR',d.no,'รับซื้อ '+(d.supplier||''));}); }
+    if(t==='GR'){ d.lines.forEach(l=>{const p=P(l.productId);if(p){p.onHand+=l.qty;move(p.id,'onHand',+l.qty,'GR',d.no,'รับซื้อ '+(d.supplier||''));}}); }
     else if(t==='WD'){ d.lines.forEach(l=>{const p=P(l.productId);if(p){p.onHand-=l.qty;move(p.id,'onHand',-l.qty,'WD',d.no,'เบิกผลิต '+(l.poNo||d.refPRD||''));}}); }
     else if(t==='DP'){ const p=P(d.productId);p.wip+=d.qty;move(p.id,'wip',+d.qty,'DP',d.no,'ผลิตเสร็จ'); }
     else if(t==='PS'){ const p=P(d.productId);p.wip-=d.qty;p.atPlating+=d.qty;move(p.id,'wip',-d.qty,'PS',d.no,'ส่งชุบ '+(d.vendor||''));move(p.id,'atPlating',+d.qty,'PS',d.no,'ส่งชุบ'); }
@@ -730,6 +730,7 @@ function openDocForm(type){
   if(type==='PRD')return openPRDForm();
   if(type==='WD')return openWDForm();
   if(type==='PO')return openPurchaseForm();
+  if(type==='GR')return openGRForm(edit);
   const cfg=DT[type];
   let body='';
   const dateF=`<div class="field"><label>วันที่</label><input type="date" id="d_date" value="${todayISO()}"></div>`;
@@ -942,6 +943,7 @@ function grRow(d){
     <td class="num">${fmt(totQty)}</td><td>${statusTag(d.status)}</td>
     <td style="text-align:right;white-space:nowrap">
       <button class="btn sm" onclick="viewDoc('${d.id}')">ดู</button>
+      <button class="btn sm" onclick="printGR('${d.id}')">🖨️</button>
       ${d.status==='pending'?`<button class="btn sm ok" onclick="approveDoc('${d.id}')">อนุมัติ</button>`:''}
       ${d.status==='approved'?`<button class="btn sm danger" onclick="cancelDoc('${d.id}')">ยกเลิก</button>`:''}
     </td></tr>`;
@@ -954,6 +956,167 @@ function filterGrRows(){
   let sum=0;
   document.querySelectorAll('#docRows tr').forEach(tr=>{const ds=tr.dataset||{};const t=tr.textContent.toLowerCase();const show=(!q||t.includes(q))&&(!mon||ds.mon===mon)&&(!sup||ds.sup===sup)&&(!it||(ds.item||'').includes(it));tr.style.display=show?'':'none';if(show)sum+=Number(ds.amt||0);});
   const st=document.getElementById('grSubtotal');if(st)st.textContent=fmt(sum);
+}
+var grLines=[];
+function openGRForm(edit){
+  ensureSettings();
+  const blank=()=>({date:todayISO(),deliveryNote:'',poNo:'',poId:'',productId:'',name:'',orderedQty:'',unit:'Pcs.',supplier:'',dueDate:'',receivedQty:'',remark:'',sampleCount:'',sampleWeight:'',totalWeight:'',computed:0});
+  grLines=edit&&edit.lines?edit.lines.map(l=>({date:l.date||'',deliveryNote:l.deliveryNote||'',poNo:l.poNo||'',poId:l.poId||'',productId:l.productId||'',name:l.name||'',orderedQty:l.orderedQty||'',unit:l.unit||'Pcs.',supplier:l.supplier||'',dueDate:l.dueDate||'',receivedQty:(l.receivedQty!=null?l.receivedQty:l.qty)||'',remark:l.remark||'',sampleCount:l.sampleCount||'',sampleWeight:l.sampleWeight||'',totalWeight:l.totalWeight||'',computed:l.computed||0})):[blank()];
+  modal({title:'📥 '+(edit?'แก้ไข':'สร้าง')+'ใบรับวัตถุดิบ',size:'xl',body:`
+    <div class="row c3">
+      <div class="field"><label>เลขที่ (Doc No.)</label><input id="gr_no" value="${edit?esc(edit.no):'(สร้างอัตโนมัติ)'}" ${edit?'':'readonly'} style="${edit?'':'background:var(--panel2);color:var(--ink3)'}"></div>
+      <div class="field"><label>วันที่เอกสาร</label><input type="date" id="gr_date" value="${edit?edit.date:todayISO()}"></div>
+      <div class="field"><label>หมายเหตุรวม</label><input id="gr_note" value="${edit?esc(edit.note||''):''}"></div>
+    </div>
+    <div class="hint"><span class="i">💡</span><div>พิมพ์ <b>เลขที่ PO</b> แล้วคลิกออก → ดึง <b>รายการ / จำนวนสั่งซื้อ / หน่วย / ผู้ขาย / กำหนดส่ง</b> อัตโนมัติ · ช่อง <b>MASTER (ชั่งน้ำหนัก)</b> กรอก จำนวนตัวอย่าง + น้ำหนักตัวอย่าง(กก.) + น้ำหนักรวม → ระบบคำนวณ <b>ได้งานทั้งหมด</b> และตั้งเป็นจำนวนส่งให้</div></div>
+    <div id="grRoot"></div>
+    <button class="btn sm" style="margin-top:6px" onclick="grAddLine()">+ เพิ่มรายการรับ</button>
+    <div class="field" style="margin-top:8px"><label>ผู้รับของ / หมายเหตุ</label><input id="gr_recv" value="${edit?esc(edit.receiver||''):''}"></div>
+  `,footer:`<button class="btn" onclick="closeModal()">ยกเลิก</button><button class="btn" onclick="submitGR('pending','${edit?edit.id:''}')">บันทึก (รออนุมัติ)</button><button class="btn pri" onclick="submitGR('approved','${edit?edit.id:''}')">บันทึก + อนุมัติ (รับเข้าสต๊อค)</button>`});
+  setTimeout(renderGrLines,15);
+}
+function grAddLine(){grLines.push({date:todayISO(),deliveryNote:'',poNo:'',poId:'',productId:'',name:'',orderedQty:'',unit:'Pcs.',supplier:'',dueDate:'',receivedQty:'',remark:'',sampleCount:'',sampleWeight:'',totalWeight:'',computed:0});renderGrLines();}
+function grRmLine(i){grLines.splice(i,1);if(!grLines.length)grAddLine();else renderGrLines();}
+function grPoLookup(i,val){
+  const no=(val||'').trim();grLines[i].poNo=no;if(!no){renderGrLines();return;}
+  const po=DB.docs.find(d=>d.type==='PO'&&d.no===no);
+  if(!po){grLines[i].poId='';toast('ไม่พบเลขที่ PO '+no+' ในใบสั่งซื้อ','err');renderGrLines();return;}
+  const it=(po.lines||[])[0]||{};const p=it.productId?P(it.productId):null;
+  grLines[i].poId=po.id;grLines[i].productId=it.productId||'';
+  grLines[i].name=p?(p.pn+(p.name&&p.name!=='-'?' '+p.name:'')):(it.name||'');
+  grLines[i].orderedQty=it.qty||0;grLines[i].unit=it.unit||'Pcs.';
+  grLines[i].supplier=po.supplier||'';grLines[i].dueDate=po.deliveryDate||'';
+  renderGrLines();
+}
+function grLineCalc(i){
+  const l=grLines[i];const sc=Number(l.sampleCount)||0,sw=Number(l.sampleWeight)||0,tw=Number(l.totalWeight)||0;
+  if(sc>0&&sw>0&&tw>0){l.computed=Math.round(tw/sw*sc);l.receivedQty=l.computed;}else{l.computed=0;}
+  const ce=document.getElementById('grcomp_'+i);if(ce)ce.textContent=l.computed?fmt(l.computed):'-';
+  const re=document.getElementById('grrecv_'+i);if(re&&l.computed)re.value=l.receivedQty;
+  grTotals();
+}
+function grTotals(){
+  let so=0,sr=0,sw=0,sc=0;
+  grLines.forEach(l=>{so+=Number(l.orderedQty)||0;sr+=Number(l.receivedQty)||0;sw+=Number(l.totalWeight)||0;sc+=Number(l.computed)||0;});
+  const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
+  set('grSubOrd',fmt(so));set('grSubRecv',fmt(sr));set('grSubWt',fmt2(sw));set('grSubComp',fmt(sc));
+}
+function renderGrLines(){
+  const root=document.getElementById('grRoot');if(!root)return;
+  const sups=[...new Set(DB.docs.filter(x=>x.type==='PO').map(x=>x.supplier).filter(Boolean))].sort();
+  root.innerHTML=`<div style="overflow-x:auto"><table style="font-size:11.5px;min-width:1500px;border-collapse:collapse">
+  <thead>
+   <tr style="background:var(--panel2)">
+    <th rowspan="2" style="width:108px;border:1px solid var(--line);padding:4px">วันที่รับเข้า</th>
+    <th rowspan="2" style="width:120px;border:1px solid var(--line);padding:4px">ใบส่งสินค้า</th>
+    <th rowspan="2" style="width:96px;border:1px solid var(--line);padding:4px">PO เลขที่ฯ</th>
+    <th rowspan="2" style="min-width:170px;border:1px solid var(--line);padding:4px">รายการ</th>
+    <th rowspan="2" style="width:78px;border:1px solid var(--line);padding:4px">จำนวนสั่งซื้อ</th>
+    <th rowspan="2" style="width:56px;border:1px solid var(--line);padding:4px">หน่วย</th>
+    <th rowspan="2" style="width:100px;border:1px solid var(--line);padding:4px">ผู้ขาย</th>
+    <th rowspan="2" style="width:84px;border:1px solid var(--line);padding:4px">กำหนดส่ง</th>
+    <th rowspan="2" style="width:78px;border:1px solid var(--line);padding:4px">จำนวนส่ง</th>
+    <th rowspan="2" style="width:150px;border:1px solid var(--line);padding:4px">หมายเหตุ</th>
+    <th colspan="4" style="border:1px solid var(--line);padding:4px;background:#eef7f3">นับชิ้นงานจริงเป็น MASTER เพื่อทวนสอบจำนวน</th>
+    <th rowspan="2" style="width:30px;border:1px solid var(--line)"></th>
+   </tr>
+   <tr style="background:#eef7f3">
+    <th style="width:62px;border:1px solid var(--line);padding:4px">จำนวน</th>
+    <th style="width:72px;border:1px solid var(--line);padding:4px">น้ำหนัก/หน่วย(กก.)</th>
+    <th style="width:80px;border:1px solid var(--line);padding:4px">รวมน้ำหนัก</th>
+    <th style="width:80px;border:1px solid var(--line);padding:4px">ได้งานทั้งหมด</th>
+   </tr>
+  </thead>
+  <tbody>
+  ${grLines.map((l,i)=>`<tr>
+    <td style="border:1px solid var(--line);padding:2px"><input type="date" value="${l.date}" oninput="grLines[${i}].date=this.value" style="padding:4px;width:100%"></td>
+    <td style="border:1px solid var(--line);padding:2px"><input value="${esc(l.deliveryNote||'')}" placeholder="เลขที่ใบส่ง" oninput="grLines[${i}].deliveryNote=this.value" style="padding:4px;width:100%"></td>
+    <td style="border:1px solid var(--line);padding:2px"><input list="dl_grpo" value="${esc(l.poNo||'')}" placeholder="เคาะเลข PO" onchange="grPoLookup(${i},this.value)" style="padding:4px;width:100%"></td>
+    <td style="border:1px solid var(--line);padding:2px"><input value="${esc(l.name||'')}" placeholder="(ดึงจาก PO)" oninput="grLines[${i}].name=this.value" style="padding:4px;width:100%"></td>
+    <td style="border:1px solid var(--line);padding:2px"><input type="number" step="any" value="${l.orderedQty}" oninput="grLines[${i}].orderedQty=this.value;grTotals()" style="padding:4px;width:100%;text-align:right"></td>
+    <td style="border:1px solid var(--line);padding:2px"><input list="dl_grunit" value="${esc(l.unit||'')}" oninput="grLines[${i}].unit=this.value" style="padding:4px;width:100%"></td>
+    <td style="border:1px solid var(--line);padding:2px"><input list="dl_grsup" value="${esc(l.supplier||'')}" placeholder="ผู้ขาย" oninput="grLines[${i}].supplier=this.value" style="padding:4px;width:100%"></td>
+    <td style="border:1px solid var(--line);padding:2px"><input value="${esc(l.dueDate||'')}" placeholder="กำหนดส่ง" oninput="grLines[${i}].dueDate=this.value" style="padding:4px;width:100%"></td>
+    <td style="border:1px solid var(--line);padding:2px"><input id="grrecv_${i}" type="number" step="any" value="${l.receivedQty}" oninput="grLines[${i}].receivedQty=this.value;grTotals()" style="padding:4px;width:100%;text-align:right;font-weight:600"></td>
+    <td style="border:1px solid var(--line);padding:2px"><input list="dl_grremark" value="${esc(l.remark||'')}" placeholder="หมายเหตุ" oninput="grLines[${i}].remark=this.value" style="padding:4px;width:100%"></td>
+    <td style="border:1px solid var(--line);padding:2px;background:#f7fbf9"><input type="number" step="any" value="${l.sampleCount}" placeholder="ตัวอย่าง" oninput="grLines[${i}].sampleCount=this.value;grLineCalc(${i})" style="padding:4px;width:100%;text-align:right"></td>
+    <td style="border:1px solid var(--line);padding:2px;background:#f7fbf9"><input type="number" step="any" value="${l.sampleWeight}" placeholder="กก." oninput="grLines[${i}].sampleWeight=this.value;grLineCalc(${i})" style="padding:4px;width:100%;text-align:right"></td>
+    <td style="border:1px solid var(--line);padding:2px;background:#f7fbf9"><input type="number" step="any" value="${l.totalWeight}" placeholder="น้ำหนักรวม" oninput="grLines[${i}].totalWeight=this.value;grLineCalc(${i})" style="padding:4px;width:100%;text-align:right"></td>
+    <td class="num" id="grcomp_${i}" style="border:1px solid var(--line);padding:4px;text-align:right;font-weight:700;background:#eef7f3">${l.computed?fmt(l.computed):'-'}</td>
+    <td style="border:1px solid var(--line);text-align:center"><div class="rm-x" style="height:28px" onclick="grRmLine(${i})">✕</div></td>
+  </tr>`).join('')}
+  </tbody>
+  <tfoot>
+   <tr style="font-weight:700;background:var(--panel2)">
+    <td colspan="4" style="border:1px solid var(--line);padding:5px;text-align:right">SUBTOTAL</td>
+    <td class="num" id="grSubOrd" style="border:1px solid var(--line);padding:5px;text-align:right">0</td>
+    <td colspan="3" style="border:1px solid var(--line)"></td>
+    <td class="num" id="grSubRecv" style="border:1px solid var(--line);padding:5px;text-align:right">0</td>
+    <td colspan="3" style="border:1px solid var(--line)"></td>
+    <td class="num" id="grSubWt" style="border:1px solid var(--line);padding:5px;text-align:right">0</td>
+    <td class="num" id="grSubComp" style="border:1px solid var(--line);padding:5px;text-align:right">0</td>
+    <td style="border:1px solid var(--line)"></td>
+   </tr>
+  </tfoot>
+  </table></div>
+  <datalist id="dl_grpo">${DB.docs.filter(x=>x.type==='PO').sort((a,b)=>b.ts-a.ts).map(x=>`<option value="${esc(x.no)}">${esc(x.supplier||'')}</option>`).join('')}</datalist>
+  <datalist id="dl_grsup">${sups.map(s=>`<option value="${esc(s)}">`).join('')}</datalist>
+  <datalist id="dl_grunit"><option value="Pcs."><option value="Kgs."><option value="ชิ้น"><option value="เส้น"><option value="อัน"></datalist>
+  <datalist id="dl_grremark"><option value="กรณีไม่เป็นไปตามกำหนด"><option value="รับครบตามจำนวน"><option value="รับบางส่วน"><option value="ทวนสอบด้วยการชั่งน้ำหนัก"></datalist>`;
+  grTotals();
+}
+function submitGR(status,editId){
+  const v=k=>(document.getElementById(k)||{}).value;
+  const lines=grLines.filter(l=>(l.poNo||l.name)&&Number(l.receivedQty)>0).map(l=>({
+    date:l.date||'',deliveryNote:(l.deliveryNote||'').trim(),poNo:(l.poNo||'').trim(),poId:l.poId||'',
+    productId:l.productId||'',name:(l.name||'').trim(),orderedQty:Number(l.orderedQty)||0,unit:l.unit||'',
+    supplier:(l.supplier||'').trim(),dueDate:l.dueDate||'',qty:Number(l.receivedQty)||0,receivedQty:Number(l.receivedQty)||0,
+    remark:(l.remark||'').trim(),sampleCount:Number(l.sampleCount)||0,sampleWeight:Number(l.sampleWeight)||0,
+    totalWeight:Number(l.totalWeight)||0,computed:Number(l.computed)||0
+  }));
+  if(!lines.length){toast('กรุณาเพิ่มรายการรับ (มีเลข PO/รายการ และจำนวนส่ง > 0)','err');return}
+  let d;
+  if(editId){d=DB.docs.find(x=>x.id===editId);if(!d)return;}else{d={id:uid(),type:'GR',ts:Date.now(),status:'pending'};DB.docs.push(d);}
+  if(!d.no)d.no=nextNo('GR');
+  d.date=v('gr_date')||todayISO();d.note=(v('gr_note')||'').trim();d.receiver=(v('gr_recv')||'').trim();
+  d.supplier=(lines[0]&&lines[0].supplier)||'';d.lines=lines;
+  d.totalQty=lines.reduce((s,l)=>s+l.qty,0);d.totalWeight=lines.reduce((s,l)=>s+l.totalWeight,0);
+  if(status==='approved'){const r=doApprove(d);if(!r.ok){toast('อนุมัติไม่สำเร็จ: '+r.err,'err');return}toast('รับเข้าสต๊อคแล้ว: '+d.no,'ok');}
+  else toast((editId?'บันทึกการแก้ไข ':'สร้างใบรับ ')+d.no+' (รออนุมัติ)','ok');
+  closeModal();render();
+}
+function printGR(id,mode){
+  const d=DB.docs.find(x=>x.id===id);if(!d)return;ensureSettings();const co=DB.settings.company||{};
+  const rows=(d.lines||[]).map(l=>{const wt=l.totalWeight?fmt2(l.totalWeight):'-';const comp=l.computed?fmt(l.computed):'-';const sc=l.sampleCount?fmt(l.sampleCount):'-';const sw=l.sampleWeight?fmt2(l.sampleWeight):'-';
+    return '<tr><td class="c">'+esc(l.date||'')+'</td><td class="c">'+esc(l.deliveryNote||'')+'</td><td class="c b">'+esc(l.poNo||'')+'</td><td>'+esc(l.name||'')+'</td><td class="r">'+fmt(l.orderedQty||0)+'</td><td class="c">'+esc(l.unit||'')+'</td><td class="c">'+esc(l.supplier||'')+'</td><td class="c">'+esc(l.dueDate||'')+'</td><td class="r b">'+fmt(l.receivedQty||l.qty||0)+'</td><td>'+esc(l.remark||'')+'</td><td class="r">'+sc+'</td><td class="r">'+sw+'</td><td class="r">'+wt+'</td><td class="r b">'+comp+'</td></tr>';}).join('');
+  const blanks=Array.from({length:Math.max(0,4-(d.lines||[]).length)}).map(()=>'<tr>'+Array.from({length:14}).map(()=>'<td>&nbsp;</td>').join('')+'</tr>').join('');
+  const so=fmt((d.lines||[]).reduce((s,l)=>s+(l.orderedQty||0),0));
+  const sr=fmt((d.lines||[]).reduce((s,l)=>s+(l.receivedQty||l.qty||0),0));
+  const swt=fmt2((d.lines||[]).reduce((s,l)=>s+(l.totalWeight||0),0));
+  const scp=fmt((d.lines||[]).reduce((s,l)=>s+(l.computed||0),0));
+  const html='<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"><title>'+esc(d.no)+'</title><style>'
+   +"*{font-family:'Tahoma',sans-serif;box-sizing:border-box}body{margin:0;padding:10mm 8mm;color:#111;font-size:11px}"
+   +".hd{text-align:center;border-bottom:2px solid #111;padding-bottom:5px}.hd h1{font-size:14px;margin:0}.hd div{font-size:10px;color:#333}"
+   +".ttl{text-align:center;font-size:17px;font-weight:700;margin:7px 0}"
+   +".meta{display:flex;justify-content:space-between;font-size:11px;margin-bottom:6px}"
+   +"table{width:100%;border-collapse:collapse;font-size:10px}th,td{border:1px solid #555;padding:3px 4px}th{background:#eee;text-align:center;font-size:9.5px}td.c{text-align:center}td.r{text-align:right}td.b{font-weight:700}"
+   +"tfoot td{font-weight:700;background:#f3f3f3}"
+   +".sign{display:flex;justify-content:space-between;margin-top:30px;text-align:center;font-size:11px}.sign div{width:23%}.sign .line{border-top:1px dotted #555;margin-top:26px;padding-top:3px}"
+   +"@media print{.noprint{display:none}}</style></head><body>"
+   +'<div class="hd"><h1>'+esc(co.name||'')+'</h1><div>'+esc(co.address||'')+'</div><div>TEL : '+esc(co.tel||'')+'  E-Mail : '+esc(co.email||'')+'</div></div>'
+   +'<div class="ttl">รับวัตถุดิบ / Goods Receipt</div>'
+   +'<div class="meta"><div><b>เลขที่ :</b> '+esc(d.no)+'</div><div><b>วันที่ :</b> '+esc(d.date||'')+'</div></div>'
+   +'<table><thead>'
+   +'<tr><th rowspan="2">DATE<br>วันที่รับเข้า</th><th rowspan="2">ใบส่งสินค้า</th><th rowspan="2">PO.เลขที่<br>ใบสั่งซื้อ</th><th rowspan="2">รายการ</th><th rowspan="2">จำนวน<br>สั่งซื้อ</th><th rowspan="2">หน่วย</th><th rowspan="2">ผู้ขาย</th><th rowspan="2">กำหนด<br>ส่ง</th><th rowspan="2">จำนวน<br>ส่ง</th><th rowspan="2">หมายเหตุ</th><th colspan="4">นับชิ้นงานจริงเป็น MASTER เพื่อทวนสอบจำนวน</th></tr>'
+   +'<tr><th>จำนวน</th><th>นน./หน่วย(กก.)</th><th>รวมน้ำหนัก</th><th>ได้งานทั้งหมด</th></tr>'
+   +'</thead><tbody>'+rows+blanks+'</tbody>'
+   +'<tfoot><tr><td colspan="4" style="text-align:right">SUBTOTAL</td><td class="r">'+so+'</td><td colspan="3"></td><td class="r">'+sr+'</td><td></td><td></td><td></td><td class="r">'+swt+'</td><td class="r">'+scp+'</td></tr></tfoot>'
+   +'</table>'
+   +'<div class="sign"><div><div class="line">ผู้รับของ / RECEIVED</div></div><div><div class="line">ผู้ตรวจนับ / CHECKED</div></div><div><div class="line">คลังสินค้า / STORE</div></div><div><div class="line">APPROVED</div></div></div>'
+   +'<div class="noprint" style="text-align:center;margin-top:16px"><button onclick="window.print()" style="padding:8px 22px;font-size:14px;cursor:pointer">🖨️ พิมพ์ / บันทึก PDF</button></div>'
+   +'<scr'+'ipt>setTimeout(function(){window.print()},500)</scr'+'ipt></body></html>';
+  if(mode==='image'){return shareDocImage(html.replace(/<div class="noprint"[\s\S]*?<\/script>/i,''),(d.no||'doc')+'.png',(d.no||'เอกสาร'));}
+  const w=window.open('','_blank');if(!w){toast('เบราว์เซอร์บล็อก popup','err');return}w.document.write(html);w.document.close();
 }
 function filterWdRows(){
   const q=((document.getElementById('docSearch')||{}).value||'').trim().toLowerCase();
@@ -1933,7 +2096,7 @@ function mrpMakePO(pid,qty){const p=P(pid);if(!p)return;openPRDForm(null,[{fgId:
    ============================================================ */
 function modal({title,body,footer,size}){
   document.getElementById('modalRoot').innerHTML=`<div class="overlay" onclick="if(event.target===this)closeModal()">
-    <div class="modal ${size==='lg'?'lg':''}"><div class="modal-h"><h3>${title}</h3><span class="x" onclick="closeModal()">×</span></div>
+    <div class="modal ${size==='lg'?'lg':size==='xl'?'xl':''}"><div class="modal-h"><h3>${title}</h3><span class="x" onclick="closeModal()">×</span></div>
     <div class="modal-b">${body}</div>${footer?`<div class="modal-f">${footer}</div>`:''}</div></div>`;
 }
 function closeModal(){document.getElementById('modalRoot').innerHTML=''}
