@@ -183,7 +183,7 @@ td.num,th.num{text-align:right;font-family:'Inter',sans-serif;font-variant-numer
   <aside class="sidebar">
     <div class="brand">
       <div class="logo">RTK</div>
-      <div><div class="t1">Store Control</div><div class="t2">ระบบควบคุมสต๊อค · build PRICE-2026.06.13v</div></div>
+      <div><div class="t1">Store Control</div><div class="t2">ระบบควบคุมสต๊อค · build PRICE-2026.06.13w</div></div>
     </div>
     <nav class="nav" id="nav"></nav>
   </aside>
@@ -558,6 +558,7 @@ function viewInventory(el){
   renderInvTable();
 }
 function invSet(t){invFilter.type=t;document.querySelectorAll('#invSeg button').forEach((b,i)=>b.classList.toggle('on',['all','FG','RM'][i]===t));renderInvTable()}
+function setProdPrice(id,val){const p=P(id);if(!p)return;p.prodPrice=Number(val)||0;saveDB();toast('บันทึกราคาผลิต '+p.pn+' = '+fmt2(p.prodPrice),'ok');}
 function renderInvTable(){
   const wrap=document.getElementById('invTableWrap');if(!wrap)return;
   const q=invFilter.q.trim().toLowerCase();
@@ -571,7 +572,7 @@ function renderInvTable(){
   const sum=f=>list.reduce((s,p)=>s+(Number(f(p))||0),0);
   const tMoq=sum(p=>p.moq||p.reorder||0),tPrice=sum(p=>p.salePrice||0),tOn=sum(p=>p.onHand),tWip=sum(p=>p.wip),tPl=sum(p=>p.atPlating),tQC=sum(p=>p.passedQC);
   wrap.innerHTML=`<div class="tbl-wrap"><table><thead><tr>
-    <th>ประเภท</th><th>Part Number</th><th>ชื่อ</th><th>ลูกค้า</th><th class="num">MOQ</th><th class="num">ราคาขาย</th><th>การชุบ</th><th>เงื่อนไขวัตถุดิบ</th>
+    <th>ประเภท</th><th>Part Number</th><th>ชื่อ</th><th>ลูกค้า</th><th class="num">MOQ</th><th class="num">ราคาขาย</th><th class="num">ราคาผลิต</th><th>การชุบ</th><th>เงื่อนไขวัตถุดิบ</th>
     <th class="num">คงเหลือ</th><th class="num">WIP</th><th class="num">ชุบ</th><th class="num">รอรับเข้า</th><th></th>
   </tr></thead><tbody>
   ${list.map(p=>{
@@ -589,6 +590,7 @@ function renderInvTable(){
       <td>${p.customer==='ไม่ระบุ'?'<span class="muted">—</span>':p.customer}</td>
       <td class="num ${moq?'':'muted'}">${fmt(moq)}</td>
       <td class="num">${p.salePrice>0?fmt2(p.salePrice):'<span class="muted">—</span>'}</td>
+      <td class="num">${p.type==='FG'?`<input type="number" step="0.01" value="${p.prodPrice||0}" onchange="setProdPrice('${p.id}',this.value)" style="width:78px;text-align:right;padding:4px 6px">`:'<span class="muted">—</span>'}</td>
       <td>${plt}</td>
       <td>${cond}</td>
       <td class="num"><b style="color:${low?'var(--red)':'var(--ink)'}">${fmt(p.onHand)}</b></td>
@@ -599,7 +601,7 @@ function renderInvTable(){
     </tr>`}).join('')}
   </tbody><tfoot><tr style="font-weight:700;background:var(--panel2);border-top:2px solid var(--line)">
     <td colspan="4">SUBTOTAL — ${list.length} รายการ</td>
-    <td class="num">${fmt(tMoq)}</td><td class="num">${fmt2(tPrice)}</td><td></td><td></td>
+    <td class="num">${fmt(tMoq)}</td><td class="num">${fmt2(tPrice)}</td><td></td><td></td><td></td>
     <td class="num">${fmt(tOn)}</td><td class="num">${fmt(tWip)}</td><td class="num">${fmt(tPl)}</td><td class="num">${fmt(tQC)}</td><td></td>
   </tr></tfoot></table></div>`;
 }
