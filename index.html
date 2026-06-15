@@ -183,7 +183,7 @@ td.num,th.num{text-align:right;font-family:'Inter',sans-serif;font-variant-numer
   <aside class="sidebar">
     <div class="brand">
       <div class="logo">RTK</div>
-      <div><div class="t1">Store Control</div><div class="t2">ระบบควบคุมสต๊อค · build PRICE-2026.06.13y</div></div>
+      <div><div class="t1">Store Control</div><div class="t2">ระบบควบคุมสต๊อค · build PRICE-2026.06.13z</div></div>
     </div>
     <nav class="nav" id="nav"></nav>
   </aside>
@@ -724,10 +724,10 @@ function viewDocs(type){
     </div>
     <div class="panel-b nopad">
       ${docs.length?`<div class="tbl-wrap"><table><thead><tr>
-        <th>เลขที่</th><th>วันที่</th>${(isGR||isRW)?'<th>PO เลขที่</th>':''}<th>รายละเอียด</th>${isPRD?'<th class="num">ราคาผลิต</th>':''}<th class="num">จำนวน</th><th>สถานะ</th><th></th>
+        <th>เลขที่</th><th>วันที่</th>${(isGR||isRW)?'<th>PO เลขที่</th>':''}<th>รายละเอียด</th>${(isPRD||isRW)?'<th class="num">ราคาผลิต</th>':''}<th class="num">จำนวน</th><th>สถานะ</th><th></th>
       </tr></thead><tbody id="docRows">
       ${docs.map(d=>docRow(d)).join('')}
-      </tbody>${isPO?`<tfoot><tr style="font-weight:700;background:var(--panel2);border-top:2px solid var(--line)"><td colspan="3">SUBTOTAL (รวมยอดเงินตามที่กรอง)</td><td class="num" id="poSubtotal">${fmt2(poTotal)}</td><td colspan="2"></td></tr></tfoot>`:''}${isPRD?`<tfoot><tr style="font-weight:700;background:var(--panel2);border-top:2px solid var(--line)"><td colspan="3">SUBTOTAL (รวมจำนวนผลิตตามที่กรอง)</td><td class="num"></td><td class="num" id="prdSubtotal">${fmt(prdTotal)}</td><td colspan="2"></td></tr></tfoot>`:''}${isGR?`<tfoot><tr style="font-weight:700;background:var(--panel2);border-top:2px solid var(--line)"><td colspan="4">SUBTOTAL (รวมจำนวนรับตามที่กรอง)</td><td class="num" id="grSubtotal">${fmt(grTotal)}</td><td colspan="2"></td></tr></tfoot>`:''}${isRW?`<tfoot><tr style="font-weight:700;background:var(--panel2);border-top:2px solid var(--line)"><td colspan="4">SUBTOTAL (รวมจำนวนรับชิ้นงานตามที่กรอง)</td><td class="num" id="rwSubtotal">${fmt(rwTotal)}</td><td colspan="2"></td></tr></tfoot>`:''}${isWD?`<tfoot><tr style="font-weight:700;background:var(--panel2);border-top:2px solid var(--line)"><td colspan="3">SUBTOTAL (รวมจำนวนเบิกตามที่กรอง)</td><td class="num" id="wdSubtotal">${fmt(wdTotal)}</td><td colspan="2"></td></tr></tfoot>`:''}</table></div>`:`<div class="empty"><div class="big">${cfg.icon}</div><div class="t">ยังไม่มีเอกสาร</div><div>กดปุ่ม "สร้าง${cfg.label}" เพื่อเริ่มต้น</div></div>`}
+      </tbody>${isPO?`<tfoot><tr style="font-weight:700;background:var(--panel2);border-top:2px solid var(--line)"><td colspan="3">SUBTOTAL (รวมยอดเงินตามที่กรอง)</td><td class="num" id="poSubtotal">${fmt2(poTotal)}</td><td colspan="2"></td></tr></tfoot>`:''}${isPRD?`<tfoot><tr style="font-weight:700;background:var(--panel2);border-top:2px solid var(--line)"><td colspan="3">SUBTOTAL (รวมจำนวนผลิตตามที่กรอง)</td><td class="num"></td><td class="num" id="prdSubtotal">${fmt(prdTotal)}</td><td colspan="2"></td></tr></tfoot>`:''}${isGR?`<tfoot><tr style="font-weight:700;background:var(--panel2);border-top:2px solid var(--line)"><td colspan="4">SUBTOTAL (รวมจำนวนรับตามที่กรอง)</td><td class="num" id="grSubtotal">${fmt(grTotal)}</td><td colspan="2"></td></tr></tfoot>`:''}${isRW?`<tfoot><tr style="font-weight:700;background:var(--panel2);border-top:2px solid var(--line)"><td colspan="4">SUBTOTAL (รวมจำนวนรับชิ้นงานตามที่กรอง)</td><td class="num"></td><td class="num" id="rwSubtotal">${fmt(rwTotal)}</td><td colspan="2"></td></tr></tfoot>`:''}${isWD?`<tfoot><tr style="font-weight:700;background:var(--panel2);border-top:2px solid var(--line)"><td colspan="3">SUBTOTAL (รวมจำนวนเบิกตามที่กรอง)</td><td class="num" id="wdSubtotal">${fmt(wdTotal)}</td><td colspan="2"></td></tr></tfoot>`:''}</table></div>`:`<div class="empty"><div class="big">${cfg.icon}</div><div class="t">ยังไม่มีเอกสาร</div><div>กดปุ่ม "สร้าง${cfg.label}" เพื่อเริ่มต้น</div></div>`}
     </div>
   </div>`;
   if(isGR){ if(!Array.isArray(grLines)||!grLines.length)grLines=[grBlank()]; setTimeout(renderGrLines,20); }
@@ -1179,10 +1179,13 @@ function rwRow(d){
   const mkAll=[...new Set((d.lines||[]).map(l=>l.maker).filter(Boolean))].join(' ');
   const poNos=[...new Set((d.lines||[]).map(l=>l.poNo).filter(Boolean))];
   const poTxt=poNos.length?poNos.join(', '):'-';
+  const _f=(d.lines&&d.lines[0])||{};
+  const fp=_f.productId&&P(_f.productId)?((P(_f.productId).prodPrice)||_f.price||0):(_f.price||0);
   return `<tr data-no="${esc(d.no)}" data-ts="${d.ts||0}" data-amt="${totQty}" data-mon="${(d.date||'').slice(0,7)}" data-mk="${esc(mkAll)}" data-item="${esc(itemAll)}" data-po="${esc(poTxt)}">
     <td class="pn linkish" onclick="viewDoc('${d.id}')">${d.no}</td><td class="muted">${d.date}</td>
     <td><span class="tag violet">${esc(poTxt)}</span></td>
     <td><span class="tag amber">${esc(d.maker||'-')}</span> <span class="muted">${esc(head)}</span></td>
+    <td class="num">${fp?fmt2(fp):'<span class="muted">-</span>'}</td>
     <td class="num">${fmt(totQty)}</td><td>${statusTag(d.status)}</td>
     <td style="text-align:right;white-space:nowrap">
       <button class="btn sm" onclick="viewDoc('${d.id}')">ดู</button>
