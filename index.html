@@ -183,7 +183,7 @@ td.num,th.num{text-align:right;font-family:'Inter',sans-serif;font-variant-numer
   <aside class="sidebar">
     <div class="brand">
       <div class="logo">RTK</div>
-      <div><div class="t1">Store Control</div><div class="t2">ระบบควบคุมสต๊อค · build PRICE-2026.06.13z</div></div>
+      <div><div class="t1">Store Control</div><div class="t2">ระบบควบคุมสต๊อค · build PRICE-2026.06.13aa</div></div>
     </div>
     <nav class="nav" id="nav"></nav>
   </aside>
@@ -551,6 +551,8 @@ function viewInventory(el){
       <div class="right">
         <input type="file" id="balanceFile" accept=".json" style="display:none" onchange="applyBalanceUpdate(this)">
         <button class="btn" onclick="document.getElementById('balanceFile').click()">📊 อัปเดตยอดคงเหลือ</button>
+        <input type="file" id="salePriceFile" accept=".json" style="display:none" onchange="applySalePriceImport(this)"><button class="btn" onclick="document.getElementById('salePriceFile').click()">💲 ราคาขาย</button>
+        <input type="file" id="prodPriceFile2" accept=".json" style="display:none" onchange="applyPriceImport(this)"><button class="btn" onclick="document.getElementById('prodPriceFile2').click()">💰 ราคาผลิต</button>
         <button class="btn pri" onclick="openProductForm()">+ เพิ่มสินค้าใหม่</button></div>
     </div>
     <div class="panel-b nopad" id="invTableWrap"></div>
@@ -2141,6 +2143,18 @@ function applyPriceImport(input){
     arr.forEach(x=>{const pn=String(x.pn||'').trim();const pr=Number(x.price)||0;if(!pn)return;const p=byPn[pn];if(p){p.prodPrice=pr;upd++;}else nf++;});
     saveDB();render();
     modal({title:'💰 นำเข้าราคาผลิต',body:`<div class="kv"><span class="k">อัปเดตราคาผลิต</span><b style="color:var(--teal)">${fmt(upd)} รายการ</b></div><div class="kv"><span class="k">ไม่พบ Part ในระบบ</span><b>${fmt(nf)}</b></div>`,footer:`<button class="btn pri" onclick="closeModal()">ตกลง</button>`});
+    input.value='';
+  };r.readAsText(f);
+}
+function applySalePriceImport(input){
+  const f=input.files[0];if(!f)return;const r=new FileReader();
+  r.onload=e=>{let data;try{data=JSON.parse(e.target.result)}catch(err){toast('ไฟล์ไม่ถูกต้อง','err');input.value='';return}
+    const arr=Array.isArray(data)?data:(data.prices||[]);if(!arr.length){toast('ไม่พบข้อมูลราคา','err');input.value='';return}
+    const byPn={};DB.products.forEach(p=>{byPn[String(p.pn).trim()]=p;});
+    let upd=0,nf=0;
+    arr.forEach(x=>{const pn=String(x.pn||'').trim();const pr=Number(x.price)||0;if(!pn)return;const p=byPn[pn];if(p){p.salePrice=pr;upd++;}else nf++;});
+    saveDB();render();
+    modal({title:'💲 นำเข้าราคาขาย',body:`<div class="kv"><span class="k">อัปเดตราคาขาย</span><b style="color:var(--teal)">${fmt(upd)} รายการ</b></div><div class="kv"><span class="k">ไม่พบ Part ในระบบ</span><b>${fmt(nf)}</b></div>`,footer:`<button class="btn pri" onclick="closeModal()">ตกลง</button>`});
     input.value='';
   };r.readAsText(f);
 }
