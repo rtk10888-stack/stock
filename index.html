@@ -182,7 +182,7 @@ td.num,th.num{text-align:right;font-family:'Inter',sans-serif;font-variant-numer
   <aside class="sidebar">
     <div class="brand">
       <div class="logo">RTK</div>
-      <div><div class="t1">Store Control</div><div class="t2">ระบบควบคุมสต๊อค · build FLOW-2026.06.13l</div></div>
+      <div><div class="t1">Store Control</div><div class="t2">ระบบควบคุมสต๊อค · build FLOW-2026.06.13m</div></div>
     </div>
     <nav class="nav" id="nav"></nav>
   </aside>
@@ -758,6 +758,7 @@ function docRow(d){
       <button class="btn sm" onclick="viewDoc('${d.id}')">ดู</button>
       ${d.status==='pending'?`<button class="btn sm ok" onclick="approveDoc('${d.id}')">อนุมัติ</button>`:''}
       ${d.status==='approved'?`<button class="btn sm danger" onclick="cancelDoc('${d.id}')">ยกเลิก</button>`:''}
+      ${d.status==='cancelled'?`<button class="btn sm danger" onclick="delDocConfirm('${d.id}')">🗑️ ลบ</button>`:''}
     </td></tr>`;
 }
 
@@ -986,6 +987,7 @@ function grRow(d){
       <button class="btn sm" onclick="editGRInline('${d.id}')">✏️</button>
       ${d.status==='pending'?`<button class="btn sm ok" onclick="approveDoc('${d.id}')">อนุมัติ</button>`:''}
       ${d.status==='approved'?`<button class="btn sm danger" onclick="cancelDoc('${d.id}')">ยกเลิก</button>`:''}
+      ${d.status==='cancelled'?`<button class="btn sm danger" onclick="delDocConfirm('${d.id}')">🗑️ ลบ</button>`:''}
     </td></tr>`;
 }
 function filterGrRows(){
@@ -1165,6 +1167,7 @@ function rwRow(d){
       <button class="btn sm" onclick="editRWInline('${d.id}')">✏️</button>
       ${d.status==='pending'?`<button class="btn sm ok" onclick="approveDoc('${d.id}')">อนุมัติ</button>`:''}
       ${d.status==='approved'?`<button class="btn sm danger" onclick="cancelDoc('${d.id}')">ยกเลิก</button>`:''}
+      ${d.status==='cancelled'?`<button class="btn sm danger" onclick="delDocConfirm('${d.id}')">🗑️ ลบ</button>`:''}
     </td></tr>`;
 }
 function filterRwRows(){
@@ -1921,6 +1924,7 @@ function approveDoc(id){const d=DB.docs.find(x=>x.id===id);if(!d||d.status!=='pe
 function cancelDoc(id){const d=DB.docs.find(x=>x.id===id);if(!d||d.status!=='approved')return;
   confirmBox('ยกเลิกเอกสาร '+d.no+'?','ระบบจะคืนยอดสต๊อคที่เคยปรับกลับทั้งหมด',()=>{reverseDoc(d);d.status='cancelled';closeModal();render();toast('ยกเลิกและคืนยอดแล้ว','ok')})}
 function deleteDoc(id){const d=DB.docs.find(x=>x.id===id);if(!d||d.status!=='pending')return;DB.docs=DB.docs.filter(x=>x.id!==id);closeModal();render();toast('ลบเอกสารแล้ว','ok')}
+function delDocConfirm(id){const d=DB.docs.find(x=>x.id===id);if(!d)return;confirmBox('ลบเอกสาร '+d.no+' ออกจากระบบ?','ลบถาวร กู้คืนไม่ได้ (เอกสารที่ยกเลิกแล้วคืนยอดสต๊อคเรียบร้อย)',()=>{DB.docs=DB.docs.filter(x=>x.id!==id);closeModal();render();toast('ลบเอกสารแล้ว','ok');});}
 
 /* ============================================================
    PLATING combined view (ส่งชุบ / รับชุบ)
