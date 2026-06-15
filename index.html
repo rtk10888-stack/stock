@@ -182,7 +182,7 @@ td.num,th.num{text-align:right;font-family:'Inter',sans-serif;font-variant-numer
   <aside class="sidebar">
     <div class="brand">
       <div class="logo">RTK</div>
-      <div><div class="t1">Store Control</div><div class="t2">ระบบควบคุมสต๊อค · build FLOW-2026.06.13h</div></div>
+      <div><div class="t1">Store Control</div><div class="t2">ระบบควบคุมสต๊อค · build FLOW-2026.06.13j</div></div>
     </div>
     <nav class="nav" id="nav"></nav>
   </aside>
@@ -503,11 +503,31 @@ function recentMovesTable(n){
    INVENTORY
    ============================================================ */
 let invFilter={q:'',type:'all',cust:'',plating:'',cond:''};
+function flowRefToggle(){const b=document.getElementById('flowRefBody');if(!b)return;const s=b.style.display==='none';b.style.display=s?'':'none';const t=document.getElementById('flowRefBtn');if(t)t.textContent=s?'▲ ซ่อนเงื่อนไข':'▼ ดู/ปรับเงื่อนไขการไหล';}
+function flowRefHTML(open){
+  const cell='style="border:1px solid var(--line);padding:6px"';
+  return `<div class="panel" style="margin-bottom:14px;border:1.5px solid var(--brand)">
+    <div class="panel-h"><h2>📋 เงื่อนไขการเชื่อมโยง รับเข้า–จ่ายออก</h2><div style="display:flex;gap:10px;align-items:center"><span class="desc">ตั้งรายสินค้าที่ปุ่ม ✏️ แก้ไข → "การชุบ/QC"</span><button class="btn sm" id="flowRefBtn" onclick="flowRefToggle()">${open?'▲ ซ่อนเงื่อนไข':'▼ ดู/ปรับเงื่อนไขการไหล'}</button></div></div>
+    <div class="panel-b" id="flowRefBody" style="${open?'':'display:none'}">
+      <div class="tbl-wrap"><table style="width:100%;border-collapse:collapse;font-size:12.5px">
+        <thead><tr style="background:var(--panel2)">
+          <th ${cell};text-align:left">เงื่อนไขสินค้า</th><th ${cell};text-align:left">รับเข้าจาก</th><th ${cell};text-align:left">เส้นทางในระบบ</th><th ${cell};text-align:left">ตัดยอดออกด้วย</th>
+        </tr></thead><tbody>
+          <tr><td ${cell}><span class="tag gray">วัตถุดิบ · ไม่ชุบ</span></td><td ${cell}>📥 รับวัตถุดิบ</td><td ${cell}>→ <b>คงเหลือ</b> (พร้อมใช้)</td><td ${cell}>📤 เบิกวัตถุดิบ</td></tr>
+          <tr><td ${cell}><span class="tag gray">ชิ้นงาน · ไม่ชุบ</span></td><td ${cell}>📦 รับชิ้นงาน</td><td ${cell}>→ <b>คงเหลือ</b> (พร้อมขายทันที)</td><td ${cell}>🧾 Invoice ส่งลูกค้า</td></tr>
+          <tr><td ${cell}><span class="tag amber">ชิ้นงาน · ไม่ชุบ-QC</span></td><td ${cell}>📦 รับชิ้นงาน</td><td ${cell}>→ WIP → (ข้ามส่งชุบ) → 🔎 คัดแยก OK/NG → 📦 รับเข้าสต๊อค → <b>คงเหลือ</b></td><td ${cell}>🧾 Invoice ส่งลูกค้า</td></tr>
+          <tr><td ${cell}><span class="tag cyan">ชิ้นงาน · ชุบ-QC</span></td><td ${cell}>📦 รับชิ้นงาน</td><td ${cell}>→ WIP → ✨ ส่งชุบ/รับชุบ → 🔎 คัดแยก OK/NG → 📦 รับเข้าสต๊อค → <b>คงเหลือ</b></td><td ${cell}>🧾 Invoice ส่งลูกค้า</td></tr>
+        </tbody></table></div>
+      <div class="hint" style="margin-top:10px"><span class="i">ℹ️</span><div>ค่าเริ่มต้นที่ยังไม่ตั้ง = <b>ไม่ชุบ-QC</b> · รับแล้วพร้อมขายเลย = <b>ไม่ชุบ</b> · ต้องชุบ = <b>ชุบ-QC</b></div></div>
+    </div>
+  </div>`;
+}
 function viewInventory(el){
   setTitle('สินค้าคงคลัง','ฐานข้อมูลหลัก — สำเร็จรูป + วัตถุดิบ');
   const custs=[...new Set(DB.products.map(p=>p.customer).filter(c=>c&&c!=='ไม่ระบุ'))].sort();
   const plts=[...new Set(DB.products.filter(p=>p.needPlating&&p.plating).map(p=>p.plating).filter(Boolean))].sort();
   el.innerHTML=`
+  ${flowRefHTML(false)}
   <div class="panel">
     <div class="panel-h" style="flex-wrap:wrap;gap:8px">
       <div class="seg" id="invSeg">
@@ -1984,6 +2004,7 @@ function viewSettings(el){
   setTitle('⚙️ ตั้งค่า','ข้อมูลพื้นฐาน & การสำรองข้อมูล');
   const s=DB.settings;
   el.innerHTML=`
+  ${flowRefHTML(true)}
   <div class="row c2" style="align-items:start">
     <div>
       ${listEditor('customers','👥 ลูกค้า')}
