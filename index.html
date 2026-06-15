@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='PO-2026.06.13ap';
+const APP_BUILD='GR-2026.06.13aq';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -365,7 +365,7 @@ function move(productId,bucket,qty,docType,docNo,note){
 function applyDoc(d){
   const t=d.type;
   try{
-    if(t==='GR'){ d.lines.forEach(l=>{const p=P(l.productId);if(p){p.onHand+=l.qty;move(p.id,'onHand',+l.qty,'GR',d.no,'รับซื้อ '+(d.supplier||''));}}); }
+    if(t==='GR'){ d.lines.forEach(l=>{const p=P(l.productId);if(p){const fl=prodFlow(p);if(fl==='ไม่ชุบ'){p.onHand+=l.qty;move(p.id,'onHand',+l.qty,'GR',d.no,'รับเข้า(ไม่ชุบ) '+(d.supplier||''));}else{p.wip+=l.qty;move(p.id,'wip',+l.qty,'GR',d.no,'รับเข้า(รอ QC) '+(d.supplier||''));}}}); }
     else if(t==='RW'){ d.lines.forEach(l=>{const p=P(l.productId);if(p){const fl=prodFlow(p);if(fl==='ไม่ชุบ'){p.onHand+=l.qty;move(p.id,'onHand',+l.qty,'RW',d.no,'รับชิ้นงาน(ไม่ชุบ) '+(l.maker||''));}else{p.wip+=l.qty;move(p.id,'wip',+l.qty,'RW',d.no,'รับชิ้นงาน '+(l.maker||''));}}}); }
     else if(t==='WD'){ d.lines.forEach(l=>{const p=P(l.productId);if(p){p.onHand-=l.qty;move(p.id,'onHand',-l.qty,'WD',d.no,'เบิกผลิต '+(l.poNo||d.refPRD||''));}}); }
     else if(t==='DP'){ if(d.productId&&!d.lines){const p=P(d.productId);if(p){p.wip+=d.qty;move(p.id,'wip',+d.qty,'DP',d.no,'ผลิตเสร็จ');}} }
