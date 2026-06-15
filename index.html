@@ -183,7 +183,7 @@ td.num,th.num{text-align:right;font-family:'Inter',sans-serif;font-variant-numer
   <aside class="sidebar">
     <div class="brand">
       <div class="logo">RTK</div>
-      <div><div class="t1">Store Control</div><div class="t2">ระบบควบคุมสต๊อค · build SI-2026.06.13al</div></div>
+      <div><div class="t1">Store Control</div><div class="t2">ระบบควบคุมสต๊อค · build SI-2026.06.13am</div></div>
     </div>
     <nav class="nav" id="nav"></nav>
   </aside>
@@ -734,6 +734,8 @@ function viewDocs(type){
   const siItems=isSI?[...new Set(docs.flatMap(d=>(d.lines||[]).map(l=>l.productId&&P(l.productId)?P(l.productId).pn:l.name)).filter(Boolean))].sort():[];
   const siMkrs=isSI?[...new Set(docs.flatMap(d=>(d.lines||[]).map(l=>l.maker)).filter(Boolean))].sort():[];
   const siTotal=isSI?docs.reduce((s,d)=>s+(d.totalQty||0),0):0;
+  const siOkSum=isSI?docs.reduce((s,d)=>s+(Number(((d.lines||[])[0]||{}).qcOk)||0),0):0;
+  const siNgSum=isSI?docs.reduce((s,d)=>s+(Number(((d.lines||[])[0]||{}).qcNg)||0),0):0;
   const searchFn=isPO?'filterPORows()':isPRD?'filterPrdRows()':isGR?'filterGrRows()':isWD?'filterWdRows()':isRW?'filterRwRows()':isDP?'filterDpRows()':isPL?'filterPlRows()':isQC?'filterQcRows()':isSI?'filterSiRows()':'filterDocRows()';
   const makerFn=isPRD?'filterPrdRows()':isWD?'filterWdRows()':'filterDocRows()';
   el.innerHTML=`
@@ -745,10 +747,10 @@ function viewDocs(type){
     </div>
     <div class="panel-b nopad">
       ${docs.length?`<div class="tbl-wrap"><table><thead><tr>
-        <th>เลขที่</th><th>วันที่</th>${(isGR||isRW||isDP||isPL||isQC||isSI)?'<th>PO เลขที่</th>':''}<th>รายละเอียด</th>${isQC?'<th>ผู้ตรวจ</th><th>จุดตรวจ</th><th>เครื่องมือ</th>':''}${(isPRD||isRW)?'<th class="num">ราคาผลิต</th>':''}${isQC?'<th class="num">รวมคัด</th><th class="num">OK</th><th class="num">NG</th>':'<th class="num">จำนวน</th>'}<th>สถานะ</th><th></th>
+        <th>เลขที่</th><th>วันที่</th>${(isGR||isRW||isDP||isPL||isQC||isSI)?'<th>PO เลขที่</th>':''}<th>รายละเอียด</th>${isSI?'<th>ลูกค้า</th><th class="num">QC OK</th><th class="num">QC NG</th>':''}${isQC?'<th>ผู้ตรวจ</th><th>จุดตรวจ</th><th>เครื่องมือ</th>':''}${(isPRD||isRW)?'<th class="num">ราคาผลิต</th>':''}${isQC?'<th class="num">รวมคัด</th><th class="num">OK</th><th class="num">NG</th>':'<th class="num">จำนวน</th>'}<th>สถานะ</th><th></th>
       </tr></thead><tbody id="docRows">
       ${docs.map(d=>docRow(d)).join('')}
-      </tbody>${isPO?`<tfoot><tr style="font-weight:700;background:var(--panel2);border-top:2px solid var(--line)"><td colspan="3">SUBTOTAL (รวมยอดเงินตามที่กรอง)</td><td class="num" id="poSubtotal">${fmt2(poTotal)}</td><td colspan="2"></td></tr></tfoot>`:''}${isPRD?`<tfoot><tr style="font-weight:700;background:var(--panel2);border-top:2px solid var(--line)"><td colspan="3">SUBTOTAL (รวมจำนวนผลิตตามที่กรอง)</td><td class="num"></td><td class="num" id="prdSubtotal">${fmt(prdTotal)}</td><td colspan="2"></td></tr></tfoot>`:''}${isGR?`<tfoot><tr style="font-weight:700;background:var(--panel2);border-top:2px solid var(--line)"><td colspan="4">SUBTOTAL (รวมจำนวนรับตามที่กรอง)</td><td class="num" id="grSubtotal">${fmt(grTotal)}</td><td colspan="2"></td></tr></tfoot>`:''}${isRW?`<tfoot><tr style="font-weight:700;background:var(--panel2);border-top:2px solid var(--line)"><td colspan="4">SUBTOTAL (รวมจำนวนรับชิ้นงานตามที่กรอง)</td><td class="num"></td><td class="num" id="rwSubtotal">${fmt(rwTotal)}</td><td colspan="2"></td></tr></tfoot>`:''}${isDP?`<tfoot><tr style="font-weight:700;background:var(--panel2);border-top:2px solid var(--line)"><td colspan="4">SUBTOTAL (รวมจำนวนส่งตามที่กรอง)</td><td class="num" id="dpSubtotal">${fmt(dpTotal)}</td><td colspan="2"></td></tr></tfoot>`:''}${isPL?`<tfoot><tr style="font-weight:700;background:var(--panel2);border-top:2px solid var(--line)"><td colspan="4">SUBTOTAL (รวมรับชุบตามที่กรอง)</td><td class="num" id="plSubtotal">${fmt(plTotal)}</td><td colspan="2"></td></tr></tfoot>`:''}${isQC?`<tfoot><tr style="font-weight:700;background:var(--panel2);border-top:2px solid var(--line)"><td colspan="7">SUBTOTAL</td><td class="num" id="qcSubTotF">${fmt(qcTotSum)}</td><td class="num" id="qcSubOkF">${fmt(qcOkSum)}</td><td class="num" id="qcSubtotal" style="color:var(--red)">${fmt(qcTotal)}</td><td colspan="2"></td></tr></tfoot>`:''}${isSI?`<tfoot><tr style="font-weight:700;background:var(--panel2);border-top:2px solid var(--line)"><td colspan="4">SUBTOTAL (รวมชั่งจริงได้ตามที่กรอง)</td><td class="num" id="siSubtotal">${fmt(siTotal)}</td><td colspan="2"></td></tr></tfoot>`:''}${isWD?`<tfoot><tr style="font-weight:700;background:var(--panel2);border-top:2px solid var(--line)"><td colspan="3">SUBTOTAL (รวมจำนวนเบิกตามที่กรอง)</td><td class="num" id="wdSubtotal">${fmt(wdTotal)}</td><td colspan="2"></td></tr></tfoot>`:''}</table></div>`:`<div class="empty"><div class="big">${cfg.icon}</div><div class="t">ยังไม่มีเอกสาร</div><div>กดปุ่ม "สร้าง${cfg.label}" เพื่อเริ่มต้น</div></div>`}
+      </tbody>${isPO?`<tfoot><tr style="font-weight:700;background:var(--panel2);border-top:2px solid var(--line)"><td colspan="3">SUBTOTAL (รวมยอดเงินตามที่กรอง)</td><td class="num" id="poSubtotal">${fmt2(poTotal)}</td><td colspan="2"></td></tr></tfoot>`:''}${isPRD?`<tfoot><tr style="font-weight:700;background:var(--panel2);border-top:2px solid var(--line)"><td colspan="3">SUBTOTAL (รวมจำนวนผลิตตามที่กรอง)</td><td class="num"></td><td class="num" id="prdSubtotal">${fmt(prdTotal)}</td><td colspan="2"></td></tr></tfoot>`:''}${isGR?`<tfoot><tr style="font-weight:700;background:var(--panel2);border-top:2px solid var(--line)"><td colspan="4">SUBTOTAL (รวมจำนวนรับตามที่กรอง)</td><td class="num" id="grSubtotal">${fmt(grTotal)}</td><td colspan="2"></td></tr></tfoot>`:''}${isRW?`<tfoot><tr style="font-weight:700;background:var(--panel2);border-top:2px solid var(--line)"><td colspan="4">SUBTOTAL (รวมจำนวนรับชิ้นงานตามที่กรอง)</td><td class="num"></td><td class="num" id="rwSubtotal">${fmt(rwTotal)}</td><td colspan="2"></td></tr></tfoot>`:''}${isDP?`<tfoot><tr style="font-weight:700;background:var(--panel2);border-top:2px solid var(--line)"><td colspan="4">SUBTOTAL (รวมจำนวนส่งตามที่กรอง)</td><td class="num" id="dpSubtotal">${fmt(dpTotal)}</td><td colspan="2"></td></tr></tfoot>`:''}${isPL?`<tfoot><tr style="font-weight:700;background:var(--panel2);border-top:2px solid var(--line)"><td colspan="4">SUBTOTAL (รวมรับชุบตามที่กรอง)</td><td class="num" id="plSubtotal">${fmt(plTotal)}</td><td colspan="2"></td></tr></tfoot>`:''}${isQC?`<tfoot><tr style="font-weight:700;background:var(--panel2);border-top:2px solid var(--line)"><td colspan="7">SUBTOTAL</td><td class="num" id="qcSubTotF">${fmt(qcTotSum)}</td><td class="num" id="qcSubOkF">${fmt(qcOkSum)}</td><td class="num" id="qcSubtotal" style="color:var(--red)">${fmt(qcTotal)}</td><td colspan="2"></td></tr></tfoot>`:''}${isSI?`<tfoot><tr style="font-weight:700;background:var(--panel2);border-top:2px solid var(--line)"><td colspan="4">SUBTOTAL</td><td></td><td class="num" id="siSubOkF">${fmt(siOkSum)}</td><td class="num" id="siSubNgF" style="color:var(--red)">${fmt(siNgSum)}</td><td class="num" id="siSubtotal">${fmt(siTotal)}</td><td colspan="2"></td></tr></tfoot>`:''}${isWD?`<tfoot><tr style="font-weight:700;background:var(--panel2);border-top:2px solid var(--line)"><td colspan="3">SUBTOTAL (รวมจำนวนเบิกตามที่กรอง)</td><td class="num" id="wdSubtotal">${fmt(wdTotal)}</td><td colspan="2"></td></tr></tfoot>`:''}</table></div>`:`<div class="empty"><div class="big">${cfg.icon}</div><div class="t">ยังไม่มีเอกสาร</div><div>กดปุ่ม "สร้าง${cfg.label}" เพื่อเริ่มต้น</div></div>`}
     </div>
   </div>`;
   if(isGR){ if(!Array.isArray(grLines)||!grLines.length)grLines=[grBlank()]; setTimeout(renderGrLines,20); }
@@ -1382,6 +1384,8 @@ function editSIInline(id){
   const et=document.getElementById('siEditTag');if(et)et.textContent='✏️ กำลังแก้ไข: '+d.no;
   renderSiLines();try{window.scrollTo({top:0,behavior:'smooth'});}catch(e){}
 }
+function setSIqcOk(id,val){const d=DB.docs.find(x=>x.id===id);if(!d)return;const l=(d.lines&&d.lines[0]);if(!l)return;l.qcOk=Number(val)||0;saveDB();render();}
+function setSIqcNg(id,val){const d=DB.docs.find(x=>x.id===id);if(!d)return;const l=(d.lines&&d.lines[0]);if(!l)return;l.qcNg=Number(val)||0;saveDB();render();}
 function siRow(d){
   const items=(d.lines||[]).map(l=>l.productId&&P(l.productId)?P(l.productId).pn:(l.name||'')).filter(Boolean);
   const head=items.slice(0,1).join(', ')+(items.length>1?` +${items.length-1}`:'');
@@ -1389,10 +1393,14 @@ function siRow(d){
   const itemAll=items.join(' ').toLowerCase();
   const mkAll=[...new Set((d.lines||[]).map(l=>l.maker).filter(Boolean))].join(' ');
   const poNos=[...new Set((d.lines||[]).map(l=>l.poNo).filter(Boolean))];const poTxt=poNos.length?poNos.join(', '):'-';
-  return `<tr data-no="${esc(d.no)}" data-ts="${d.ts||0}" data-amt="${w}" data-mon="${(d.date||'').slice(0,7)}" data-mk="${esc(mkAll)}" data-item="${esc(itemAll)}" data-po="${esc(poTxt)}">
+  const f0=(d.lines&&d.lines[0])||{};
+  return `<tr data-no="${esc(d.no)}" data-ts="${d.ts||0}" data-amt="${w}" data-qcok="${Number(f0.qcOk)||0}" data-qcng="${Number(f0.qcNg)||0}" data-mon="${(d.date||'').slice(0,7)}" data-mk="${esc(mkAll)}" data-item="${esc(itemAll)}" data-po="${esc(poTxt)}">
     <td class="pn linkish" onclick="viewDoc('${d.id}')">${d.no}</td><td class="muted">${d.date}</td>
     <td><span class="tag violet">${esc(poTxt)}</span></td>
     <td><span class="tag amber">${esc(d.maker||'-')}</span> <span class="muted">${esc(head)}</span></td>
+    <td class="muted">${esc(f0.cust||'')}</td>
+    <td class="num"><input type="number" value="${(f0.qcOk!=null&&f0.qcOk!=='')?f0.qcOk:''}" placeholder="พักจาก QC" onchange="setSIqcOk('${d.id}',this.value)" style="width:78px;text-align:right;padding:4px 6px"></td>
+    <td class="num"><input type="number" value="${(f0.qcNg!=null&&f0.qcNg!=='')?f0.qcNg:''}" onchange="setSIqcNg('${d.id}',this.value)" style="width:70px;text-align:right;padding:4px 6px"></td>
     <td class="num">${fmt(w)}</td><td>${statusTag(d.status)}</td>
     <td style="text-align:right;white-space:nowrap">
       <button class="btn sm" onclick="viewDoc('${d.id}')">ดู</button>
@@ -1405,9 +1413,9 @@ function siRow(d){
 function filterSiRows(){
   const g=id=>((document.getElementById(id)||{}).value||'').trim().toLowerCase();
   const q=g('docSearch'),no=g('siNoF'),mon=((document.getElementById('siMon')||{}).value||'').trim(),mk=g('siMkr'),it=g('siItem');
-  let sum=0;
-  document.querySelectorAll('#docRows tr').forEach(tr=>{const ds=tr.dataset||{};const t=tr.textContent.toLowerCase();const show=(!q||t.includes(q))&&(!no||(ds.no||'').toLowerCase().includes(no))&&(!mon||(ds.mon||'').includes(mon))&&(!mk||(ds.mk||'').toLowerCase().includes(mk))&&(!it||(ds.item||'').includes(it));tr.style.display=show?'':'none';if(show)sum+=Number(ds.amt||0);});
-  const st=document.getElementById('siSubtotal');if(st)st.textContent=fmt(sum);
+  let sum=0,sok=0,sng=0;
+  document.querySelectorAll('#docRows tr').forEach(tr=>{const ds=tr.dataset||{};const t=tr.textContent.toLowerCase();const show=(!q||t.includes(q))&&(!no||(ds.no||'').toLowerCase().includes(no))&&(!mon||(ds.mon||'').includes(mon))&&(!mk||(ds.mk||'').toLowerCase().includes(mk))&&(!it||(ds.item||'').includes(it));tr.style.display=show?'':'none';if(show){sum+=Number(ds.amt||0);sok+=Number(ds.qcok||0);sng+=Number(ds.qcng||0);}});
+  const st=document.getElementById('siSubtotal');if(st)st.textContent=fmt(sum);const so=document.getElementById('siSubOkF');if(so)so.textContent=fmt(sok);const sn=document.getElementById('siSubNgF');if(sn)sn.textContent=fmt(sng);
   const sortv=((document.getElementById('siSort')||{}).value)||'ts_desc';
   const tb=document.getElementById('docRows');
   if(tb){const rows=[...tb.querySelectorAll('tr')];rows.sort((a,b)=>{const A=a.dataset||{},B=b.dataset||{};if(sortv==='no_asc')return (A.no||'').localeCompare(B.no||'',undefined,{numeric:true});if(sortv==='no_desc')return (B.no||'').localeCompare(A.no||'',undefined,{numeric:true});const at=Number(A.ts||0),bt=Number(B.ts||0);return sortv==='ts_asc'?at-bt:bt-at;});rows.forEach(r=>tb.appendChild(r));}
