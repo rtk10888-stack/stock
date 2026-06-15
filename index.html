@@ -183,7 +183,7 @@ td.num,th.num{text-align:right;font-family:'Inter',sans-serif;font-variant-numer
   <aside class="sidebar">
     <div class="brand">
       <div class="logo">RTK</div>
-      <div><div class="t1">Store Control</div><div class="t2">ระบบควบคุมสต๊อค · build FLOW-2026.06.13q</div></div>
+      <div><div class="t1">Store Control</div><div class="t2">ระบบควบคุมสต๊อค · build UNDO-2026.06.13r</div></div>
     </div>
     <nav class="nav" id="nav"></nav>
   </aside>
@@ -191,7 +191,7 @@ td.num,th.num{text-align:right;font-family:'Inter',sans-serif;font-variant-numer
     <div class="topbar">
       <div><h1 id="pageTitle">แดชบอร์ด</h1><div class="crumb" id="pageCrumb"></div></div>
       <div class="right">
-        <span id="syncChip" style="font-size:12px;font-weight:600;margin-right:6px;white-space:nowrap;color:var(--ink3)">…</span>
+        <button id="undoBtn" class="btn sm" title="ย้อนกลับ (Ctrl+Z)" onclick="undoAction()" disabled style="margin-right:4px">↶ ย้อนกลับ</button><button id="redoBtn" class="btn sm" title="ไปข้างหน้า (Ctrl+Shift+Z)" onclick="redoAction()" disabled style="margin-right:8px">↷ ไปหน้า</button><span id="syncChip" style="font-size:12px;font-weight:600;margin-right:6px;white-space:nowrap;color:var(--ink3)">…</span>
         <button class="btn sm ghost" onclick="exportData()">⬇ สำรองข้อมูล</button>
         <button class="btn sm ghost" onclick="document.getElementById('importFile').click()">⬆ นำเข้า</button>
         <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(this)">
@@ -222,6 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
+let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
 function todayISO(){return new Date().toISOString().slice(0,10)}
 function loadLocal(){
@@ -274,7 +275,14 @@ function mkProduct(type,p){
     onHand:p.stock||0,wip:0,atPlating:0,passedQC:0,ng:0,
     reorder: type==='FG'?(p.moq||0):0};
 }
-function saveDB(){localStorage.setItem(LS_KEY,JSON.stringify(DB));scheduleSync()}
+function saveDB(){
+  try{const cur=JSON.stringify(DB);if(!_histLock){if(_lastSnap!==null&&cur!==_lastSnap){_undoStack.push(_lastSnap);if(_undoStack.length>40)_undoStack.shift();_redoStack.length=0;}_lastSnap=cur;}localStorage.setItem(LS_KEY,cur);}catch(e){localStorage.setItem(LS_KEY,JSON.stringify(DB));}
+  scheduleSync();updateUndoBtns();
+}
+function updateUndoBtns(){const u=document.getElementById('undoBtn'),r=document.getElementById('redoBtn');if(u)u.disabled=!_undoStack.length;if(r)r.disabled=!_redoStack.length;}
+function undoAction(){if(!_undoStack.length){toast('ไม่มีรายการให้ย้อนกลับ','err');return;}_redoStack.push(JSON.stringify(DB));const prev=_undoStack.pop();_histLock=true;DB=JSON.parse(prev);_lastSnap=prev;localStorage.setItem(LS_KEY,prev);scheduleSync();_histLock=false;render();updateUndoBtns();toast('↶ ย้อนกลับแล้ว','ok');}
+function redoAction(){if(!_redoStack.length){toast('ไม่มีรายการให้ไปข้างหน้า','err');return;}_undoStack.push(JSON.stringify(DB));const nxt=_redoStack.pop();_histLock=true;DB=JSON.parse(nxt);_lastSnap=nxt;localStorage.setItem(LS_KEY,nxt);scheduleSync();_histLock=false;render();updateUndoBtns();toast('↷ ไปข้างหน้าแล้ว','ok');}
+document.addEventListener('keydown',e=>{if(!(e.ctrlKey||e.metaKey))return;const tag=((e.target&&e.target.tagName)||'').toLowerCase();if(tag==='input'||tag==='textarea'||tag==='select'||(e.target&&e.target.isContentEditable))return;const k=(e.key||'').toLowerCase();if(k==='z'){e.preventDefault();e.shiftKey?redoAction():undoAction();}else if(k==='y'){e.preventDefault();redoAction();}});
 function scheduleSync(){ if(applyingRemote||!supa)return; clearTimeout(syncTimer); syncTimer=setTimeout(()=>pushCloud(false),600); }
 async function pushCloud(force){
   if(!supa)return;
