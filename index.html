@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='GR-2026.06.13aq';
+const APP_BUILD='GR-2026.06.13ar';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -657,7 +657,7 @@ function openProductForm(id){
       <div class="field"><label>ราคาซื้อ/ต้นทุน</label><input type="number" step="0.01" id="f_buy" value="${p?p.buyPrice:0}"></div>
     </div>
     <div class="field"><label>ราคาผลิต/หน่วย (Production Price)</label><input type="number" step="0.01" id="f_prodprice" value="${p?(p.prodPrice||0):0}"></div>
-    <div id="fgOnly" style="${p&&p.type==='RM'?'display:none':''}">
+    <div id="fgOnly">
       <div class="row c2">
         <div class="field"><label>การชุบ / QC (เงื่อนไขการไหลของสต๊อค)</label><select id="f_flow">
           <option value="ไม่ชุบ" ${fl==='ไม่ชุบ'?'selected':''}>ไม่ชุบ — รับเข้าเป็นของพร้อมขายทันที</option>
@@ -666,13 +666,13 @@ function openProductForm(id){
         </select></div>
         <div class="field"><label>ชนิดการชุบ (เมื่อเลือกชุบ-QC)</label><input id="f_plt" list="dl_plt" value="${p?esc(platingSpec(p)):''}" placeholder="เช่น MFZn8-B"><datalist id="dl_plt">${plt.map(c=>`<option value="${esc(c)}">`).join('')}</datalist></div>
       </div>
-      <div class="field"><label style="font-weight:400;display:flex;gap:7px;align-items:center"><input type="checkbox" id="f_csm" style="width:auto" ${p&&p.custSupplyMat?'checked':''}> ลูกค้าจ่ายแมท (Customer Supply)</label></div>
+      <div class="field"><label style="font-weight:400;display:flex;gap:7px;align-items:center"><input type="checkbox" id="f_csm" style="width:auto" ${p&&p.custSupplyMat?'checked':''}> ลูกค้าจ่ายแมท (Customer Supply — เฉพาะสำเร็จรูป)</label></div>
+      <div class="hint"><span class="i">🔄</span><div>เงื่อนไขการไหล: <b>ไม่ชุบ</b> รับเข้า→คงเหลือทันที · <b>ไม่ชุบ-QC</b> รับเข้า→WIP→คัดแยก→รับเข้าสต๊อค · <b>ชุบ-QC</b> รับเข้า→WIP→ส่งชุบ→QC→รับเข้าสต๊อค</div></div>
     </div>
-    <div id="rmOnly" style="${p&&p.type==='RM'?'':'display:none'}"><div class="hint"><span class="i">🔄</span><div>วัตถุดิบ: เงื่อนไขการไหล = <b>ไม่ชุบ — รับเข้าพร้อมจ่ายทันที</b> · รับเข้าด้วย <b>รับวัตถุดิบ</b> → เข้าคงเหลือ · จ่ายออกด้วย <b>ใบเบิกวัตถุดิบ</b></div></div></div>
     <div class="field"><label>หมายเหตุ</label><input id="f_remark" value="${p?esc(p.remark):''}"></div>
     ${isEdit?'<div class="hint"><span class="i">ℹ️</span> ยอดคงเหลือปรับผ่านเอกสาร (รับเข้า/เบิก/ปรับยอด) เพื่อให้มีการอนุมัติและบันทึกประวัติ</div>':'<div class="field"><label>ยอดยกมา (สต๊อคตั้งต้น)</label><input type="number" id="f_open" value="0"></div>'}
   `,footer:`<button class="btn" onclick="closeModal()">ยกเลิก</button><button class="btn pri" onclick="saveProduct('${id||''}')">บันทึก</button>`});
-  setTimeout(()=>{const ts=document.getElementById('f_type');if(!ts)return;ts.onchange=()=>{const fo=document.getElementById('fgOnly');if(fo)fo.style.display=ts.value==='RM'?'none':'';const ro=document.getElementById('rmOnly');if(ro)ro.style.display=ts.value==='RM'?'':'none';}},10);
+  setTimeout(()=>{const ts=document.getElementById('f_type');if(!ts)return;ts.onchange=()=>{}},10);
 }
 function saveProduct(id){
   const v=k=>document.getElementById(k);
@@ -684,8 +684,7 @@ function saveProduct(id){
   p.type=type;p.pn=pn;p.name=v('f_name').value.trim()||'-';p.customer=v('f_cust').value.trim()||'ไม่ระบุ';
   p.material=v('f_mat').value.trim();p.reorder=Number(v('f_reorder').value)||0;
   p.salePrice=Number(v('f_sale').value)||0;p.buyPrice=Number(v('f_buy').value)||0;p.prodPrice=Number((v('f_prodprice')||{}).value)||0;p.remark=v('f_remark').value.trim();
-  if(type==='FG'){const flow=(v('f_flow')&&v('f_flow').value)||'ไม่ชุบ-QC';p.flow=flow;p.needPlating=(flow==='ชุบ-QC');p.needQC=(flow!=='ไม่ชุบ');p.plating=(flow==='ชุบ-QC')?((v('f_plt')&&v('f_plt').value.trim())||'ชุบ'):'';p.custSupplyMat=v('f_csm').checked;}
-  else{p.plating='';p.needPlating=false;p.custSupplyMat=false;p.flow='ไม่ชุบ';}
+  {const flow=(v('f_flow')&&v('f_flow').value)||'ไม่ชุบ-QC';p.flow=flow;p.needPlating=(flow==='ชุบ-QC');p.needQC=(flow!=='ไม่ชุบ');p.plating=(flow==='ชุบ-QC')?((v('f_plt')&&v('f_plt').value.trim())||'ชุบ'):'';p.custSupplyMat=(type==='FG'&&v('f_csm'))?v('f_csm').checked:false;}
   // register customer
   if(p.customer&&!DB.settings.customers.includes(p.customer))DB.settings.customers.push(p.customer);
   closeModal();render();toast(id?'บันทึกการแก้ไขแล้ว':'เพิ่มสินค้าใหม่แล้ว','ok');
