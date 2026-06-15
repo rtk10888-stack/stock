@@ -183,7 +183,7 @@ td.num,th.num{text-align:right;font-family:'Inter',sans-serif;font-variant-numer
   <aside class="sidebar">
     <div class="brand">
       <div class="logo">RTK</div>
-      <div><div class="t1">Store Control</div><div class="t2">ระบบควบคุมสต๊อค · build UNDO-2026.06.13s</div></div>
+      <div><div class="t1">Store Control</div><div class="t2">ระบบควบคุมสต๊อค · build UNDO-2026.06.13t</div></div>
     </div>
     <nav class="nav" id="nav"></nav>
   </aside>
@@ -1842,12 +1842,13 @@ function wdLineCalc(i){const l=wdLines[i];const e=document.getElementById('wdamt
 function wdMatPick(i,val){wdLines[i].matName=val;const pn=(val||'').split(' ')[0];const p=DB.products.find(x=>x.type==='RM'&&(x.pn===pn||x.pn===val));wdLines[i].matId=p?p.id:'';renderWdLines();}
 function wdPoLookup(i,val){wdLines[i].poNo=(val||'').trim();const key=wdLines[i].poNo.replace(/^PO/i,'');if(key){const prd=DB.docs.find(x=>x.type==='PRD'&&x.no.replace(/^PO/i,'')===key);if(prd){const it=(prd.lines||[])[0]||{};const p=it.fgId&&P(it.fgId)?P(it.fgId):null;wdLines[i].fgPn=p?(p.pn+(p.name&&p.name!=='-'?' '+p.name:'')):(it.name||'');wdLines[i].maker=prd.maker||'';wdLines[i].ordered=it.qty||0;wdLines[i].prdId=prd.id;}else{wdLines[i].ordered=0;toast('ไม่พบ PO '+wdLines[i].poNo+' ในใบสั่งผลิต','err');}}renderWdLines();}
 function wdTotals(){let q=0,amt=0;wdLines.forEach(l=>{q+=Number(l.qty)||0;amt+=(Number(l.price)||0)*(Number(l.qty)||0);});const el=document.getElementById('wdTotals');if(!el)return;el.innerHTML=`<div class="panel" style="box-shadow:none;margin:0"><div class="panel-b" style="padding:8px 14px;display:flex;gap:24px;justify-content:flex-end"><div>รวมเบิก: <b>${fmt(q)}</b></div><div>รวมเงิน: <b style="color:var(--teal)">${fmt2(amt)}</b> บาท</div></div></div>`;}
+function editWD(id){const d=DB.docs.find(x=>x.id===id);if(d)openWDForm(d);}
 function submitWD(status,editId){
   const v=k=>(document.getElementById(k)||{}).value;
   const lines=wdLines.filter(l=>(l.matName||l.matId)&&Number(l.qty)>0).map(l=>({productId:l.matId||'',matName:(l.matName||'').trim(),price:Number(l.price)||0,qty:Number(l.qty),unit:l.unit||'',poNo:(l.poNo||'').trim(),prdId:l.prdId||'',fgPn:(l.fgPn||'').trim(),maker:(l.maker||'').trim(),date:l.date||'',ordered:l.ordered||0}));
   if(!lines.length){toast('กรุณาเพิ่มรายการเบิกอย่างน้อย 1 รายการ','err');return}
   let d;
-  if(editId){d=DB.docs.find(x=>x.id===editId);if(!d)return;}else{d={id:uid(),type:'WD',ts:Date.now(),status:'pending'};DB.docs.push(d);}
+  if(editId){d=DB.docs.find(x=>x.id===editId);if(!d)return;if(d.status==='approved'){reverseDoc(d);d.status='pending';}}else{d={id:uid(),type:'WD',ts:Date.now(),status:'pending'};DB.docs.push(d);}
   if(!d.no)d.no=nextNo('WD');
   d.date=v('wd_date')||todayISO();d.supplier=(v('wd_supplier')||'').trim();d.note=(v('wd_note')||'').trim();d.lines=lines;
   d.subtotal=lines.reduce((s,l)=>s+l.price*l.qty,0);d.totalQty=lines.reduce((s,l)=>s+l.qty,0);
@@ -1899,7 +1900,7 @@ function wdRow(d){
     <td class="pn linkish" onclick="viewDoc('${d.id}')">${d.no}</td><td class="muted">${d.date}</td>
     <td>${pos?`<span class="tag violet">PO ${esc(pos)}</span> `:''}${d.supplier?`<span class="tag gray">${esc(d.supplier)}</span> `:''}<span class="muted">${esc(mats)}</span></td>
     <td class="num">${fmt(d.totalQty||0)}</td><td>${statusTag(d.status)}</td>
-    <td style="text-align:right;white-space:nowrap"><button class="btn sm" onclick="viewDoc('${d.id}')">ดู</button> <button class="btn sm" onclick="printWD('${d.id}')">🖨️</button>${d.status==='pending'?` <button class="btn sm ok" onclick="approveDoc('${d.id}')">อนุมัติ</button>`:''}</td>
+    <td style="text-align:right;white-space:nowrap"><button class="btn sm" onclick="viewDoc('${d.id}')">ดู</button> <button class="btn sm" onclick="printWD('${d.id}')">🖨️</button> <button class="btn sm" onclick="editWD('${d.id}')">✏️</button>${d.status==='pending'?` <button class="btn sm ok" onclick="approveDoc('${d.id}')">อนุมัติ</button> <button class="btn sm danger" onclick="deleteDoc('${d.id}')">🗑️ ลบ</button>`:''}${d.status==='approved'?` <button class="btn sm danger" onclick="cancelDoc('${d.id}')">ยกเลิก</button>`:''}${d.status==='cancelled'?` <button class="btn sm danger" onclick="delDocConfirm('${d.id}')">🗑️ ลบ</button>`:''}</td>
   </tr>`;
 }
 /* view a doc */
