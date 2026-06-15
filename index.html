@@ -183,7 +183,7 @@ td.num,th.num{text-align:right;font-family:'Inter',sans-serif;font-variant-numer
   <aside class="sidebar">
     <div class="brand">
       <div class="logo">RTK</div>
-      <div><div class="t1">Store Control</div><div class="t2">ระบบควบคุมสต๊อค · build QC-2026.06.13an</div></div>
+      <div><div class="t1">Store Control</div><div class="t2">ระบบควบคุมสต๊อค · build PO-2026.06.13ao</div></div>
     </div>
     <nav class="nav" id="nav"></nav>
   </aside>
@@ -2570,6 +2570,7 @@ function renderPoLines(){
 function poLineCalc(i){const l=poLines[i];const e=document.getElementById('puamt_'+i);if(e)e.textContent=fmt2((Number(l.price)||0)*(Number(l.qty)||0));poTotals();}
 function poPick(i,val){poLines[i].name=val;const pn=(val||'').split(' ')[0];const p=DB.products.find(x=>x.type==='RM'&&(x.pn===pn||x.pn===val));poLines[i].productId=p?p.id:'';}
 function poTotals(){let sub=0;poLines.forEach(l=>{sub+=(Number(l.qty)||0)*(Number(l.price)||0);});const disc=Number((document.getElementById('pu_disc')||{}).value)||0;const amount=sub-disc;const vat=(document.getElementById('pu_vat')&&document.getElementById('pu_vat').checked)?amount*0.07:0;const grand=amount+vat;const el=document.getElementById('puTotals');if(!el)return;el.innerHTML=`<div class="panel" style="box-shadow:none;margin:0"><div class="panel-b" style="padding:10px 14px"><div class="kv"><span class="k">TOTAL (รวมเป็นเงิน)</span><b>${fmt2(sub)}</b></div>${disc?`<div class="kv"><span class="k">Discount (ส่วนลด)</span><b style="color:var(--red)">-${fmt2(disc)}</b></div>`:''}<div class="kv"><span class="k">AMOUNT</span><b>${fmt2(amount)}</b></div>${vat?`<div class="kv"><span class="k">VAT 7%</span><b>${fmt2(vat)}</b></div>`:''}<div class="kv"><span class="k">GRAND TOTAL (ยอดสุทธิ)</span><b style="color:var(--teal);font-size:15px">${fmt2(grand)} บาท</b></div></div></div>`;}
+function editPurchaseDoc(id){const d=DB.docs.find(x=>x.id===id);if(d)openPurchaseForm(d);}
 function submitPurchase(status,editId){
   const v=k=>(document.getElementById(k)||{}).value;
   const sup=(v('pu_sup')||'').trim();if(!sup){toast('กรุณาระบุผู้ขาย','err');return}
@@ -2666,7 +2667,7 @@ async function shareDocImage(html,fname0,title0){
 function purchaseRow(d){
   const items=(d.lines||[]).map(l=>l.name||(l.productId&&P(l.productId)?P(l.productId).pn:'')).slice(0,1).join(', ')+((d.lines||[]).length>1?` +${d.lines.length-1}`:'');
   const itemAll=(d.lines||[]).map(l=>l.name||(l.productId&&P(l.productId)?P(l.productId).pn:'')).join(' ').toLowerCase();
-  return `<tr data-no="${esc(d.no)}" data-ts="${d.ts||0}" data-amt="${d.total||d.subtotal||0}" data-sup="${esc(d.supplier||'')}" data-mon="${(d.date||'').slice(0,7)}" data-item="${esc(itemAll)}"><td class="pn linkish" onclick="viewDoc('${d.id}')">${d.no}</td><td class="muted">${d.date}</td><td><span class="tag cyan">${esc(d.supplier||'-')}</span> <span class="muted">${esc(items)}</span></td><td class="num">${fmt2(d.total||d.subtotal||0)}</td><td>${statusTag(d.status)}</td><td style="text-align:right;white-space:nowrap"><button class="btn sm" onclick="viewDoc('${d.id}')">ดู</button> <button class="btn sm" onclick="printPurchase('${d.id}')">🖨️</button>${d.status==='pending'?` <button class="btn sm ok" onclick="approveDoc('${d.id}')">อนุมัติ</button>`:''}</td></tr>`;
+  return `<tr data-no="${esc(d.no)}" data-ts="${d.ts||0}" data-amt="${d.total||d.subtotal||0}" data-sup="${esc(d.supplier||'')}" data-mon="${(d.date||'').slice(0,7)}" data-item="${esc(itemAll)}"><td class="pn linkish" onclick="viewDoc('${d.id}')">${d.no}</td><td class="muted">${d.date}</td><td><span class="tag cyan">${esc(d.supplier||'-')}</span> <span class="muted">${esc(items)}</span></td><td class="num">${fmt2(d.total||d.subtotal||0)}</td><td>${statusTag(d.status)}</td><td style="text-align:right;white-space:nowrap"><button class="btn sm" onclick="viewDoc('${d.id}')">ดู</button> <button class="btn sm" onclick="printPurchase('${d.id}')">🖨️</button> <button class="btn sm" onclick="editPurchaseDoc('${d.id}')">✏️</button>${d.status==='pending'?` <button class="btn sm ok" onclick="approveDoc('${d.id}')">อนุมัติ</button> <button class="btn sm danger" onclick="deleteDoc('${d.id}')">🗑️ ลบ</button>`:''}${d.status==='approved'?` <button class="btn sm danger" onclick="cancelDoc('${d.id}')">ยกเลิก</button>`:''}${d.status==='cancelled'?` <button class="btn sm danger" onclick="delDocConfirm('${d.id}')">🗑️ ลบ</button>`:''}</td></tr>`;
 }
 /* ============================================================
    ใบเบิกวัตถุดิบ (Material Requisition) — อ้าง PO ต่อบรรทัด + พิมพ์/LINE
