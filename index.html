@@ -183,7 +183,7 @@ td.num,th.num{text-align:right;font-family:'Inter',sans-serif;font-variant-numer
   <aside class="sidebar">
     <div class="brand">
       <div class="logo">RTK</div>
-      <div><div class="t1">Store Control</div><div class="t2">ระบบควบคุมสต๊อค · build PO-2026.06.13ao</div></div>
+      <div><div class="t1">Store Control</div><div class="t2">ระบบควบคุมสต๊อค <span id="buildSidebar"></span></div></div>
     </div>
     <nav class="nav" id="nav"></nav>
   </aside>
@@ -191,7 +191,7 @@ td.num,th.num{text-align:right;font-family:'Inter',sans-serif;font-variant-numer
     <div class="topbar">
       <div><h1 id="pageTitle">แดชบอร์ด</h1><div class="crumb" id="pageCrumb"></div></div>
       <div class="right">
-        <button id="undoBtn" class="btn sm" title="ย้อนกลับ (Ctrl+Z)" onclick="undoAction()" disabled style="margin-right:4px">↶ ย้อนกลับ</button><button id="redoBtn" class="btn sm" title="ไปข้างหน้า (Ctrl+Shift+Z)" onclick="redoAction()" disabled style="margin-right:8px">↷ ไปหน้า</button><span id="syncChip" style="font-size:12px;font-weight:600;margin-right:6px;white-space:nowrap;color:var(--ink3)">…</span>
+        <button id="undoBtn" class="btn sm" title="ย้อนกลับ (Ctrl+Z)" onclick="undoAction()" disabled style="margin-right:4px">↶ ย้อนกลับ</button><button id="redoBtn" class="btn sm" title="ไปข้างหน้า (Ctrl+Shift+Z)" onclick="redoAction()" disabled style="margin-right:8px">↷ ไปหน้า</button><span id="buildTag" style="font-size:10px;color:var(--ink3);margin-right:8px;white-space:nowrap"></span><span id="syncChip" style="font-size:12px;font-weight:600;margin-right:6px;white-space:nowrap;color:var(--ink3)">…</span>
         <button class="btn sm ghost" onclick="exportData()">⬇ สำรองข้อมูล</button>
         <button class="btn sm ghost" onclick="document.getElementById('importFile').click()">⬆ นำเข้า</button>
         <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(this)">
@@ -222,6 +222,8 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
+const APP_BUILD='PO-2026.06.13ap';
+function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
 function todayISO(){return new Date().toISOString().slice(0,10)}
@@ -435,6 +437,7 @@ function render(){
     inv:()=>viewDocs('INV'),adj:()=>viewDocs('ADJ'),moves:viewMoves,settings:viewSettings,
     demand:viewDemand,mrp:viewMRP};
   (map[route]||viewDashboard)(el);
+  setBuild();
 }
 
 /* ---------- Helpers for rendering ---------- */
