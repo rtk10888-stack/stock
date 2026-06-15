@@ -182,7 +182,7 @@ td.num,th.num{text-align:right;font-family:'Inter',sans-serif;font-variant-numer
   <aside class="sidebar">
     <div class="brand">
       <div class="logo">RTK</div>
-      <div><div class="t1">Store Control</div><div class="t2">ระบบควบคุมสต๊อค · build FLOW-2026.06.13k</div></div>
+      <div><div class="t1">Store Control</div><div class="t2">ระบบควบคุมสต๊อค · build FLOW-2026.06.13l</div></div>
     </div>
     <nav class="nav" id="nav"></nav>
   </aside>
@@ -999,6 +999,7 @@ function filterGrRows(){
 }
 var grLines=[];
 var rwLines=[];
+function rwMatchName(i,val){rwLines[i].name=val;const pp=findProdByName(val,'FG');if(pp)rwLines[i].productId=pp.id;}
 function rwBlank(){return {date:todayISO(),deliveryNote:'',poNo:'',prdId:'',productId:'',name:'',orderedQty:'',unit:'Pcs.',maker:'',dueDate:'',receivedQty:'',remark:'',sampleCount:'',sampleWeight:'',totalWeight:'',computed:0};}
 function rwPanelHTML(){
   return `<div class="panel" style="margin-bottom:14px;border:1.5px solid var(--violet,#7c5cff)">
@@ -1029,8 +1030,8 @@ function rwPoLookup(i,val){
   const key=no.replace(/^PO/i,'');
   const prd=DB.docs.find(d=>d.type==='PRD'&&d.no.replace(/^PO/i,'')===key);
   if(!prd){rwLines[i].prdId='';toast('ไม่พบเลขที่ PO '+no+' ในใบสั่งผลิต','err');renderRwLines();return;}
-  const it=(prd.lines||[])[0]||{};const p=it.fgId?P(it.fgId):null;
-  rwLines[i].prdId=prd.id;rwLines[i].productId=it.fgId||'';
+  const it=(prd.lines||[])[0]||{};let pid=it.fgId||'';if(!pid){const pp=findProdByName(it.name,'FG');pid=pp?pp.id:'';}const p=pid?P(pid):null;
+  rwLines[i].prdId=prd.id;rwLines[i].productId=pid;
   rwLines[i].name=p?(p.pn+(p.name&&p.name!=='-'?' '+p.name:'')):(it.name||'');
   rwLines[i].orderedQty=it.qty||prd.qty||0;rwLines[i].unit=it.unit||'Pcs.';
   rwLines[i].maker=prd.maker||'';rwLines[i].dueDate=prd.due||it.dueDate||'';
@@ -1080,7 +1081,7 @@ function renderRwLines(){
     <td style="border:1px solid var(--line);padding:2px"><input type="date" value="${l.date}" oninput="rwLines[${i}].date=this.value" style="padding:4px;width:100%"></td>
     <td style="border:1px solid var(--line);padding:2px"><input value="${esc(l.deliveryNote||'')}" placeholder="เลขที่ใบส่งงาน" oninput="rwLines[${i}].deliveryNote=this.value" style="padding:4px;width:100%"></td>
     <td style="border:1px solid var(--line);padding:2px"><input list="dl_rwpo" value="${esc(l.poNo||'')}" placeholder="เคาะ PO ผลิต" onchange="rwPoLookup(${i},this.value)" style="padding:4px;width:100%"></td>
-    <td style="border:1px solid var(--line);padding:2px"><input value="${esc(l.name||'')}" placeholder="(ดึงจากใบสั่งผลิต)" oninput="rwLines[${i}].name=this.value" style="padding:4px;width:100%"></td>
+    <td style="border:1px solid var(--line);padding:2px"><input list="dl_rwfg" value="${esc(l.name||'')}" placeholder="(ดึงจากใบสั่งผลิต/เลือกสินค้า)" onchange="rwMatchName(${i},this.value)" oninput="rwLines[${i}].name=this.value" style="padding:4px;width:100%"></td>
     <td style="border:1px solid var(--line);padding:2px"><input type="number" step="any" value="${l.orderedQty}" oninput="rwLines[${i}].orderedQty=this.value;rwTotals()" style="padding:4px;width:100%;text-align:right"></td>
     <td style="border:1px solid var(--line);padding:2px"><input list="dl_rwunit" value="${esc(l.unit||'')}" oninput="rwLines[${i}].unit=this.value" style="padding:4px;width:100%"></td>
     <td style="border:1px solid var(--line);padding:2px"><input list="dl_rwmkr" value="${esc(l.maker||'')}" placeholder="ผู้ผลิต" oninput="rwLines[${i}].maker=this.value" style="padding:4px;width:100%"></td>
@@ -1107,6 +1108,7 @@ function renderRwLines(){
    </tr>
   </tfoot>
   </table></div>
+  <datalist id="dl_rwfg">${DB.products.filter(p=>p.type==='FG').slice(0,1800).map(p=>`<option value="${esc(p.pn+(p.name&&p.name!=='-'?' '+p.name:''))}">`).join('')}</datalist>
   <datalist id="dl_rwpo">${DB.docs.filter(x=>x.type==='PRD').sort((a,b)=>b.ts-a.ts).map(x=>{const it=(x.lines||[])[0]||{};const p=it.fgId&&P(it.fgId)?P(it.fgId):null;return `<option value="${esc(x.no)}">${esc((x.maker||'')+' · '+(p?p.pn:(it.name||'')))}</option>`}).join('')}</datalist>
   <datalist id="dl_rwmkr">${mkrs.map(s=>`<option value="${esc(s)}">`).join('')}</datalist>
   <datalist id="dl_rwunit"><option value="Pcs."><option value="ชิ้น"><option value="อัน"><option value="ชุด"></datalist>
@@ -1128,7 +1130,7 @@ function submitRW(status,editId){
   const v=k=>(document.getElementById(k)||{}).value;
   const lines=rwLines.filter(l=>(l.poNo||l.name)&&Number(l.receivedQty)>0).map(l=>({
     date:l.date||'',deliveryNote:(l.deliveryNote||'').trim(),poNo:(l.poNo||'').trim(),prdId:l.prdId||'',
-    productId:l.productId||'',name:(l.name||'').trim(),orderedQty:Number(l.orderedQty)||0,unit:l.unit||'',
+    productId:(l.productId||(findProdByName(l.name,'FG')||{}).id||''),name:(l.name||'').trim(),orderedQty:Number(l.orderedQty)||0,unit:l.unit||'',
     maker:(l.maker||'').trim(),dueDate:l.dueDate||'',qty:Number(l.receivedQty)||0,receivedQty:Number(l.receivedQty)||0,
     remark:(l.remark||'').trim(),sampleCount:Number(l.sampleCount)||0,sampleWeight:Number(l.sampleWeight)||0,
     totalWeight:Number(l.totalWeight)||0,computed:Number(l.computed)||0
@@ -1211,6 +1213,8 @@ function grToggle(force){const b=document.getElementById('grFormBody');if(!b)ret
 function grOpenNew(){grToggle(true);grClear();try{window.scrollTo({top:0,behavior:'smooth'})}catch(e){}}
 function rwToggle(force){const b=document.getElementById('rwFormBody');if(!b)return;const show=force!==undefined?force:(b.style.display==='none');b.style.display=show?'':'none';const t=document.getElementById('rwToggleBtn');if(t)t.textContent=show?'▲ ซ่อนฟอร์ม':'▼ เปิดฟอร์มบันทึก';}
 function rwOpenNew(){rwToggle(true);rwClear();try{window.scrollTo({top:0,behavior:'smooth'})}catch(e){}}
+function findProdByName(nm,type){nm=(nm||'').trim();if(!nm)return null;const first=nm.split(' ')[0];return DB.products.find(p=>(!type||p.type===type)&&(p.pn===nm||p.pn===first))||null;}
+function grMatchName(i,val){grLines[i].name=val;const pp=findProdByName(val,'RM');if(pp)grLines[i].productId=pp.id;}
 function grBlank(){return {date:todayISO(),deliveryNote:'',poNo:'',poId:'',productId:'',name:'',orderedQty:'',unit:'Pcs.',supplier:'',dueDate:'',receivedQty:'',remark:'',sampleCount:'',sampleWeight:'',totalWeight:'',computed:0};}
 function grPanelHTML(){
   return `<div class="panel" style="margin-bottom:14px;border:1.5px solid var(--brand)">
@@ -1268,8 +1272,8 @@ function grPoLookup(i,val){
   const no=(val||'').trim();grLines[i].poNo=no;if(!no){renderGrLines();return;}
   const po=DB.docs.find(d=>d.type==='PO'&&d.no===no);
   if(!po){grLines[i].poId='';toast('ไม่พบเลขที่ PO '+no+' ในใบสั่งซื้อ','err');renderGrLines();return;}
-  const it=(po.lines||[])[0]||{};const p=it.productId?P(it.productId):null;
-  grLines[i].poId=po.id;grLines[i].productId=it.productId||'';
+  const it=(po.lines||[])[0]||{};let pid=it.productId||'';if(!pid){const pp=findProdByName(it.name,'RM');pid=pp?pp.id:'';}const p=pid?P(pid):null;
+  grLines[i].poId=po.id;grLines[i].productId=pid;
   grLines[i].name=p?(p.pn+(p.name&&p.name!=='-'?' '+p.name:'')):(it.name||'');
   grLines[i].orderedQty=it.qty||0;grLines[i].unit=it.unit||'Pcs.';
   grLines[i].supplier=po.supplier||'';grLines[i].dueDate=po.deliveryDate||'';
@@ -1319,7 +1323,7 @@ function renderGrLines(){
     <td style="border:1px solid var(--line);padding:2px"><input type="date" value="${l.date}" oninput="grLines[${i}].date=this.value" style="padding:4px;width:100%"></td>
     <td style="border:1px solid var(--line);padding:2px"><input value="${esc(l.deliveryNote||'')}" placeholder="เลขที่ใบส่ง" oninput="grLines[${i}].deliveryNote=this.value" style="padding:4px;width:100%"></td>
     <td style="border:1px solid var(--line);padding:2px"><input list="dl_grpo" value="${esc(l.poNo||'')}" placeholder="เคาะเลข PO" onchange="grPoLookup(${i},this.value)" style="padding:4px;width:100%"></td>
-    <td style="border:1px solid var(--line);padding:2px"><input value="${esc(l.name||'')}" placeholder="(ดึงจาก PO)" oninput="grLines[${i}].name=this.value" style="padding:4px;width:100%"></td>
+    <td style="border:1px solid var(--line);padding:2px"><input list="dl_grrm" value="${esc(l.name||'')}" placeholder="(ดึงจาก PO/เลือกวัตถุดิบ)" onchange="grMatchName(${i},this.value)" oninput="grLines[${i}].name=this.value" style="padding:4px;width:100%"></td>
     <td style="border:1px solid var(--line);padding:2px"><input type="number" step="any" value="${l.orderedQty}" oninput="grLines[${i}].orderedQty=this.value;grTotals()" style="padding:4px;width:100%;text-align:right"></td>
     <td style="border:1px solid var(--line);padding:2px"><input list="dl_grunit" value="${esc(l.unit||'')}" oninput="grLines[${i}].unit=this.value" style="padding:4px;width:100%"></td>
     <td style="border:1px solid var(--line);padding:2px"><input list="dl_grsup" value="${esc(l.supplier||'')}" placeholder="ผู้ขาย" oninput="grLines[${i}].supplier=this.value" style="padding:4px;width:100%"></td>
@@ -1346,6 +1350,7 @@ function renderGrLines(){
    </tr>
   </tfoot>
   </table></div>
+  <datalist id="dl_grrm">${DB.products.filter(p=>p.type==='RM').slice(0,1500).map(p=>`<option value="${esc(p.pn+(p.name&&p.name!=='-'?' '+p.name:''))}">`).join('')}</datalist>
   <datalist id="dl_grpo">${DB.docs.filter(x=>x.type==='PO').sort((a,b)=>b.ts-a.ts).map(x=>`<option value="${esc(x.no)}">${esc(x.supplier||'')}</option>`).join('')}</datalist>
   <datalist id="dl_grsup">${sups.map(s=>`<option value="${esc(s)}">`).join('')}</datalist>
   <datalist id="dl_grunit"><option value="Pcs."><option value="Kgs."><option value="ชิ้น"><option value="เส้น"><option value="อัน"></datalist>
@@ -1356,7 +1361,7 @@ function submitGR(status,editId){
   const v=k=>(document.getElementById(k)||{}).value;
   const lines=grLines.filter(l=>(l.poNo||l.name)&&Number(l.receivedQty)>0).map(l=>({
     date:l.date||'',deliveryNote:(l.deliveryNote||'').trim(),poNo:(l.poNo||'').trim(),poId:l.poId||'',
-    productId:l.productId||'',name:(l.name||'').trim(),orderedQty:Number(l.orderedQty)||0,unit:l.unit||'',
+    productId:(l.productId||(findProdByName(l.name,'RM')||{}).id||''),name:(l.name||'').trim(),orderedQty:Number(l.orderedQty)||0,unit:l.unit||'',
     supplier:(l.supplier||'').trim(),dueDate:l.dueDate||'',qty:Number(l.receivedQty)||0,receivedQty:Number(l.receivedQty)||0,
     remark:(l.remark||'').trim(),sampleCount:Number(l.sampleCount)||0,sampleWeight:Number(l.sampleWeight)||0,
     totalWeight:Number(l.totalWeight)||0,computed:Number(l.computed)||0
