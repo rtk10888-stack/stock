@@ -183,7 +183,7 @@ td.num,th.num{text-align:right;font-family:'Inter',sans-serif;font-variant-numer
   <aside class="sidebar">
     <div class="brand">
       <div class="logo">RTK</div>
-      <div><div class="t1">Store Control</div><div class="t2">ระบบควบคุมสต๊อค · build PRICE-2026.06.13w</div></div>
+      <div><div class="t1">Store Control</div><div class="t2">ระบบควบคุมสต๊อค · build PRICE-2026.06.13x</div></div>
     </div>
     <nav class="nav" id="nav"></nav>
   </aside>
@@ -590,7 +590,7 @@ function renderInvTable(){
       <td>${p.customer==='ไม่ระบุ'?'<span class="muted">—</span>':p.customer}</td>
       <td class="num ${moq?'':'muted'}">${fmt(moq)}</td>
       <td class="num">${p.salePrice>0?fmt2(p.salePrice):'<span class="muted">—</span>'}</td>
-      <td class="num">${p.type==='FG'?`<input type="number" step="0.01" value="${p.prodPrice||0}" onchange="setProdPrice('${p.id}',this.value)" style="width:78px;text-align:right;padding:4px 6px">`:'<span class="muted">—</span>'}</td>
+      <td class="num"><input type="number" step="0.01" value="${p.prodPrice||0}" onchange="setProdPrice('${p.id}',this.value)" style="width:78px;text-align:right;padding:4px 6px"></td>
       <td>${plt}</td>
       <td>${cond}</td>
       <td class="num"><b style="color:${low?'var(--red)':'var(--ink)'}">${fmt(p.onHand)}</b></td>
