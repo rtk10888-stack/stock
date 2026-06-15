@@ -182,7 +182,7 @@ td.num,th.num{text-align:right;font-family:'Inter',sans-serif;font-variant-numer
   <aside class="sidebar">
     <div class="brand">
       <div class="logo">RTK</div>
-      <div><div class="t1">Store Control</div><div class="t2">ระบบควบคุมสต๊อค · build RW-2026.06.13g</div></div>
+      <div><div class="t1">Store Control</div><div class="t2">ระบบควบคุมสต๊อค · build FLOW-2026.06.13h</div></div>
     </div>
     <nav class="nav" id="nav"></nav>
   </aside>
@@ -264,10 +264,12 @@ function DEFAULT_MAKERS(){return [
 function ensureSettings(){const s=DB&&DB.settings;if(!s)return;if(!s.company)s.company=DEFAULT_COMPANY();if(s.company&&!s.company.poSign)s.company.poSign=DEFAULT_COMPANY().poSign;if(s.company&&s.company.poSign&&/[ก-๙]/.test(JSON.stringify(s.company.poSign)))s.company.poSign=DEFAULT_COMPANY().poSign;if(s.company&&!s.company.thName)s.company.thName=DEFAULT_COMPANY().thName;if(s.company&&s.company.address&&s.company.address.indexOf('ออนนุช')>=0)s.company.address=DEFAULT_COMPANY().address;if(s.company&&!s.company.addressEn)s.company.addressEn=DEFAULT_COMPANY().addressEn;if(!s.makers||!s.makers.length)s.makers=DEFAULT_MAKERS();if(s.passcode===undefined)s.passcode='';if(!s.suppliers)s.suppliers=[];if(!s.customers)s.customers=[];if(!s.platings)s.platings=[];}
 function makerByCode(code){return (DB.settings.makers||[]).find(m=>m.code===code)||null;}
 function fmt2(n){return (Number(n)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}
+function prodFlow(p){if(!p)return'';if(p.flow)return p.flow;if(p.type==='RM')return'';const pl=(p.plating||'').trim();if(pl==='ไม่ชุบ'||pl==='ไม่ชุบ-QC'||pl==='ชุบ-QC')return pl;if(p.needPlating&&pl)return'ชุบ-QC';return'ไม่ชุบ-QC';}
+function platingSpec(p){if(!p)return'';const pl=(p.plating||'').trim();if(pl==='ไม่ชุบ'||pl==='ไม่ชุบ-QC'||pl==='ชุบ-QC')return'';return pl;}
 function mkProduct(type,p){
   return {id:uid(),type,pn:p.pn,name:p.name||'-',customer:p.cust||'ไม่ระบุ',
     moq:p.moq||0,material:p.mat||'',plating:p.plating||'',needPlating:!!p.plating,
-    custSupplyMat:false,salePrice:0,buyPrice:0,supplier:'',remark:'',
+    custSupplyMat:false,flow:'',salePrice:0,buyPrice:0,supplier:'',remark:'',
     onHand:p.stock||0,wip:0,atPlating:0,passedQC:0,ng:0,
     reorder: type==='FG'?(p.moq||0):0};
 }
@@ -352,7 +354,7 @@ function applyDoc(d){
   const t=d.type;
   try{
     if(t==='GR'){ d.lines.forEach(l=>{const p=P(l.productId);if(p){p.onHand+=l.qty;move(p.id,'onHand',+l.qty,'GR',d.no,'รับซื้อ '+(d.supplier||''));}}); }
-    else if(t==='RW'){ d.lines.forEach(l=>{const p=P(l.productId);if(p){p.wip+=l.qty;move(p.id,'wip',+l.qty,'RW',d.no,'รับชิ้นงานจากผู้ผลิต '+(l.maker||''));}}); }
+    else if(t==='RW'){ d.lines.forEach(l=>{const p=P(l.productId);if(p){const fl=prodFlow(p);if(fl==='ไม่ชุบ'){p.onHand+=l.qty;move(p.id,'onHand',+l.qty,'RW',d.no,'รับชิ้นงาน(ไม่ชุบ) '+(l.maker||''));}else{p.wip+=l.qty;move(p.id,'wip',+l.qty,'RW',d.no,'รับชิ้นงาน '+(l.maker||''));}}}); }
     else if(t==='WD'){ d.lines.forEach(l=>{const p=P(l.productId);if(p){p.onHand-=l.qty;move(p.id,'onHand',-l.qty,'WD',d.no,'เบิกผลิต '+(l.poNo||d.refPRD||''));}}); }
     else if(t==='DP'){ const p=P(d.productId);p.wip+=d.qty;move(p.id,'wip',+d.qty,'DP',d.no,'ผลิตเสร็จ'); }
     else if(t==='PS'){ const p=P(d.productId);p.wip-=d.qty;p.atPlating+=d.qty;move(p.id,'wip',-d.qty,'PS',d.no,'ส่งชุบ '+(d.vendor||''));move(p.id,'atPlating',+d.qty,'PS',d.no,'ส่งชุบ'); }
@@ -515,7 +517,7 @@ function viewInventory(el){
       </div>
       <div class="searchbox"><input id="invQ" placeholder="ค้นหา PN / ชื่อ / ลูกค้า..." value="${esc(invFilter.q)}" oninput="invFilter.q=this.value;renderInvTable()"></div>
       <input list="dl_invcust" placeholder="👥 ลูกค้า (พิมพ์ค้นหา)" value="${esc(invFilter.cust)}" oninput="invFilter.cust=this.value;renderInvTable()" style="max-width:170px;width:auto"><datalist id="dl_invcust">${custs.map(v=>'<option value="'+esc(v)+'">').join('')}</datalist>
-      <input list="dl_invplt" placeholder="✨ การชุบ (พิมพ์ค้นหา)" value="${esc(invFilter.plating)}" oninput="invFilter.plating=this.value;renderInvTable()" style="max-width:150px;width:auto"><datalist id="dl_invplt"><option value="ไม่ชุบ">${plts.map(v=>'<option value="'+esc(v)+'">').join('')}</datalist>
+      <input list="dl_invplt" placeholder="✨ การชุบ (พิมพ์ค้นหา)" value="${esc(invFilter.plating)}" oninput="invFilter.plating=this.value;renderInvTable()" style="max-width:150px;width:auto"><datalist id="dl_invplt"><option value="ไม่ชุบ"><option value="ไม่ชุบ-QC"><option value="ชุบ-QC"></datalist>
       <input list="dl_invcond" placeholder="🧱 เงื่อนไขวัตถุดิบ" value="${esc(invFilter.cond)}" oninput="invFilter.cond=this.value;renderInvTable()" style="max-width:180px;width:auto"><datalist id="dl_invcond"><option value="ลูกค้าจ่ายแมท"><option value="บริษัทซื้อแมท"></datalist>
       <div class="right">
         <input type="file" id="balanceFile" accept=".json" style="display:none" onchange="applyBalanceUpdate(this)">
@@ -533,7 +535,7 @@ function renderInvTable(){
   let list=DB.products.filter(p=>invFilter.type==='all'||p.type===invFilter.type);
   if(q)list=list.filter(p=>(p.pn+' '+p.name+' '+p.customer+' '+p.material).toLowerCase().includes(q));
   if(invFilter.cust){const cv=invFilter.cust.toLowerCase();list=list.filter(p=>(p.customer||'').toLowerCase().includes(cv));}
-  if(invFilter.plating){const pv=invFilter.plating.toLowerCase(); if(pv==='none'||pv.indexOf('ไม่ชุบ')>=0)list=list.filter(p=>p.type==='FG'&&!p.needPlating); else list=list.filter(p=>p.needPlating&&(p.plating||'').toLowerCase().includes(pv)); }
+  if(invFilter.plating){const pv=invFilter.plating.toLowerCase(); list=list.filter(p=>p.type==='FG'&&prodFlow(p).toLowerCase().includes(pv)); }
   if(invFilter.cond){const cv=invFilter.cond.toLowerCase(); if(cv==='cust'||cv.indexOf('ลูกค้า')>=0)list=list.filter(p=>p.custSupplyMat); else if(cv==='own'||cv.indexOf('บริษัท')>=0)list=list.filter(p=>p.type==='FG'&&!p.custSupplyMat); }
   list=list.slice().sort((a,b)=>a.pn.localeCompare(b.pn));
   if(!list.length){wrap.innerHTML=`<div class="empty"><div class="big">🔍</div><div class="t">ไม่พบรายการ</div></div>`;return}
@@ -546,7 +548,8 @@ function renderInvTable(){
   ${list.map(p=>{
     const low=p.onHand<=(p.reorder||0)&&(p.reorder>0||p.onHand===0);
     const moq=p.moq||p.reorder||0;
-    const plt = p.type==='RM' ? '<span class="muted">—</span>' : (p.needPlating?'<span class="tag cyan">'+esc(p.plating||'ชุบ')+'</span>':'<span class="muted">ไม่ชุบ</span>');
+    const fl=prodFlow(p);
+    const plt = p.type==='RM' ? '<span class="muted">—</span>' : ('<span class="tag '+(fl==='ชุบ-QC'?'cyan':fl==='ไม่ชุบ'?'gray':'amber')+'">'+esc(fl)+'</span>'+(fl==='ชุบ-QC'&&p.plating&&p.plating!=='ชุบ'?' <span class="muted">'+esc(p.plating)+'</span>':''));
     const matTag = p.material?'<span class="tag gray">'+esc(p.material)+'</span> ':'';
     const cond = p.type==='RM' ? (p.material?'<span class="tag gray">'+esc(p.material)+'</span>':'<span class="muted">—</span>')
       : matTag+(p.custSupplyMat?'<span class="tag violet">ลูกค้าจ่ายแมท</span>':'<span class="tag gray">บริษัทซื้อแมท</span>');
@@ -597,7 +600,7 @@ function openProduct(id){
 
 /* product form */
 function openProductForm(id){
-  const p=id?P(id):null;const isEdit=!!p;
+  const p=id?P(id):null;const isEdit=!!p;const fl=prodFlow(p)||'ไม่ชุบ-QC';
   const cust=DB.settings.customers,plt=DB.settings.platings,sup=DB.settings.suppliers;
   modal({title:isEdit?'แก้ไขสินค้า':'เพิ่มสินค้าใหม่',body:`
     <div class="row c2">
@@ -618,12 +621,14 @@ function openProductForm(id){
     </div>
     <div id="fgOnly" style="${p&&p.type==='RM'?'display:none':''}">
       <div class="row c2">
-        <div class="field"><label>การชุบ</label><input id="f_plt" list="dl_plt" value="${p?esc(p.plating):''}" placeholder="ว่าง = ไม่ชุบ" oninput="document.getElementById('f_needplt').checked=!!this.value.trim()"><datalist id="dl_plt">${plt.map(c=>`<option value="${esc(c)}">`).join('')}</datalist></div>
-        <div class="field"><label>เงื่อนไขวัตถุดิบ</label>
-          <label style="font-weight:400;display:flex;gap:7px;align-items:center;margin-top:8px"><input type="checkbox" id="f_csm" style="width:auto" ${p&&p.custSupplyMat?'checked':''}> ลูกค้าจ่ายแมท (Customer Supply)</label>
-          <input type="hidden" id="f_needplt" ${p&&p.needPlating?'value=1':''}>
-        </div>
+        <div class="field"><label>การชุบ / QC (เงื่อนไขการไหลของสต๊อค)</label><select id="f_flow">
+          <option value="ไม่ชุบ" ${fl==='ไม่ชุบ'?'selected':''}>ไม่ชุบ — รับเข้าเป็นของพร้อมขายทันที</option>
+          <option value="ไม่ชุบ-QC" ${fl==='ไม่ชุบ-QC'?'selected':''}>ไม่ชุบ-QC — ผ่านคัดแยก QC ก่อนเข้าสต๊อค</option>
+          <option value="ชุบ-QC" ${fl==='ชุบ-QC'?'selected':''}>ชุบ-QC — ส่งชุบ → QC → เข้าสต๊อค</option>
+        </select></div>
+        <div class="field"><label>ชนิดการชุบ (เมื่อเลือกชุบ-QC)</label><input id="f_plt" list="dl_plt" value="${p?esc(platingSpec(p)):''}" placeholder="เช่น MFZn8-B"><datalist id="dl_plt">${plt.map(c=>`<option value="${esc(c)}">`).join('')}</datalist></div>
       </div>
+      <div class="field"><label style="font-weight:400;display:flex;gap:7px;align-items:center"><input type="checkbox" id="f_csm" style="width:auto" ${p&&p.custSupplyMat?'checked':''}> ลูกค้าจ่ายแมท (Customer Supply)</label></div>
     </div>
     <div class="field"><label>หมายเหตุ</label><input id="f_remark" value="${p?esc(p.remark):''}"></div>
     ${isEdit?'<div class="hint"><span class="i">ℹ️</span> ยอดคงเหลือปรับผ่านเอกสาร (รับเข้า/เบิก/ปรับยอด) เพื่อให้มีการอนุมัติและบันทึกประวัติ</div>':'<div class="field"><label>ยอดยกมา (สต๊อคตั้งต้น)</label><input type="number" id="f_open" value="0"></div>'}
@@ -640,7 +645,7 @@ function saveProduct(id){
   p.type=type;p.pn=pn;p.name=v('f_name').value.trim()||'-';p.customer=v('f_cust').value.trim()||'ไม่ระบุ';
   p.material=v('f_mat').value.trim();p.reorder=Number(v('f_reorder').value)||0;
   p.salePrice=Number(v('f_sale').value)||0;p.buyPrice=Number(v('f_buy').value)||0;p.remark=v('f_remark').value.trim();
-  if(type==='FG'){p.plating=v('f_plt').value.trim();p.needPlating=!!p.plating;p.custSupplyMat=v('f_csm').checked;}
+  if(type==='FG'){const flow=(v('f_flow')&&v('f_flow').value)||'ไม่ชุบ-QC';p.flow=flow;p.needPlating=(flow==='ชุบ-QC');p.needQC=(flow!=='ไม่ชุบ');p.plating=(flow==='ชุบ-QC')?((v('f_plt')&&v('f_plt').value.trim())||'ชุบ'):'';p.custSupplyMat=v('f_csm').checked;}
   else{p.plating='';p.needPlating=false;p.custSupplyMat=false;}
   // register customer
   if(p.customer&&!DB.settings.customers.includes(p.customer))DB.settings.customers.push(p.customer);
