@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='GR-2026.06.13ar';
+const APP_BUILD='FLOW-2026.06.13as';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -265,11 +265,19 @@ function DEFAULT_MAKERS(){return [
   {code:'ROOT',name:'',taxId:'',address:'',tel:''},{code:'SOM',name:'',taxId:'',address:'',tel:''},
   {code:'WSP',name:'',taxId:'',address:'',tel:''}
 ];}
-function ensureSettings(){const s=DB&&DB.settings;if(!s)return;if(!s.company)s.company=DEFAULT_COMPANY();if(s.company&&!s.company.poSign)s.company.poSign=DEFAULT_COMPANY().poSign;if(s.company&&s.company.poSign&&/[ก-๙]/.test(JSON.stringify(s.company.poSign)))s.company.poSign=DEFAULT_COMPANY().poSign;if(s.company&&!s.company.thName)s.company.thName=DEFAULT_COMPANY().thName;if(s.company&&s.company.address&&s.company.address.indexOf('ออนนุช')>=0)s.company.address=DEFAULT_COMPANY().address;if(s.company&&!s.company.addressEn)s.company.addressEn=DEFAULT_COMPANY().addressEn;if(!s.makers||!s.makers.length)s.makers=DEFAULT_MAKERS();if(s.passcode===undefined)s.passcode='';if(!s.suppliers)s.suppliers=[];if(!s.customers)s.customers=[];if(!s.platings)s.platings=[];}
+function ensureSettings(){const s=DB&&DB.settings;if(!s)return;if(!s.company)s.company=DEFAULT_COMPANY();if(s.company&&!s.company.poSign)s.company.poSign=DEFAULT_COMPANY().poSign;if(s.company&&s.company.poSign&&/[ก-๙]/.test(JSON.stringify(s.company.poSign)))s.company.poSign=DEFAULT_COMPANY().poSign;if(s.company&&!s.company.thName)s.company.thName=DEFAULT_COMPANY().thName;if(s.company&&s.company.address&&s.company.address.indexOf('ออนนุช')>=0)s.company.address=DEFAULT_COMPANY().address;if(s.company&&!s.company.addressEn)s.company.addressEn=DEFAULT_COMPANY().addressEn;if(!s.makers||!s.makers.length)s.makers=DEFAULT_MAKERS();if(s.passcode===undefined)s.passcode='';if(!s.suppliers)s.suppliers=[];if(!s.customers)s.customers=[];if(!s.platings)s.platings=[];if(!s.flows||!s.flows.length)s.flows=[{name:'ไม่ชุบ',direct:true},{name:'ไม่ชุบ-QC',direct:false},{name:'ชุบ-QC',direct:false}];}
 function makerByCode(code){return (DB.settings.makers||[]).find(m=>m.code===code)||null;}
 function fmt2(n){return (Number(n)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}
 function prodFlow(p){if(!p)return'';if(p.flow)return p.flow;if(p.type==='RM')return'ไม่ชุบ';const pl=(p.plating||'').trim();if(pl==='ไม่ชุบ'||pl==='ไม่ชุบ-QC'||pl==='ชุบ-QC')return pl;if(p.needPlating&&pl)return'ชุบ-QC';return'ไม่ชุบ-QC';}
 function platingSpec(p){if(!p)return'';const pl=(p.plating||'').trim();if(pl==='ไม่ชุบ'||pl==='ไม่ชุบ-QC'||pl==='ชุบ-QC')return'';return pl;}
+function flowEnsure(){if(!DB.settings)return;if(!DB.settings.flows||!DB.settings.flows.length)DB.settings.flows=[{name:'ไม่ชุบ',direct:true},{name:'ไม่ชุบ-QC',direct:false},{name:'ชุบ-QC',direct:false}];}
+function flowList(){flowEnsure();return DB.settings.flows||[];}
+function isDirectFlow(name){const f=(DB.settings.flows||[]).find(x=>x.name===name);return f?!!f.direct:(name==='ไม่ชุบ');}
+function flowsEditor(){const arr=DB.settings.flows||[];return `<div class="panel"><div class="panel-h"><h2>🔄 เงื่อนไขการชุบ / การไหลของสต๊อค</h2><div class="right"><button class="btn sm" onclick="flowAdd()">+ เพิ่มเงื่อนไข</button></div></div><div class="panel-b"><div style="display:flex;flex-direction:column;gap:7px">${arr.map((f,i)=>`<div style="display:flex;gap:8px;align-items:center;border:1px solid var(--line);border-radius:8px;padding:6px 10px"><input value="${esc(f.name)}" onchange="flowSetName(${i},this.value)" style="flex:1;padding:5px 8px"><label style="font-size:12px;display:flex;gap:5px;align-items:center;white-space:nowrap"><input type="checkbox" ${f.direct?'checked':''} onchange="flowSetDirect(${i},this.checked)" style="width:auto"> เข้าคงเหลือทันที</label><span style="cursor:pointer;color:var(--red)" onclick="flowDel(${i})">🗑️</span></div>`).join('')||'<span class="muted">ยังไม่มีเงื่อนไข</span>'}</div><div class="hint" style="margin-top:8px"><span class="i">ℹ️</span><div>ติ๊ก "เข้าคงเหลือทันที" = รับเข้าแล้วเข้าคงเหลือเลย · ไม่ติ๊ก = เข้า WIP รอคัดแยก/ชุบก่อน</div></div></div></div>`;}
+function flowAdd(){flowEnsure();DB.settings.flows.push({name:'เงื่อนไขใหม่',direct:false});saveDB();render();}
+function flowSetName(i,val){flowEnsure();if(DB.settings.flows[i]){DB.settings.flows[i].name=(val||'').trim()||'เงื่อนไข';saveDB();render();}}
+function flowSetDirect(i,c){flowEnsure();if(DB.settings.flows[i]){DB.settings.flows[i].direct=!!c;saveDB();toast('บันทึกแล้ว','ok');}}
+function flowDel(i){flowEnsure();DB.settings.flows.splice(i,1);saveDB();render();}
 function mkProduct(type,p){
   return {id:uid(),type,pn:p.pn,name:p.name||'-',customer:p.cust||'ไม่ระบุ',
     moq:p.moq||0,material:p.mat||'',plating:p.plating||'',needPlating:!!p.plating,
@@ -365,8 +373,8 @@ function move(productId,bucket,qty,docType,docNo,note){
 function applyDoc(d){
   const t=d.type;
   try{
-    if(t==='GR'){ d.lines.forEach(l=>{const p=P(l.productId);if(p){const fl=prodFlow(p);if(fl==='ไม่ชุบ'){p.onHand+=l.qty;move(p.id,'onHand',+l.qty,'GR',d.no,'รับเข้า(ไม่ชุบ) '+(d.supplier||''));}else{p.wip+=l.qty;move(p.id,'wip',+l.qty,'GR',d.no,'รับเข้า(รอ QC) '+(d.supplier||''));}}}); }
-    else if(t==='RW'){ d.lines.forEach(l=>{const p=P(l.productId);if(p){const fl=prodFlow(p);if(fl==='ไม่ชุบ'){p.onHand+=l.qty;move(p.id,'onHand',+l.qty,'RW',d.no,'รับชิ้นงาน(ไม่ชุบ) '+(l.maker||''));}else{p.wip+=l.qty;move(p.id,'wip',+l.qty,'RW',d.no,'รับชิ้นงาน '+(l.maker||''));}}}); }
+    if(t==='GR'){ d.lines.forEach(l=>{const p=P(l.productId);if(p){const fl=prodFlow(p);if(isDirectFlow(fl)){p.onHand+=l.qty;move(p.id,'onHand',+l.qty,'GR',d.no,'รับเข้า(ไม่ชุบ) '+(d.supplier||''));}else{p.wip+=l.qty;move(p.id,'wip',+l.qty,'GR',d.no,'รับเข้า(รอ QC) '+(d.supplier||''));}}}); }
+    else if(t==='RW'){ d.lines.forEach(l=>{const p=P(l.productId);if(p){const fl=prodFlow(p);if(isDirectFlow(fl)){p.onHand+=l.qty;move(p.id,'onHand',+l.qty,'RW',d.no,'รับชิ้นงาน(ไม่ชุบ) '+(l.maker||''));}else{p.wip+=l.qty;move(p.id,'wip',+l.qty,'RW',d.no,'รับชิ้นงาน '+(l.maker||''));}}}); }
     else if(t==='WD'){ d.lines.forEach(l=>{const p=P(l.productId);if(p){p.onHand-=l.qty;move(p.id,'onHand',-l.qty,'WD',d.no,'เบิกผลิต '+(l.poNo||d.refPRD||''));}}); }
     else if(t==='DP'){ if(d.productId&&!d.lines){const p=P(d.productId);if(p){p.wip+=d.qty;move(p.id,'wip',+d.qty,'DP',d.no,'ผลิตเสร็จ');}} }
     else if(t==='PS'){ const p=P(d.productId);p.wip-=d.qty;p.atPlating+=d.qty;move(p.id,'wip',-d.qty,'PS',d.no,'ส่งชุบ '+(d.vendor||''));move(p.id,'atPlating',+d.qty,'PS',d.no,'ส่งชุบ'); }
@@ -659,11 +667,7 @@ function openProductForm(id){
     <div class="field"><label>ราคาผลิต/หน่วย (Production Price)</label><input type="number" step="0.01" id="f_prodprice" value="${p?(p.prodPrice||0):0}"></div>
     <div id="fgOnly">
       <div class="row c2">
-        <div class="field"><label>การชุบ / QC (เงื่อนไขการไหลของสต๊อค)</label><select id="f_flow">
-          <option value="ไม่ชุบ" ${fl==='ไม่ชุบ'?'selected':''}>ไม่ชุบ — รับเข้าเป็นของพร้อมขายทันที</option>
-          <option value="ไม่ชุบ-QC" ${fl==='ไม่ชุบ-QC'?'selected':''}>ไม่ชุบ-QC — ผ่านคัดแยก QC ก่อนเข้าสต๊อค</option>
-          <option value="ชุบ-QC" ${fl==='ชุบ-QC'?'selected':''}>ชุบ-QC — ส่งชุบ → QC → เข้าสต๊อค</option>
-        </select></div>
+        <div class="field"><label>การชุบ / QC (เงื่อนไขการไหลของสต๊อค)</label><select id="f_flow">${flowList().map(fo=>`<option value="${esc(fo.name)}" ${fl===fo.name?'selected':''}>${esc(fo.name)}${fo.direct?' — เข้าคงเหลือทันที':' — ผ่านขั้นตอนก่อน'}</option>`).join('')}${flowList().some(fo=>fo.name===fl)?'':`<option value="${esc(fl)}" selected>${esc(fl)}</option>`}</select></div>
         <div class="field"><label>ชนิดการชุบ (เมื่อเลือกชุบ-QC)</label><input id="f_plt" list="dl_plt" value="${p?esc(platingSpec(p)):''}" placeholder="เช่น MFZn8-B"><datalist id="dl_plt">${plt.map(c=>`<option value="${esc(c)}">`).join('')}</datalist></div>
       </div>
       <div class="field"><label style="font-weight:400;display:flex;gap:7px;align-items:center"><input type="checkbox" id="f_csm" style="width:auto" ${p&&p.custSupplyMat?'checked':''}> ลูกค้าจ่ายแมท (Customer Supply — เฉพาะสำเร็จรูป)</label></div>
@@ -2943,6 +2947,7 @@ function viewSettings(el){
       ${listEditor('customers','👥 ลูกค้า')}
       ${listEditor('suppliers','🏢 ผู้ขาย (Supplier)')}
       ${listEditor('platings','✨ ประเภทการชุบ')}
+      ${flowsEditor()}
       ${makersEditor()}
       ${companyEditor()}
     </div>
