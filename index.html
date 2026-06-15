@@ -183,7 +183,7 @@ td.num,th.num{text-align:right;font-family:'Inter',sans-serif;font-variant-numer
   <aside class="sidebar">
     <div class="brand">
       <div class="logo">RTK</div>
-      <div><div class="t1">Store Control</div><div class="t2">ระบบควบคุมสต๊อค · build UNDO-2026.06.13t</div></div>
+      <div><div class="t1">Store Control</div><div class="t2">ระบบควบคุมสต๊อค · build UNDO-2026.06.13u</div></div>
     </div>
     <nav class="nav" id="nav"></nav>
   </aside>
@@ -959,7 +959,10 @@ function prdRow(d){
     <td style="text-align:right;white-space:nowrap">
       <button class="btn sm" onclick="viewDoc('${d.id}')">ดู</button>
       <button class="btn sm" onclick="printPO('${d.id}')">🖨️</button>
-      ${d.status==='pending'?`<button class="btn sm ok" onclick="approveDoc('${d.id}')">อนุมัติ</button>`:''}
+      <button class="btn sm" onclick="editPRD('${d.id}')">✏️</button>
+      ${d.status==='pending'?`<button class="btn sm ok" onclick="approveDoc('${d.id}')">อนุมัติ</button> <button class="btn sm danger" onclick="deleteDoc('${d.id}')">🗑️ ลบ</button>`:''}
+      ${d.status==='approved'?`<button class="btn sm danger" onclick="cancelDoc('${d.id}')">ยกเลิก</button>`:''}
+      ${d.status==='cancelled'?`<button class="btn sm danger" onclick="delDocConfirm('${d.id}')">🗑️ ลบ</button>`:''}
     </td></tr>`;
 }
 function filterPORows(){
@@ -1522,6 +1525,7 @@ function prdTotals(){
     <div class="kv"><span class="k">ยอดสุทธิ (Net)</span><b style="color:var(--teal);font-size:15px">${fmt2(sub-wht)} บาท</b></div>
   </div></div>`;
 }
+function editPRD(id){const d=DB.docs.find(x=>x.id===id);if(d)openPRDForm(d);}
 function submitPRD(status,editId){
   const v=k=>(document.getElementById(k)||{}).value;
   const no=(v('po_no')||'').trim();if(!no){toast('กรุณากรอกเลขที่ PO','err');return}
