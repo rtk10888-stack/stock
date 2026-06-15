@@ -183,7 +183,7 @@ td.num,th.num{text-align:right;font-family:'Inter',sans-serif;font-variant-numer
   <aside class="sidebar">
     <div class="brand">
       <div class="logo">RTK</div>
-      <div><div class="t1">Store Control</div><div class="t2">ระบบควบคุมสต๊อค · build RWIMP-2026.06.13ac</div></div>
+      <div><div class="t1">Store Control</div><div class="t2">ระบบควบคุมสต๊อค · build RWIMP-2026.06.13ad</div></div>
     </div>
     <nav class="nav" id="nav"></nav>
   </aside>
@@ -2158,16 +2158,35 @@ function applySalePriceImport(input){
     input.value='';
   };r.readAsText(f);
 }
+var rwPrintRows=[];
 function printRWMonth(){
   const mon=((document.getElementById('rwMon')||{}).value||'').trim();
+  const mk=((document.getElementById('rwMkr')||{}).value||'').trim().toLowerCase();
   let docs=DB.docs.filter(d=>d.type==='RW'&&d.status!=='cancelled');
-  if(mon)docs=docs.filter(d=>(d.date||'').slice(0,7).indexOf(mon)>=0||(d.date||'').indexOf(mon)>=0);
+  if(mon)docs=docs.filter(d=>(d.date||'').indexOf(mon)>=0);
   docs=docs.slice().sort((a,b)=>(a.date||'').localeCompare(b.date||'')||(a.no||'').localeCompare(b.no||''));
-  if(!docs.length){toast('ไม่มีรายการรับชิ้นงานในเดือนที่เลือก','err');return;}
+  rwPrintRows=[];
+  docs.forEach(d=>{(d.lines||[]).forEach(l=>{const mkr=(l.maker||d.maker||'');if(mk&&mkr.toLowerCase().indexOf(mk)<0)return;const p=l.productId?P(l.productId):null;const pr=(p&&p.prodPrice)||l.price||0;rwPrintRows.push({date:d.date||'',no:d.no||'',po:l.poNo||'',maker:mkr,name:l.name||(p?p.pn:''),price:pr,qty:l.qty||0,on:true});});});
+  if(!rwPrintRows.length){toast('ไม่มีรายการตามเงื่อนไข (เดือน/ผู้ผลิต)','err');return;}
+  const bd='1px solid var(--line)';
+  modal({title:'🖨️ พิมพ์สรุปรับชิ้นงานรายเดือน',size:'xl',body:`
+    <div class="hint"><span class="i">ℹ️</span><div>เดือน <b>${esc(mon||'ทั้งหมด')}</b> · ผู้ผลิต <b>${esc(mk||'ทั้งหมด')}</b> · ติ๊กออกเพื่อ <b>ซ่อน</b> รายการที่ไม่ต้องการพิมพ์</div></div>
+    <div style="max-height:48vh;overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">
+      <thead><tr style="background:var(--panel2)"><th style="padding:5px;border:${bd}"><input type="checkbox" id="rwAllChk" checked onchange="rwToggleAll(this.checked)"></th><th style="padding:5px;border:${bd}">วันที่</th><th style="padding:5px;border:${bd}">เลขที่</th><th style="padding:5px;border:${bd}">PO</th><th style="padding:5px;border:${bd}">ผู้ผลิต</th><th style="padding:5px;border:${bd}">รายการ</th><th class="num" style="padding:5px;border:${bd}">ราคา</th><th class="num" style="padding:5px;border:${bd}">จำนวน</th><th class="num" style="padding:5px;border:${bd}">มูลค่า</th></tr></thead>
+      <tbody>${rwPrintRows.map((r,i)=>`<tr><td style="text-align:center;border:${bd}"><input type="checkbox" class="rwchk" ${r.on?'checked':''} onchange="rwPrintRows[${i}].on=this.checked;rwPrintTotals()"></td><td style="border:${bd};padding:4px">${esc(r.date)}</td><td style="border:${bd};padding:4px">${esc(r.no)}</td><td style="border:${bd};padding:4px">${esc(r.po)}</td><td style="border:${bd};padding:4px">${esc(r.maker)}</td><td style="border:${bd};padding:4px">${esc(r.name)}</td><td class="num" style="border:${bd};padding:4px">${fmt2(r.price)}</td><td class="num" style="border:${bd};padding:4px">${fmt(r.qty)}</td><td class="num" style="border:${bd};padding:4px">${fmt2(r.price*r.qty)}</td></tr>`).join('')}</tbody>
+    </table></div>
+    <div id="rwPrintTotals" style="margin-top:10px"></div>
+  `,footer:`<button class="btn" onclick="closeModal()">ยกเลิก</button><button class="btn pri" onclick="doPrintRWMonth('${esc(mon)}')">🖨️ พิมพ์ / PDF</button>`});
+  setTimeout(rwPrintTotals,20);
+}
+function rwToggleAll(on){rwPrintRows.forEach(r=>r.on=on);document.querySelectorAll('.rwchk').forEach(c=>c.checked=on);rwPrintTotals();}
+function rwPrintTotals(){let q=0,amt=0,n=0;rwPrintRows.forEach(r=>{if(r.on){q+=r.qty;amt+=r.price*r.qty;n++;}});const vat=amt*0.03;const el=document.getElementById('rwPrintTotals');if(!el)return;el.innerHTML=`<div class="panel" style="box-shadow:none;margin:0;border:1px solid var(--line)"><div class="panel-b" style="padding:10px 14px"><div class="kv"><span class="k">เลือกพิมพ์</span><b>${fmt(n)} รายการ</b></div><div class="kv"><span class="k">รวมจำนวน</span><b>${fmt(q)}</b></div><div class="kv"><span class="k">รวมมูลค่า (SUBTOTAL)</span><b>${fmt2(amt)}</b></div><div class="kv"><span class="k">หัก ณ ที่จ่าย 3%</span><b style="color:var(--red)">-${fmt2(vat)}</b></div><div class="kv"><span class="k">ยอดสุทธิ (Net)</span><b style="color:var(--teal);font-size:15px">${fmt2(amt-vat)} บาท</b></div></div></div>`;}
+function doPrintRWMonth(mon){
+  const rows=rwPrintRows.filter(r=>r.on);if(!rows.length){toast('ไม่มีรายการที่เลือก','err');return;}
   ensureSettings();const co=DB.settings.company||{};
-  let rows='',tQty=0,tAmt=0,nLine=0;
-  docs.forEach(d=>{(d.lines||[]).forEach(l=>{const p=l.productId?P(l.productId):null;const pr=(p&&p.prodPrice)||l.price||0;const amt=pr*(l.qty||0);tQty+=(l.qty||0);tAmt+=amt;nLine++;
-    rows+='<tr><td class="c">'+esc(d.date||'')+'</td><td class="c">'+esc(d.no||'')+'</td><td class="c">'+esc(l.poNo||'')+'</td><td class="c">'+esc(l.maker||d.maker||'')+'</td><td>'+esc(l.name||(p?p.pn:''))+'</td><td class="r">'+fmt2(pr)+'</td><td class="r">'+fmt(l.qty||0)+'</td><td class="r">'+fmt2(amt)+'</td></tr>';});});
+  let body='',tQty=0,tAmt=0;
+  rows.forEach(r=>{const amt=r.price*r.qty;tQty+=r.qty;tAmt+=amt;body+='<tr><td class="c">'+esc(r.date)+'</td><td class="c">'+esc(r.no)+'</td><td class="c">'+esc(r.po)+'</td><td class="c">'+esc(r.maker)+'</td><td>'+esc(r.name)+'</td><td class="r">'+fmt2(r.price)+'</td><td class="r">'+fmt(r.qty)+'</td><td class="r">'+fmt2(amt)+'</td></tr>';});
+  const vat=tAmt*0.03;
   const html='<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"><title>RW '+esc(mon||'ทั้งหมด')+'</title><style>'
    +"*{font-family:'Tahoma',sans-serif;box-sizing:border-box}body{margin:0;padding:10mm 8mm;color:#111;font-size:11px}"
    +".hd{text-align:center;border-bottom:2px solid #111;padding-bottom:5px}.hd h1{font-size:14px;margin:0}.hd div{font-size:10px;color:#333}"
@@ -2177,13 +2196,15 @@ function printRWMonth(){
    +"@media print{.noprint{display:none}}</style></head><body>"
    +'<div class="hd"><h1>'+esc(co.name||'')+'</h1><div>'+esc(co.address||'')+'</div></div>'
    +'<div class="ttl">สรุปรับชิ้นงานจากผู้ผลิต — เดือน '+esc(mon||'ทั้งหมด')+'</div>'
-   +'<div style="font-size:11px;margin-bottom:5px">จำนวนเอกสาร '+fmt(docs.length)+' ใบ · '+fmt(nLine)+' รายการ · พิมพ์ '+new Date().toLocaleString('th-TH')+'</div>'
-   +'<table><thead><tr><th style="width:74px">วันที่</th><th style="width:96px">เลขที่</th><th style="width:84px">PO</th><th style="width:60px">ผู้ผลิต</th><th>รายการ</th><th style="width:56px">ราคาผลิต</th><th style="width:64px">จำนวน</th><th style="width:78px">มูลค่า</th></tr></thead>'
-   +'<tbody>'+rows+'</tbody>'
-   +'<tfoot><tr><td colspan="6" style="text-align:right">รวม (SUBTOTAL)</td><td class="r">'+fmt(tQty)+'</td><td class="r">'+fmt2(tAmt)+'</td></tr></tfoot></table>'
+   +'<div style="font-size:11px;margin-bottom:5px">'+fmt(rows.length)+' รายการ · พิมพ์ '+new Date().toLocaleString('th-TH')+'</div>'
+   +'<table><thead><tr><th style="width:74px">วันที่</th><th style="width:96px">เลขที่</th><th style="width:84px">PO</th><th style="width:60px">ผู้ผลิต</th><th>รายการ</th><th style="width:56px">ราคา</th><th style="width:64px">จำนวน</th><th style="width:80px">มูลค่า</th></tr></thead>'
+   +'<tbody>'+body+'</tbody>'
+   +'<tfoot><tr><td colspan="6" style="text-align:right">รวมมูลค่า (SUBTOTAL)</td><td class="r">'+fmt(tQty)+'</td><td class="r">'+fmt2(tAmt)+'</td></tr>'
+   +'<tr><td colspan="7" style="text-align:right">หัก ณ ที่จ่าย 3%</td><td class="r">-'+fmt2(vat)+'</td></tr>'
+   +'<tr><td colspan="7" style="text-align:right">ยอดสุทธิ (Net)</td><td class="r">'+fmt2(tAmt-vat)+'</td></tr></tfoot></table>'
    +'<div class="noprint" style="text-align:center;margin-top:16px"><button onclick="window.print()" style="padding:8px 22px;font-size:14px;cursor:pointer">🖨️ พิมพ์ / บันทึก PDF</button></div>'
    +'<scr'+'ipt>setTimeout(function(){window.print()},500)</scr'+'ipt></body></html>';
-  const w=window.open('','_blank');if(!w){toast('เบราว์เซอร์บล็อก popup','err');return}w.document.write(html);w.document.close();
+  const w=window.open('','_blank');if(!w){toast('เบราว์เซอร์บล็อก popup','err');return}w.document.write(html);w.document.close();closeModal();
 }
 function applyRWImport(input){
   const f=input.files[0];if(!f)return;const r=new FileReader();
