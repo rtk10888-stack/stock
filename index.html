@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='MASTER-2026.06.13bm';
+const APP_BUILD='MASTER-2026.06.13bn';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -3506,53 +3506,21 @@ function getCust(name){return (DB.settings.custList||[]).find(c=>c.name===name)|
 function getSup(name){return (DB.settings.supList||[]).find(c=>c.name===name)||{};}
 function syncParties(){DB.settings.customers=(DB.settings.custList||[]).map(c=>c.name).filter(Boolean);DB.settings.suppliers=(DB.settings.supList||[]).map(c=>c.name).filter(Boolean);}
 function custAdd(){ensureSettings();DB.settings.custList.push({name:'ลูกค้าใหม่'});syncParties();saveDB();render();}
-function custDel(i){ensureSettings();DB.settings.custList.splice(i,1);syncParties();saveDB();render();}
+function custDel(i){ensureSettings();const c=DB.settings.custList[i]||{};confirmBox('ลบลูกค้า '+(c.name||'')+'?','',()=>{DB.settings.custList.splice(i,1);syncParties();saveDB();render();toast('ลบแล้ว','ok');});}
 function custSet(i,f,v){ensureSettings();if(DB.settings.custList[i]){DB.settings.custList[i][f]=(v||'').trim();syncParties();saveDB();if(f==='name')render();else toast('บันทึกแล้ว','ok');}}
 function supAdd(){ensureSettings();DB.settings.supList.push({name:'ผู้ขายใหม่'});syncParties();saveDB();render();}
-function supDel(i){ensureSettings();DB.settings.supList.splice(i,1);syncParties();saveDB();render();}
+function supDel(i){ensureSettings();const c=DB.settings.supList[i]||{};confirmBox('ลบผู้ขาย '+(c.name||'')+'?','',()=>{DB.settings.supList.splice(i,1);syncParties();saveDB();render();toast('ลบแล้ว','ok');});}
 function supSet(i,f,v){ensureSettings();if(DB.settings.supList[i]){DB.settings.supList[i][f]=(v||'').trim();syncParties();saveDB();if(f==='name')render();else toast('บันทึกแล้ว','ok');}}
-function partyTableEditor(kind){const arr=kind==='cust'?(DB.settings.custList||[]):(DB.settings.supList||[]);const sf=kind==='cust'?'custSet':'supSet';const df=kind==='cust'?'custDel':'supDel';const af=kind==='cust'?'custAdd':'supAdd';const title=kind==='cust'?'👥 ลูกค้า (ข้อมูลเต็ม)':'🏢 ผู้ขาย / Supplier (ข้อมูลเต็ม)';
-  return `<div class="panel" style="margin-bottom:16px"><div class="panel-h"><h2>${title}</h2><div class="right"><span class="desc">${arr.length} ราย</span> <button class="btn sm" onclick="${af}()">+ เพิ่ม</button></div></div><div class="panel-b nopad"><div class="tbl-wrap"><table style="font-size:11.5px"><thead><tr><th>ชื่อ</th><th>ที่อยู่</th><th>เลขภาษี</th><th>ผู้ติดต่อ</th><th>โทร</th><th>อีเมล</th><th></th></tr></thead><tbody>${arr.map((c,i)=>`<tr><td><input value="${esc(c.name||'')}" onchange="${sf}(${i},'name',this.value)" style="min-width:100px;padding:4px"></td><td><input value="${esc(c.address||'')}" onchange="${sf}(${i},'address',this.value)" style="min-width:210px;padding:4px"></td><td><input value="${esc(c.taxId||'')}" onchange="${sf}(${i},'taxId',this.value)" style="min-width:110px;padding:4px"></td><td><input value="${esc(c.contact||'')}" onchange="${sf}(${i},'contact',this.value)" style="min-width:80px;padding:4px"></td><td><input value="${esc(c.tel||'')}" onchange="${sf}(${i},'tel',this.value)" style="min-width:90px;padding:4px"></td><td><input value="${esc(c.email||'')}" onchange="${sf}(${i},'email',this.value)" style="min-width:130px;padding:4px"></td><td style="text-align:center"><button class="btn sm danger" onclick="${df}(${i})">🗑️</button></td></tr>`).join('')||'<tr><td colspan="7" class="muted" style="padding:12px">ยังไม่มีข้อมูล กด "+ เพิ่ม"</td></tr>'}</tbody></table></div></div></div>`;}
-function puSupFill(){const s=getSup((document.getElementById('pu_sup')||{}).value);const set=(k,v)=>{const e=document.getElementById(k);if(e&&v)e.value=v;};set('pu_addr',s.address);set('pu_tax',s.taxId);set('pu_contact',s.contact);set('pu_tel',s.tel);}
-function ipSupFill(){const s=getSup((document.getElementById('ip_sup')||{}).value);const set=(k,v)=>{const e=document.getElementById(k);if(e&&v)e.value=v;};set('ip_addr',s.address);set('ip_tax',s.taxId);set('ip_attn',s.contact);set('ip_tel',s.tel);set('ip_email',s.email);}
-function spSupFill(){const s=getSup((document.getElementById('sp_sup')||{}).value);const set=(k,v)=>{const e=document.getElementById(k);if(e&&v)e.value=v;};set('sp_addr',s.address);set('sp_tax',s.taxId);set('sp_attn',s.contact);set('sp_tel',s.tel);set('sp_email',s.email);}
-function viewSettings(el){
-  setTitle('⚙️ ตั้งค่า','ข้อมูลพื้นฐาน & การสำรองข้อมูล');
-  const s=DB.settings;
-  el.innerHTML=`
-  ${flowRefHTML(true)}
-  ${partyTableEditor('cust')}
-  ${partyTableEditor('sup')}
-  <div class="row c2" style="align-items:start">
-    <div>
-      ${listEditor('platings','✨ ประเภทการชุบ')}
-      ${flowsEditor()}
-      ${makersEditor()}
-      ${companyEditor()}
-    </div>
-    <div>
-      <div class="panel"><div class="panel-h"><h2>💾 ข้อมูล & การสำรอง</h2></div><div class="panel-b">
-        <div class="kv"><span class="k">สินค้าทั้งหมด</span><b>${fmt(DB.products.length)}</b></div>
-        <div class="kv"><span class="k">เอกสาร</span><b>${fmt(DB.docs.length)}</b></div>
-        <div class="kv"><span class="k">ความเคลื่อนไหว</span><b>${fmt(DB.movements.length)}</b></div>
-        <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
-          <button class="btn pri" onclick="exportData()">⬇ สำรองข้อมูล (JSON)</button>
-          <button class="btn" onclick="document.getElementById('importFile').click()">⬆ นำเข้าข้อมูล</button>
-          <button class="btn" onclick="exportProductsCSV()">⬇ สินค้า (CSV)</button>
-        </div>
-        <div class="hint" style="margin-top:14px"><span class="i">ℹ️</span><div>ข้อมูลถูกบันทึกอัตโนมัติในเบราว์เซอร์เครื่องนี้ (Local Storage) ควรกด "สำรองข้อมูล" เป็นไฟล์เก็บไว้สม่ำเสมอ และนำเข้าเมื่อย้ายเครื่อง</div></div>
-      </div></div>
-      <div class="panel"><div class="panel-h"><h2>🔒 รหัสผ่านเข้าใช้งาน</h2></div><div class="panel-b">
-        <p class="muted" style="font-size:12.5px;margin-bottom:10px">ตั้งรหัสเพื่อให้ต้องกรอกก่อนเข้าใช้ (กันคนนอกที่ได้ลิงก์) — เว้นว่าง = ปิดการใช้รหัส มีผลทุกอุปกรณ์</p>
-        <div style="display:flex;gap:8px"><input id="set_pass" value="${esc((DB.settings.passcode)||'')}" placeholder="เช่น 2580"><button class="btn pri" onclick="savePass()">บันทึก</button></div>
-      </div></div>
-      <div class="panel"><div class="panel-h"><h2>⚠️ ล้างข้อมูล</h2></div><div class="panel-b">
-        <p class="muted" style="font-size:12.5px;margin-bottom:10px">รีเซ็ตกลับเป็นข้อมูลตัวอย่างตั้งต้น (ลบเอกสาร/ความเคลื่อนไหวทั้งหมด)</p>
-        <button class="btn danger" onclick="resetAll()">🗑️ รีเซ็ตเป็นค่าเริ่มต้น</button>
-      </div></div>
-    </div>
-  </div>`;
-}
+function partyTableEditor(kind){const arr=kind==='cust'?(DB.settings.custList||[]):(DB.settings.supList||[]);const df=kind==='cust'?'custDel':'supDel';const title=kind==='cust'?'👥 ลูกค้า (ข้อมูลเต็ม)':'🏢 ผู้ขาย / Supplier (ข้อมูลเต็ม)';
+  return `<div class="panel" style="margin-bottom:16px"><div class="panel-h"><h2>${title}</h2><div class="right"><span class="desc">${arr.length} ราย</span> <button class="btn sm pri" onclick="partyEditModal('${kind}',-1)">+ เพิ่ม</button></div></div><div class="panel-b nopad"><div class="tbl-wrap"><table style="font-size:12px"><thead><tr><th>ชื่อ</th><th>ที่อยู่</th><th>เลขภาษี</th><th>ผู้ติดต่อ</th><th>โทร</th><th>อีเมล</th><th></th></tr></thead><tbody>${arr.map((c,i)=>`<tr><td><b>${esc(c.name||'')}</b></td><td class="muted">${esc(c.address||'')||'-'}</td><td class="muted">${esc(c.taxId||'')||'-'}</td><td class="muted">${esc(c.contact||'')||'-'}</td><td class="muted">${esc(c.tel||'')||'-'}</td><td class="muted">${esc(c.email||'')||'-'}</td><td style="text-align:right;white-space:nowrap"><button class="btn sm" onclick="partyEditModal('${kind}',${i})">✏️ แก้ไข</button> <button class="btn sm danger" onclick="${df}(${i})">🗑️ ลบ</button></td></tr>`).join('')||'<tr><td colspan="7" class="muted" style="padding:12px">ยังไม่มีข้อมูล กด "+ เพิ่ม"</td></tr>'}</tbody></table></div></div></div>`;}
+function partyEditModal(kind,i){ensureSettings();const arr=kind==='cust'?DB.settings.custList:DB.settings.supList;const c=(i>=0?arr[i]:{})||{};const t=kind==='cust'?'ลูกค้า':'ผู้ขาย';
+  modal({title:(i>=0?'✏️ แก้ไข':'+ เพิ่ม')+t,body:`
+   <div class="field"><label>ชื่อ <span class="req">*</span></label><input id="pm_name" value="${esc(c.name||'')}"></div>
+   <div class="field"><label>ที่อยู่</label><input id="pm_addr" value="${esc(c.address||'')}"></div>
+   <div class="row c2"><div class="field"><label>เลขภาษี</label><input id="pm_tax" value="${esc(c.taxId||'')}"></div><div class="field"><label>ผู้ติดต่อ</label><input id="pm_contact" value="${esc(c.contact||'')}"></div></div>
+   <div class="row c2"><div class="field"><label>โทร</label><input id="pm_tel" value="${esc(c.tel||'')}"></div><div class="field"><label>อีเมล</label><input id="pm_email" value="${esc(c.email||'')}"></div></div>
+  `,footer:`<button class="btn" onclick="closeModal()">ยกเลิก</button><button class="btn pri" onclick="partySave('${kind}',${i})">บันทึก</button>`});}
+function partySave(kind,i){ensureSettings();const v=k=>((document.getElementById(k)||{}).value||'').trim();const name=v('pm_name');if(!name){toast('กรุณากรอกชื่อ','err');return;}const rec={name,address:v('pm_addr'),taxId:v('pm_tax'),contact:v('pm_contact'),tel:v('pm_tel'),email:v('pm_email')};const arr=kind==='cust'?DB.settings.custList:DB.settings.supList;if(i>=0)arr[i]=rec;else arr.push(rec);syncParties();saveDB();closeModal();render();toast('บันทึกแล้ว','ok');}
 function listEditor(key,title){
   const arr=DB.settings[key];
   return `<div class="panel"><div class="panel-h"><h2>${title}</h2><div class="right"><button class="btn sm" onclick="addSetting('${key}')">+ เพิ่ม</button></div></div>
