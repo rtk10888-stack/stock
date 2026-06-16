@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='IP-2026.06.13au';
+const APP_BUILD='IP-2026.06.13av';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -1298,12 +1298,12 @@ function openIPForm(edit){
   modal({title:'🌐 '+(edit?'แก้ไข':'สร้าง')+'ใบสั่งซื้อต่างประเทศ (Purchase Order)',size:'lg',body:`
     <div class="row c3">
       <div class="field"><label>Document No.</label><input id="ip_no" value="${edit?esc(edit.no):esc(ipPeekNo())}"></div>
-      <div class="field"><label>Date</label><input type="date" id="ip_date" value="${edit?edit.date:todayISO()}"></div>
+      <div class="field"><label>Date</label><input type="date" id="ip_date" value="${edit?edit.date:todayISO()}" onchange="ipAutoDue()"></div>
       <div class="field"><label>Due delivery</label><input type="date" id="ip_due" value="${edit?(edit.deliveryDate||''):''}"></div>
     </div>
     <div class="row c2">
       <div class="field"><label>Supplier <span class="req">*</span></label><input id="ip_sup" list="dl_ipsup" value="${edit?esc(edit.supplier||''):''}" placeholder="ชื่อผู้ขายต่างประเทศ"><datalist id="dl_ipsup">${sups.map(s=>`<option value="${esc(s)}">`).join('')}</datalist></div>
-      <div class="field"><label>Payment terms</label><input id="ip_credit" value="${edit?esc(edit.creditTerms||''):'60 days'}"></div>
+      <div class="field"><label>Payment terms</label><input id="ip_credit" value="${edit?esc(edit.creditTerms||''):'60 days'}" oninput="ipAutoDue()"></div>
     </div>
     <details style="margin:2px 0 8px"><summary style="cursor:pointer;font-size:12px;color:var(--brand)">+ ข้อมูล Supplier (Address/Tax ID/Attn/Email/Tel) สำหรับพิมพ์</summary>
       <div class="field"><label>Address</label><input id="ip_addr" value="${esc(si.address||'')}"></div>
@@ -1323,7 +1323,8 @@ function openIPForm(edit){
   ipLines=edit&&edit.lines?edit.lines.map(l=>({code:l.code||'',name:l.name||'',due:l.due||'',qty:l.qty||'',unit:l.unit||'Pcs',price:l.price||''})):[{code:'',name:'',due:'',qty:'',unit:'Pcs',price:''}];
   setTimeout(renderIpLines,15);
 }
-function ipAddLine(){ipLines.push({code:'',name:'',due:'',qty:'',unit:'Pcs',price:''});renderIpLines();}
+function ipAutoDue(){const dt=(document.getElementById('ip_date')||{}).value;const ct=(document.getElementById('ip_credit')||{}).value||'';const m=ct.match(/\d+/);if(!dt||!m)return;const due=new Date(dt);due.setDate(due.getDate()+parseInt(m[0],10));const ds=due.toISOString().slice(0,10);const e=document.getElementById('ip_due');if(e)e.value=ds;ipLines.forEach(l=>{if(!l.due)l.due=ds;});renderIpLines();}
+function ipAddLine(){const due0=(document.getElementById('ip_due')||{}).value||'';ipLines.push({code:'',name:'',due:due0,qty:'',unit:'Pcs',price:''});renderIpLines();}
 function ipRmLine(i){ipLines.splice(i,1);if(!ipLines.length)ipAddLine();else renderIpLines();}
 function ipPick(i,val){ipLines[i].name=val;const code=(val||'').split(' ')[0];const p=DB.products.find(x=>x.pn===code||x.pn===val);if(p){ipLines[i].code=p.pn;}else ipLines[i].code=code;}
 function renderIpLines(){
