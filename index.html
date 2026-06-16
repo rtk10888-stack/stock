@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='IP-2026.06.13bc';
+const APP_BUILD='IP-2026.06.13bd';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -1398,12 +1398,12 @@ function printIP(id,mode){
    +"*{font-family:'Tahoma',sans-serif;box-sizing:border-box}body{margin:0;padding:10mm 9mm;color:#111;font-size:11px}"
    +"table.it{width:100%;border-collapse:collapse;font-size:11px}table.it th,table.it td{border:1px solid #555;padding:4px 6px}table.it th{background:#eee;text-align:center}td.c{text-align:center}td.r{text-align:right}"
    +"@media print{.noprint{display:none}}</style></head><body>"
-   +'<div style="display:flex;align-items:center;gap:14px;border-bottom:2px solid #111;padding-bottom:5px">'
+   +'<div style="display:flex;align-items:flex-start;gap:14px;border-bottom:2px solid #111;padding-bottom:5px">'
    +'<img src="'+ATA_LOGO+'" style="width:120px;height:auto">'
    +'<div style="flex:1"><div style="font-size:18px;font-weight:700;color:#1f3b8f">บริษัท เอทีเอ อินเตอร์ กรุ๊ป จำกัด</div><div style="font-size:16px;font-weight:700;color:#111">ATA INTER GROUP CO.,LTD.</div>'
-   +'<div style="font-size:10px;color:#222;text-align:center">979/23 ซอยอุดมสุข 33 แขวงบางจาก เขตพระโขนง กรุงเทพมหานคร 10260 Tel. 082-6642464</div>'
-   +'<div style="font-size:10px;color:#222;text-align:center">979/23 Soi Udom Suk 33, Bang Chak Subdistrict, Phra Khanong District Bangkok 10260 Tel. 082-6642464</div>'
-   +'<div style="font-size:10px;color:#222;text-align:center">TAX ID (Head Office) 0-1055-62111-31-3 &nbsp; E-mail: ata.intergroup@hotmail.com</div></div>'
+   +'<div style="font-size:10px;color:#222;text-align:center">979/23 ซอยอุดมสุข 33 แขวงบางจาก เขตพระโขนง กรุงเทพมหานคร 10260</div>'
+   +'<div style="font-size:10px;color:#222;text-align:center">979/23 Soi Udom Suk 33, Bang Chak Subdistrict, Phra Khanong District Bangkok 10260</div>'
+   +'<div style="font-size:10px;color:#222;text-align:center">TAX ID (Head Office) 0-1055-62111-31-3 &nbsp; Tel. 082-6642464 &nbsp; E-mail: ata.intergroup@hotmail.com</div></div>'
    +'<div style="font-size:24px;font-weight:700;color:#7a1f1f;align-self:center;white-space:nowrap">Purchase Order</div></div>'
    +'<div style="display:flex;gap:10px;margin-top:7px">'
    +'<div style="flex:1.7;border:1px solid #111;border-radius:4px;padding:6px 9px;font-size:11px;line-height:1.5"><b>Supplier :</b> '+esc(d.supplier||'')+'<br><b>Address :</b> '+esc(si.address||'')+'<br><b>Tax ID :</b> '+esc(si.taxId||'')+'<br><b>Attn :</b> '+esc(si.attn||'')+' &nbsp;&nbsp; <b>Email :</b> '+esc(si.email||'')+' &nbsp;&nbsp; <b>Tel :</b> '+esc(si.tel||'')+'</div>'
