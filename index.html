@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SP-2026.06.13bi';
+const APP_BUILD='SP-2026.06.13bj';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -1306,12 +1306,12 @@ function openSPForm(edit){
   modal({title:'⭐ '+(edit?'แก้ไข':'สร้าง')+'ใบสั่งซื้อพิเศษ (Purchase Order)',size:'lg',body:`
     <div class="row c3">
       <div class="field"><label>Document No.</label><input id="sp_no" value="${edit?esc(edit.no):esc(spPeekNo())}"></div>
-      <div class="field"><label>Date</label><input type="date" id="sp_date" value="${edit?edit.date:todayISO()}"></div>
+      <div class="field"><label>Date</label><input type="date" id="sp_date" value="${edit?edit.date:todayISO()}" onchange="spAutoDue()"></div>
       <div class="field"><label>Due delivery</label><input type="date" id="sp_due" value="${edit?(edit.deliveryDate||''):''}"></div>
     </div>
     <div class="row c2">
       <div class="field"><label>Supplier <span class="req">*</span></label><input id="sp_sup" list="dl_spsup" value="${edit?esc(edit.supplier||''):''}" placeholder="ชื่อผู้ขาย"><datalist id="dl_spsup">${sups.map(s=>`<option value="${esc(s)}">`).join('')}</datalist></div>
-      <div class="field"><label>Payment terms</label><input id="sp_credit" value="${edit?esc(edit.creditTerms||''):'60 days'}"></div>
+      <div class="field"><label>Payment terms</label><input id="sp_credit" value="${edit?esc(edit.creditTerms||''):'60 days'}" oninput="spAutoDue()"></div>
     </div>
     <details style="margin:2px 0 8px"><summary style="cursor:pointer;font-size:12px;color:var(--brand)">+ ข้อมูล Supplier (Address/Tax ID/Attn/Email/Tel) สำหรับพิมพ์</summary>
       <div class="field"><label>Address</label><input id="sp_addr" value="${esc(si.address||'')}"></div>
@@ -1331,7 +1331,8 @@ function openSPForm(edit){
   spLines=edit&&edit.lines?edit.lines.map(l=>({code:l.code||'',name:l.name||'',due:l.due||'',qty:l.qty||'',unit:l.unit||'Pcs',price:l.price||''})):[{code:'',name:'',due:'',qty:'',unit:'Pcs',price:''}];
   setTimeout(function(){renderSpLines();spAutoDue();},15);
 }
-function spAddLine(){spLines.push({code:'',name:'',due:'',qty:'',unit:'Pcs',price:''});renderSpLines();}
+function spAutoDue(){const dt=(document.getElementById('sp_date')||{}).value;const ct=(document.getElementById('sp_credit')||{}).value||'';const m=ct.match(/\d+/);if(!dt||!m)return;const due=new Date(dt);due.setDate(due.getDate()+parseInt(m[0],10));const ds=due.toISOString().slice(0,10);const e=document.getElementById('sp_due');if(e)e.value=ds;spLines.forEach(l=>{if(!l.due)l.due=ds;});renderSpLines();}
+function spAddLine(){const due0=(document.getElementById('sp_due')||{}).value||'';spLines.push({code:'',name:'',due:due0,qty:'',unit:'Pcs',price:''});renderSpLines();}
 function spRmLine(i){spLines.splice(i,1);if(!spLines.length)spAddLine();else renderSpLines();}
 function spPick(i,val){spLines[i].name=val;const code=(val||'').split(' ')[0];const p=DB.products.find(x=>x.pn===code||x.pn===val);if(p){spLines[i].code=p.pn;}else spLines[i].code=code;}
 function renderSpLines(){
