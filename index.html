@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='MASTER-2026.06.13bn';
+const APP_BUILD='CUST-2026.06.13bo';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -1326,7 +1326,7 @@ function iwPanelHTML(){ensureSettings();
       <div class="row c3">
         <div class="field"><label>เลขที่ INV</label><input id="iw_no" value="${iwPeekNo()}"></div>
         <div class="field"><label>วันที่</label><input type="date" id="iw_date" value="${todayISO()}"></div>
-        <div class="field"><label>ลูกค้า <span class="req">*</span></label><input id="iw_cust" list="dl_iwcust" placeholder="ชื่อลูกค้า"><datalist id="dl_iwcust">${(DB.settings.customers||[]).map(c=>`<option value="${esc(c)}">`).join('')}</datalist></div>
+        <div class="field"><label>รหัสลูกค้า (NO.)</label><input id="iw_custcode" list="dl_iwcode" placeholder="เช่น 210-6" onchange="iwCustLookup()" oninput="iwCustLookup()"><datalist id="dl_iwcode">${(DB.settings.custList||[]).filter(c=>c.code).map(c=>`<option value="${esc(c.code)}">${esc(c.name)}</option>`).join('')}</datalist></div><div class="field"><label>ลูกค้า <span class="req">*</span></label><input id="iw_cust" list="dl_iwcust" placeholder="ชื่อลูกค้า"><datalist id="dl_iwcust">${(DB.settings.customers||[]).map(c=>`<option value="${esc(c)}">`).join('')}</datalist></div>
       </div>
       <div class="row c2"><div class="field"><label>เลขที่ PO สั่งซื้อ (ลูกค้า)</label><input id="iw_custpo" placeholder="PO ของลูกค้า"></div><div class="field"><label style="opacity:0">.</label><label style="font-weight:400;display:flex;gap:7px;align-items:center;font-size:13px;padding-top:9px"><input type="checkbox" id="iw_vat" style="width:auto" onchange="iwTotals()"> รวม VAT 7%</label></div></div>
       <input type="hidden" id="iw_editid" value="">
@@ -1376,7 +1376,7 @@ function submitIV2(status,editId){
   let d;
   if(editId){d=DB.docs.find(x=>x.id===editId);if(!d)return;if(d.status==='approved'){reverseDoc(d);d.status='pending';}}else{d={id:uid(),type:'IV2',ts:Date.now(),status:'pending'};DB.docs.push(d);}
   if(!d.no)d.no=nextNo('IV2');
-  d.invNo=(v('iw_no')||'').trim();d.date=v('iw_date')||todayISO();d.customer=cust;d.custPO=(v('iw_custpo')||'').trim();
+  d.invNo=(v('iw_no')||'').trim();d.date=v('iw_date')||todayISO();d.customer=cust;d.custCode=(v('iw_custcode')||'').trim();d.custPO=(v('iw_custpo')||'').trim();
   d.vat7=!!(document.getElementById('iw_vat')&&document.getElementById('iw_vat').checked);
   d.lines=lines;d.subtotal=lines.reduce((s,l)=>s+l.qty*l.price,0);d.vat=d.vat7?d.subtotal*0.07:0;d.total=d.subtotal+d.vat;d.totalQty=lines.reduce((s,l)=>s+l.qty,0);
   if(status==='approved'){for(const l of lines){const p=P(l.productId);if(p&&l.qty>p.onHand){toast(`${p.pn}: ขายเกินคงเหลือ (${fmt(p.onHand)})`,'err');return}}const r=doApprove(d);if(!r.ok){toast('อนุมัติไม่สำเร็จ: '+r.err,'err');return}toast('บันทึก+อนุมัติ (ตัดยอด): '+(d.invNo||d.no),'ok');}
@@ -1388,7 +1388,7 @@ function editIVInline(id){
   iwLines=(d.lines||[]).map(l=>Object.assign(iwBlank(),l));
   if(!iwLines.length)iwLines=[iwBlank()];
   const set=(k,v)=>{const e=document.getElementById(k);if(e)e.value=v;};
-  set('iw_editid',d.id);set('iw_no',d.invNo||'');set('iw_date',d.date||todayISO());set('iw_cust',d.customer||'');set('iw_custpo',d.custPO||'');
+  set('iw_editid',d.id);set('iw_no',d.invNo||'');set('iw_date',d.date||todayISO());set('iw_custcode',d.custCode||'');set('iw_cust',d.customer||'');set('iw_custpo',d.custPO||'');
   const vt=document.getElementById('iw_vat');if(vt)vt.checked=!!d.vat7;
   const et=document.getElementById('iwEditTag');if(et)et.textContent='✏️ กำลังแก้ไข: '+(d.invNo||d.no);
   renderIvLines();try{window.scrollTo({top:0,behavior:'smooth'});}catch(e){}
@@ -1479,7 +1479,7 @@ function ivPanelHTML(){ensureSettings();
       <div class="row c3">
         <div class="field"><label>เลขที่ INV</label><input id="iv_no" value="${ivPeekNo()}"></div>
         <div class="field"><label>วันที่</label><input type="date" id="iv_date" value="${todayISO()}"></div>
-        <div class="field"><label>ลูกค้า <span class="req">*</span></label><input id="iv_cust" list="dl_ivcust" placeholder="ชื่อลูกค้า"><datalist id="dl_ivcust">${(DB.settings.customers||[]).map(c=>`<option value="${esc(c)}">`).join('')}</datalist></div>
+        <div class="field"><label>รหัสลูกค้า (NO.)</label><input id="iv_custcode" list="dl_ivcode" placeholder="เช่น 210-6" onchange="ivCustLookup()" oninput="ivCustLookup()"><datalist id="dl_ivcode">${(DB.settings.custList||[]).filter(c=>c.code).map(c=>`<option value="${esc(c.code)}">${esc(c.name)}</option>`).join('')}</datalist></div><div class="field"><label>ลูกค้า <span class="req">*</span></label><input id="iv_cust" list="dl_ivcust" placeholder="ชื่อลูกค้า"><datalist id="dl_ivcust">${(DB.settings.customers||[]).map(c=>`<option value="${esc(c)}">`).join('')}</datalist></div>
       </div>
       <div class="row c2"><div class="field"><label>เลขที่ PO สั่งซื้อ (ลูกค้า)</label><input id="iv_custpo" placeholder="PO ของลูกค้า"></div><div class="field"><label style="opacity:0">.</label><label style="font-weight:400;display:flex;gap:7px;align-items:center;font-size:13px;padding-top:9px"><input type="checkbox" id="iv_vat" style="width:auto" onchange="ivTotals()"> รวม VAT 7%</label></div></div>
       <input type="hidden" id="iv_editid" value="">
@@ -1529,7 +1529,7 @@ function submitIV2(status,editId){
   let d;
   if(editId){d=DB.docs.find(x=>x.id===editId);if(!d)return;if(d.status==='approved'){reverseDoc(d);d.status='pending';}}else{d={id:uid(),type:'INV',ts:Date.now(),status:'pending'};DB.docs.push(d);}
   if(!d.no)d.no=nextNo('INV');
-  d.invNo=(v('iv_no')||'').trim();d.date=v('iv_date')||todayISO();d.customer=cust;d.custPO=(v('iv_custpo')||'').trim();
+  d.invNo=(v('iv_no')||'').trim();d.date=v('iv_date')||todayISO();d.customer=cust;d.custCode=(v('iv_custcode')||'').trim();d.custPO=(v('iv_custpo')||'').trim();
   d.vat7=!!(document.getElementById('iv_vat')&&document.getElementById('iv_vat').checked);
   d.lines=lines;d.subtotal=lines.reduce((s,l)=>s+l.qty*l.price,0);d.vat=d.vat7?d.subtotal*0.07:0;d.total=d.subtotal+d.vat;d.totalQty=lines.reduce((s,l)=>s+l.qty,0);
   if(status==='approved'){for(const l of lines){const p=P(l.productId);if(p&&l.qty>p.onHand){toast(`${p.pn}: ขายเกินคงเหลือ (${fmt(p.onHand)})`,'err');return}}const r=doApprove(d);if(!r.ok){toast('อนุมัติไม่สำเร็จ: '+r.err,'err');return}toast('บันทึก+อนุมัติ (ตัดยอด): '+(d.invNo||d.no),'ok');}
@@ -1541,7 +1541,7 @@ function editIVInline(id){
   ivLines=(d.lines||[]).map(l=>Object.assign(ivBlank(),l));
   if(!ivLines.length)ivLines=[ivBlank()];
   const set=(k,v)=>{const e=document.getElementById(k);if(e)e.value=v;};
-  set('iv_editid',d.id);set('iv_no',d.invNo||'');set('iv_date',d.date||todayISO());set('iv_cust',d.customer||'');set('iv_custpo',d.custPO||'');
+  set('iv_editid',d.id);set('iv_no',d.invNo||'');set('iv_date',d.date||todayISO());set('iv_custcode',d.custCode||'');set('iv_cust',d.customer||'');set('iv_custpo',d.custPO||'');
   const vt=document.getElementById('iv_vat');if(vt)vt.checked=!!d.vat7;
   const et=document.getElementById('ivEditTag');if(et)et.textContent='✏️ กำลังแก้ไข: '+(d.invNo||d.no);
   renderIvLines();try{window.scrollTo({top:0,behavior:'smooth'});}catch(e){}
@@ -1558,6 +1558,7 @@ function ivRow(d){
     <td class="num">${fmt(q)}</td><td>${statusTag(d.status)}</td>
     <td style="text-align:right;white-space:nowrap">
       <button class="btn sm" onclick="printIV('${d.id}')">ดู/พิมพ์</button>
+      <button class="btn sm" onclick="printIV('${d.id}','form')" title="พิมพ์ลงฟอร์มหัวเข็ม 5 Copy">🖊️ หัวเข็ม</button>
       <button class="btn sm" onclick="printIV('${d.id}','image')">📤</button>
       <button class="btn sm" onclick="editIVInline('${d.id}')">✏️</button>
       ${d.status==='pending'?`<button class="btn sm ok" onclick="approveDoc('${d.id}')">อนุมัติ</button> <button class="btn sm danger" onclick="deleteDoc('${d.id}')">🗑️ ลบ</button>`:''}
@@ -1599,6 +1600,7 @@ function applyIVImport(input){
 }
 function printIV(id,mode){
   const d=DB.docs.find(x=>x.id===id);if(!d)return;ensureSettings();const co=DB.settings.company||{};
+  const cu=getCust(d.customer)||{};const ccode=d.custCode||cu.code||'';const credit=cu.creditTerms||d.credit||'';
   const rows=(d.lines||[]).map((l,i)=>{const pn=l.productId&&P(l.productId)?(P(l.productId).pn+' '+(P(l.productId).name||'')):(l.name||'');return '<tr><td class="c">'+(i+1)+'</td><td>'+esc(pn)+'</td><td class="c">'+esc(l.lot||'')+'</td><td class="r">'+fmt(l.qty)+'</td><td class="r">'+fmt2(l.price)+'</td><td class="r">'+fmt2(l.qty*l.price)+'</td></tr>';}).join('');
   const blanks=Array.from({length:Math.max(0,8-(d.lines||[]).length)}).map(()=>'<tr><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td></tr>').join('');
   const html='<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"><title>'+esc(d.invNo||d.no)+'</title><style>'
@@ -1610,13 +1612,50 @@ function printIV(id,mode){
    +".sign{display:flex;justify-content:space-between;margin-top:30px;text-align:center;font-size:11px}.sign div{width:30%}.sign .line{border-top:1px dotted #555;margin-top:28px;padding-top:3px}"
    +"@media print{.noprint{display:none}}</style></head><body>"
    +'<div class="hd"><img src="'+(typeof LOGO!=='undefined'?LOGO:'')+'"><div style="flex:1"><div class="co">'+esc(co.thName||'')+'</div><div class="coe">'+esc(co.name||'')+'</div><div>'+esc(co.address||'')+'</div><div>'+esc(co.addressEn||'')+'</div><div>TAX ID '+esc(co.taxId||'')+' Tel. '+esc(co.tel||'')+'</div></div><div class="ttl">ใบส่งสินค้า / Invoice</div></div>'
-   +'<div class="meta"><div class="box"><b>ลูกค้า / Customer :</b> '+esc(d.customer||'')+'<br><b>Address :</b> '+esc(getCust(d.customer).address||'')+'<br><b>Tax ID :</b> '+esc(getCust(d.customer).taxId||'')+' &nbsp; <b>Tel :</b> '+esc(getCust(d.customer).tel||'')+'<br><b>PO ลูกค้า :</b> '+esc(d.custPO||'')+'</div><div class="box" style="max-width:230px"><b>เลขที่ / No. :</b> '+esc(d.invNo||d.no)+'<br><b>วันที่ / Date :</b> '+esc(d.date||'')+'</div></div>'
+   +'<div class="meta"><div class="box"><b>ลูกค้า / Customer :</b> '+esc(d.customer||'')+'<br><b>Address :</b> '+esc(getCust(d.customer).address||'')+'<br><b>Tax ID :</b> '+esc(getCust(d.customer).taxId||'')+' &nbsp; <b>Tel :</b> '+esc(getCust(d.customer).tel||'')+'<br><b>PO ลูกค้า :</b> '+esc(d.custPO||'')+'</div><div class="box" style="max-width:230px"><b>รหัสลูกค้า / NO. :</b> '+esc(ccode)+'<br><b>เลขที่ / No. :</b> '+esc(d.invNo||d.no)+'<br><b>วันที่ / Date :</b> '+esc(d.date||'')+(credit?'<br><b>เครดิต :</b> '+esc(credit)+' วัน':'')+'</div></div>'
    +'<table class="it"><thead><tr><th style="width:34px">ITEM</th><th>DESCRIPTION / รายละเอียดสินค้า</th><th style="width:70px">LOT</th><th style="width:74px">QUANTITY</th><th style="width:74px">UNIT PRICE</th><th style="width:90px">AMOUNT</th></tr></thead><tbody>'+rows+blanks+'</tbody></table>'
    +'<div style="display:flex;justify-content:flex-end;margin-top:4px"><table style="width:280px;border-collapse:collapse;font-size:11px"><tr><td style="padding:2px 6px">รวมเงิน / Sub Total</td><td class="r" style="padding:2px 6px;font-weight:700">'+fmt2(d.subtotal||0)+'</td></tr>'+((d.vat)?'<tr><td style="padding:2px 6px">VAT 7%</td><td class="r" style="padding:2px 6px">'+fmt2(d.vat)+'</td></tr>':'')+'<tr><td style="padding:2px 6px;font-weight:700;font-size:13px">ยอดสุทธิ / Total</td><td class="r" style="padding:2px 6px;font-weight:700;font-size:13px">'+fmt2(d.total||0)+'</td></tr></table></div>'
    +'<div class="sign"><div><div class="line">ผู้ส่งสินค้า</div></div><div><div class="line">ผู้ตรวจรับ</div></div><div><div class="line">ผู้รับสินค้า / ลูกค้า</div></div></div>'
    +'<div class="noprint" style="text-align:center;margin-top:16px"><button onclick="window.print()" style="padding:8px 22px;font-size:14px;cursor:pointer">🖨️ พิมพ์ / บันทึก PDF</button></div>'
    +'<scr'+'ipt>setTimeout(function(){window.print()},500)</scr'+'ipt></body></html>';
+  if(mode==='form'){return printIVForm(d,ccode,credit,cu);}
   if(mode==='image'){return shareDocImage(html.replace(/<div class="noprint"[\s\S]*?<\/script>/i,''),(d.invNo||d.no||'INV')+'.png',(d.invNo||d.no||'Invoice'));}
+  const w=window.open('','_blank');if(!w){toast('เบราว์เซอร์บล็อก popup','err');return}w.document.write(html);w.document.close();
+}
+function printIVForm(d,ccode,credit,cu){
+  const F={code:[14,15],inv:[150,15],cust:[28,27],tax:[28,33.5],credit:[150,27],date:[150,33.5],
+    row0:52,pitch:7,cNo:12,cDesc:20,cPo:108,cQty:142,cUnit:166,cAmt:196,
+    hak:[14,120],subL:[150,116],subV:[196,116],vatL:[150,123],vatV:[196,123],totL:[150,131],totV:[196,131]};
+  const T=(x,y,t,r)=>'<span class="t'+(r?' r':'')+'" style="left:'+x+'mm;top:'+y+'mm">'+t+'</span>';
+  const items=(d.lines||[]).map((l,i)=>{const pn=l.productId&&P(l.productId)?(P(l.productId).pn+' '+(P(l.productId).name||'')):(l.name||'');const y=F.row0+i*F.pitch;
+    return T(F.cNo,y,(i+1))+T(F.cDesc,y,esc(pn))+T(F.cPo,y,esc(l.prodPO||l.maker||''))+T(F.cQty,y,fmt(l.qty),1)+T(F.cUnit,y,fmt2(l.price),1)+T(F.cAmt,y,fmt2(l.qty*l.price),1);}).join('');
+  const body=T(F.code[0],F.code[1],esc(ccode))
+    +T(F.inv[0],F.inv[1],esc(d.invNo||d.no))
+    +T(F.cust[0],F.cust[1],esc(d.customer||''))
+    +T(F.tax[0],F.tax[1],esc(cu.taxId||''))
+    +T(F.credit[0],F.credit[1],esc(credit||''))
+    +T(F.date[0],F.date[1],esc(d.date||''))
+    +items
+    +T(F.hak[0],F.hak[1],'สามารถหัก 3% ได้')
+    +T(F.subL[0],F.subL[1],'รวมเงิน')+T(F.subV[0],F.subV[1],fmt2(d.subtotal||0),1)
+    +(d.vat?T(F.vatL[0],F.vatL[1],'VAT 7%')+T(F.vatV[0],F.vatV[1],fmt2(d.vat),1):'')
+    +T(F.totL[0],F.totL[1],'ยอดสุทธิ')+T(F.totV[0],F.totV[1],fmt2(d.total||0),1);
+  const html='<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"><title>'+esc(d.invNo||d.no)+' (หัวเข็ม)</title><style>'
+   +'@page{size:A4;margin:0}*{font-family:Tahoma,sans-serif;box-sizing:border-box}body{margin:0}'
+   +'#wrap{position:relative;width:210mm;height:148mm}'
+   +'#sheet{position:absolute;inset:0}'
+   +'.t{position:absolute;font-size:12px;white-space:nowrap;color:#000}.t.r{transform:translateX(-100%)}'
+   +'.grid{position:absolute;inset:0;background-image:linear-gradient(#f3d2d2 .2mm,transparent .2mm),linear-gradient(90deg,#f3d2d2 .2mm,transparent .2mm);background-size:10mm 10mm}'
+   +'@media print{.noprint{display:none}.grid{display:none}}'
+   +'.bar{padding:8px;background:#f5f5f5;border-bottom:1px solid #ccc;font-size:13px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}'
+   +'.bar input{width:60px;padding:3px}</style></head><body>'
+   +'<div class="bar noprint"><b>พิมพ์หัวเข็ม (ฟอร์ม 5 Copy)</b> · เลื่อนตำแหน่งทั้งแผ่น (มม.) '
+   +'X <input id="ox" type="number" value="0" step="0.5" oninput="mv()"> Y <input id="oy" type="number" value="0" step="0.5" oninput="mv()"> '
+   +'<label><input type="checkbox" id="gd" checked onchange="document.querySelector(\'.grid\').style.display=this.checked?\'block\':\'none\'"> เส้นกริดช่วย</label> '
+   +'<button onclick="window.print()">🖨️ พิมพ์</button></div>'
+   +'<div id="wrap"><div class="grid"></div><div id="sheet">'+body+'</div></div>'
+   +'<scr'+'ipt>function mv(){var x=+document.getElementById("ox").value||0,y=+document.getElementById("oy").value||0;document.getElementById("sheet").style.transform="translate("+x+"mm,"+y+"mm)";try{localStorage.setItem("invFormOff",x+","+y)}catch(e){}}'
+   +'try{var o=(localStorage.getItem("invFormOff")||"0,0").split(",");document.getElementById("ox").value=o[0];document.getElementById("oy").value=o[1];mv();}catch(e){}</scr'+'ipt></body></html>';
   const w=window.open('','_blank');if(!w){toast('เบราว์เซอร์บล็อก popup','err');return}w.document.write(html);w.document.close();
 }
 var spLines=[];
@@ -3511,16 +3550,52 @@ function custSet(i,f,v){ensureSettings();if(DB.settings.custList[i]){DB.settings
 function supAdd(){ensureSettings();DB.settings.supList.push({name:'ผู้ขายใหม่'});syncParties();saveDB();render();}
 function supDel(i){ensureSettings();const c=DB.settings.supList[i]||{};confirmBox('ลบผู้ขาย '+(c.name||'')+'?','',()=>{DB.settings.supList.splice(i,1);syncParties();saveDB();render();toast('ลบแล้ว','ok');});}
 function supSet(i,f,v){ensureSettings();if(DB.settings.supList[i]){DB.settings.supList[i][f]=(v||'').trim();syncParties();saveDB();if(f==='name')render();else toast('บันทึกแล้ว','ok');}}
-function partyTableEditor(kind){const arr=kind==='cust'?(DB.settings.custList||[]):(DB.settings.supList||[]);const df=kind==='cust'?'custDel':'supDel';const title=kind==='cust'?'👥 ลูกค้า (ข้อมูลเต็ม)':'🏢 ผู้ขาย / Supplier (ข้อมูลเต็ม)';
-  return `<div class="panel" style="margin-bottom:16px"><div class="panel-h"><h2>${title}</h2><div class="right"><span class="desc">${arr.length} ราย</span> <button class="btn sm pri" onclick="partyEditModal('${kind}',-1)">+ เพิ่ม</button></div></div><div class="panel-b nopad"><div class="tbl-wrap"><table style="font-size:12px"><thead><tr><th>ชื่อ</th><th>ที่อยู่</th><th>เลขภาษี</th><th>ผู้ติดต่อ</th><th>โทร</th><th>อีเมล</th><th></th></tr></thead><tbody>${arr.map((c,i)=>`<tr><td><b>${esc(c.name||'')}</b></td><td class="muted">${esc(c.address||'')||'-'}</td><td class="muted">${esc(c.taxId||'')||'-'}</td><td class="muted">${esc(c.contact||'')||'-'}</td><td class="muted">${esc(c.tel||'')||'-'}</td><td class="muted">${esc(c.email||'')||'-'}</td><td style="text-align:right;white-space:nowrap"><button class="btn sm" onclick="partyEditModal('${kind}',${i})">✏️ แก้ไข</button> <button class="btn sm danger" onclick="${df}(${i})">🗑️ ลบ</button></td></tr>`).join('')||'<tr><td colspan="7" class="muted" style="padding:12px">ยังไม่มีข้อมูล กด "+ เพิ่ม"</td></tr>'}</tbody></table></div></div></div>`;}
-function partyEditModal(kind,i){ensureSettings();const arr=kind==='cust'?DB.settings.custList:DB.settings.supList;const c=(i>=0?arr[i]:{})||{};const t=kind==='cust'?'ลูกค้า':'ผู้ขาย';
+function viewSettings(el){
+  setTitle('⚙️ ตั้งค่า','ข้อมูลพื้นฐาน · เงื่อนไขการไหลของสต๊อค · ลูกค้า/ผู้ขาย · สำรองข้อมูล');
+  el.innerHTML=`
+  ${companyEditor()}
+  ${flowsEditor()}
+  ${flowRefHTML(false)}
+  ${partyTableEditor('cust')}
+  ${partyTableEditor('sup')}
+  <div class="row c2" style="align-items:start">
+    <div>
+      ${listEditor('platings','✨ ประเภทการชุบ')}
+    </div>
+    <div>
+      <div class="panel"><div class="panel-h"><h2>💾 ข้อมูล & การสำรอง</h2></div><div class="panel-b">
+        <div class="kv"><span class="k">สินค้าทั้งหมด</span><b>${fmt(DB.products.length)}</b></div>
+        <div class="kv"><span class="k">เอกสาร</span><b>${fmt(DB.docs.length)}</b></div>
+        <div class="kv"><span class="k">ความเคลื่อนไหว</span><b>${fmt(DB.movements.length)}</b></div>
+        <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
+          <button class="btn pri" onclick="exportData()">⬇ สำรองข้อมูล (JSON)</button>
+          <button class="btn" onclick="document.getElementById('importFile').click()">⬆ นำเข้าข้อมูล</button>
+          <button class="btn" onclick="exportProductsCSV()">⬇ สินค้า (CSV)</button>
+        </div>
+        <div class="hint" style="margin-top:14px"><span class="i">ℹ️</span><div>ข้อมูลถูกบันทึกอัตโนมัติในเบราว์เซอร์ + คลาวด์ ควรกด "สำรองข้อมูล" เก็บไฟล์ไว้สม่ำเสมอ</div></div>
+      </div></div>
+      <div class="panel"><div class="panel-h"><h2>⚠️ ล้างข้อมูล</h2></div><div class="panel-b">
+        <p class="muted" style="font-size:12.5px;margin-bottom:10px">รีเซ็ตกลับเป็นข้อมูลตัวอย่างตั้งต้น (ลบเอกสาร/ความเคลื่อนไหวทั้งหมด)</p>
+        <button class="btn danger" onclick="resetAll()">🗑️ รีเซ็ตเป็นค่าเริ่มต้น</button>
+      </div></div>
+    </div>
+  </div>`;
+}
+function ivCustLookup(){const c=((document.getElementById('iv_custcode')||{}).value||'').trim();const r=getCustByCode(c);if(r){const f=document.getElementById('iv_cust');if(f)f.value=r.name;}}
+function iwCustLookup(){const c=((document.getElementById('iw_custcode')||{}).value||'').trim();const r=getCustByCode(c);if(r){const f=document.getElementById('iw_cust');if(f)f.value=r.name;}}
+function getCustByCode(code){code=(code||'').trim();if(!code)return null;return (DB.settings.custList||[]).find(c=>c.code&&c.code===code)||null;}
+function partyTableEditor(kind){const arr=kind==='cust'?(DB.settings.custList||[]):(DB.settings.supList||[]);const df=kind==='cust'?'custDel':'supDel';const isC=kind==='cust';const title=isC?'👥 ลูกค้า (ข้อมูลเต็ม)':'🏢 ผู้ขาย / Supplier (ข้อมูลเต็ม)';
+  return `<div class="panel" style="margin-bottom:16px"><div class="panel-h"><h2>${title}</h2><div class="right"><span class="desc">${arr.length} ราย</span> ${isC?'<input type="file" id="custImportFile" accept=".json" style="display:none" onchange="applyCustImport(this)"><button class="btn sm" onclick="document.getElementById(\'custImportFile\').click()">📥 นำเข้า</button> ':''}<button class="btn sm pri" onclick="partyEditModal('${kind}',-1)">+ เพิ่ม</button></div></div><div class="panel-b nopad"><div class="tbl-wrap"><table style="font-size:12px"><thead><tr>${isC?'<th>รหัส NO.</th>':''}<th>ชื่อ (เต็ม/ใช้ออกใบ)</th><th>ชื่อย่อ (ผลิต)</th><th>ที่อยู่</th><th>เลขภาษี</th><th>โทร</th><th></th></tr></thead><tbody>${arr.map((c,i)=>`<tr>${isC?`<td><b>${esc(c.code||'')}</b></td>`:''}<td>${esc(c.name||'')||'-'}</td><td>${esc(c.shortName||'')||'<span class="muted">-</span>'}</td><td class="muted">${esc(c.address||'')||'-'}</td><td class="muted">${esc(c.taxId||'')||'-'}</td><td class="muted">${esc(c.tel||'')||'-'}</td><td style="text-align:right;white-space:nowrap"><button class="btn sm" onclick="partyEditModal('${kind}',${i})">✏️ แก้ไข</button> <button class="btn sm danger" onclick="${df}(${i})">🗑️</button></td></tr>`).join('')||`<tr><td colspan="${isC?7:6}" class="muted" style="padding:12px">ยังไม่มีข้อมูล</td></tr>`}</tbody></table></div></div></div>`;}
+function partyEditModal(kind,i){ensureSettings();const arr=kind==='cust'?DB.settings.custList:DB.settings.supList;const c=(i>=0?arr[i]:{})||{};const t=kind==='cust'?'ลูกค้า':'ผู้ขาย';const isC=kind==='cust';
   modal({title:(i>=0?'✏️ แก้ไข':'+ เพิ่ม')+t,body:`
-   <div class="field"><label>ชื่อ <span class="req">*</span></label><input id="pm_name" value="${esc(c.name||'')}"></div>
+   ${isC?'<div class="row c2"><div class="field"><label>รหัสลูกค้า (NO.)</label><input id="pm_code" value="'+esc(c.code||'')+'" placeholder="เช่น 210-6"></div><div class="field"><label>ชื่อย่อ (ใช้ในการผลิต)</label><input id="pm_short" value="'+esc(c.shortName||'')+'" placeholder="เช่น AMPAS"></div></div>':'<div class="field"><label>ชื่อย่อ</label><input id="pm_short" value="'+esc(c.shortName||'')+'"></div>'}
+   <div class="field"><label>ชื่อเต็ม (ใช้ออกใบ) <span class="req">*</span></label><input id="pm_name" value="${esc(c.name||'')}"></div>
    <div class="field"><label>ที่อยู่</label><input id="pm_addr" value="${esc(c.address||'')}"></div>
-   <div class="row c2"><div class="field"><label>เลขภาษี</label><input id="pm_tax" value="${esc(c.taxId||'')}"></div><div class="field"><label>ผู้ติดต่อ</label><input id="pm_contact" value="${esc(c.contact||'')}"></div></div>
+   <div class="row c3"><div class="field"><label>เลขภาษี</label><input id="pm_tax" value="${esc(c.taxId||'')}"></div><div class="field"><label>เครดิต (วัน)</label><input id="pm_credit" value="${esc(c.creditTerms||'')}"></div><div class="field"><label>ผู้ติดต่อ</label><input id="pm_contact" value="${esc(c.contact||'')}"></div></div>
    <div class="row c2"><div class="field"><label>โทร</label><input id="pm_tel" value="${esc(c.tel||'')}"></div><div class="field"><label>อีเมล</label><input id="pm_email" value="${esc(c.email||'')}"></div></div>
   `,footer:`<button class="btn" onclick="closeModal()">ยกเลิก</button><button class="btn pri" onclick="partySave('${kind}',${i})">บันทึก</button>`});}
-function partySave(kind,i){ensureSettings();const v=k=>((document.getElementById(k)||{}).value||'').trim();const name=v('pm_name');if(!name){toast('กรุณากรอกชื่อ','err');return;}const rec={name,address:v('pm_addr'),taxId:v('pm_tax'),contact:v('pm_contact'),tel:v('pm_tel'),email:v('pm_email')};const arr=kind==='cust'?DB.settings.custList:DB.settings.supList;if(i>=0)arr[i]=rec;else arr.push(rec);syncParties();saveDB();closeModal();render();toast('บันทึกแล้ว','ok');}
+function partySave(kind,i){ensureSettings();const v=k=>((document.getElementById(k)||{}).value||'').trim();const name=v('pm_name');if(!name){toast('กรุณากรอกชื่อเต็ม','err');return;}const rec={code:v('pm_code'),shortName:v('pm_short'),name:name,address:v('pm_addr'),taxId:v('pm_tax'),creditTerms:v('pm_credit'),contact:v('pm_contact'),tel:v('pm_tel'),email:v('pm_email')};const arr=kind==='cust'?DB.settings.custList:DB.settings.supList;if(i>=0)arr[i]=rec;else arr.push(rec);syncParties();saveDB();closeModal();render();toast('บันทึกแล้ว','ok');}
+function applyCustImport(input){const f=input.files[0];if(!f)return;const r=new FileReader();r.onload=e=>{let data;try{data=JSON.parse(e.target.result)}catch(err){toast('ไฟล์ไม่ถูกต้อง','err');input.value='';return}const arr=Array.isArray(data)?data:(data.customers||[]);if(!arr.length){toast('ไม่พบข้อมูล','err');input.value='';return}ensureSettings();let upd=0,add=0;arr.forEach(x=>{const code=(x.code||'').trim();const name=(x.name||'').trim();if(!code&&!name)return;let c=code?DB.settings.custList.find(z=>z.code===code):null;if(c){c.name=name||c.name;c.taxId=x.taxId||c.taxId;c.address=x.address||c.address;upd++;}else{DB.settings.custList.push({code:code,name:name,shortName:'',taxId:x.taxId||'',address:x.address||'',creditTerms:'',contact:'',tel:'',email:''});add++;}});syncParties();saveDB();render();modal({title:'👥 ผลการนำเข้าลูกค้า',body:`<div class="kv"><span class="k">เพิ่มใหม่</span><b style="color:var(--teal)">${fmt(add)} ราย</b></div><div class="kv"><span class="k">อัปเดต (รหัสซ้ำ)</span><b>${fmt(upd)} ราย</b></div>`,footer:`<button class="btn pri" onclick="closeModal()">ตกลง</button>`});input.value='';};r.readAsText(f);}
 function listEditor(key,title){
   const arr=DB.settings[key];
   return `<div class="panel"><div class="panel-h"><h2>${title}</h2><div class="right"><button class="btn sm" onclick="addSetting('${key}')">+ เพิ่ม</button></div></div>
