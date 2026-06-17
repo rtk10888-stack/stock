@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='MON-2026.06.17z9';
+const APP_BUILD='INVP-2026.06.18a';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -668,7 +668,7 @@ function viewInventory(el){
         <button class="btn" onclick="document.getElementById('balanceFile').click()">📊 อัปเดตยอดคงเหลือ</button>
         <input type="file" id="salePriceFile" accept=".json" style="display:none" onchange="applySalePriceImport(this)"><button class="btn" onclick="document.getElementById('salePriceFile').click()">💲 ราคาขาย</button>
         <input type="file" id="prodPriceFile2" accept=".json" style="display:none" onchange="applyPriceImport(this)"><button class="btn" onclick="document.getElementById('prodPriceFile2').click()">💰 ราคาผลิต</button>
-        <button class="btn pri" onclick="openProductForm()">+ เพิ่มสินค้าใหม่</button></div>
+        <button class="btn" onclick="printInvList()" title="พิมพ์รายงานคงคลังตามตัวกรอง แยกลูกค้า">🖨️ พิมพ์ (รายลูกค้า)</button> <button class="btn pri" onclick="openProductForm()">+ เพิ่มสินค้าใหม่</button></div>
     </div>
     <div class="panel-b nopad" id="invTableWrap"></div>
   </div>`;
@@ -676,6 +676,72 @@ function viewInventory(el){
 }
 function invSet(t){invFilter.type=t;document.querySelectorAll('#invSeg button').forEach((b,i)=>b.classList.toggle('on',['all','FG','RM','RMC'][i]===t));renderInvTable()}
 function setProdPrice(id,val){const p=P(id);if(!p)return;p.prodPrice=Number(val)||0;saveDB();toast('บันทึกราคาผลิต '+p.pn+' = '+fmt2(p.prodPrice),'ok');}
+function invFilteredList(){
+  const q=(invFilter.q||'').trim().toLowerCase();let list;
+  if(invFilter.type==='RMC'){const ids=new Set(DB.docs.filter(d=>d.type==='RMC').map(d=>d.productId).filter(Boolean));list=DB.products.filter(p=>ids.has(p.id));}
+  else list=DB.products.filter(p=>invFilter.type==='all'||p.type===invFilter.type);
+  if(q)list=list.filter(p=>(p.pn+' '+p.name+' '+p.customer+' '+p.material).toLowerCase().includes(q));
+  if(invFilter.cust){const cv=invFilter.cust.toLowerCase();list=list.filter(p=>(p.customer||'').toLowerCase().includes(cv));}
+  if(invFilter.plating){const pv=invFilter.plating.toLowerCase();list=list.filter(p=>prodFlow(p).toLowerCase().includes(pv));}
+  if(invFilter.cond){const cv=invFilter.cond.toLowerCase();if(cv==='cust'||cv.indexOf('ลูกค้า')>=0)list=list.filter(p=>p.custSupplyMat);else if(cv==='own'||cv.indexOf('บริษัท')>=0)list=list.filter(p=>p.type==='FG'&&!p.custSupplyMat);}
+  return list.slice().sort((a,b)=>(a.customer||'').localeCompare(b.customer||'')||a.pn.localeCompare(b.pn));
+}
+function printProductCard(id){
+  const p=P(id);if(!p)return;ensureSettings();const co=DB.settings.company||{};const fl=prodFlow(p);
+  const kv=(k,v)=>'<tr><td class="k">'+esc(k)+'</td><td>'+v+'</td></tr>';
+  const html='<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"><title>'+esc(p.pn)+'</title><style>'
+   +"*{font-family:'Tahoma',sans-serif;box-sizing:border-box}body{margin:0;padding:14mm 12mm;color:#111;font-size:12.5px}"
+   +".hd{text-align:center;border-bottom:2px solid #111;padding-bottom:6px}.hd h1{font-size:15px;margin:0}.hd div{font-size:10.5px;color:#333}"
+   +".ttl{text-align:center;font-size:18px;font-weight:700;margin:10px 0}"
+   +"table{width:100%;border-collapse:collapse;margin-top:8px}td{border:1px solid #999;padding:6px 10px}td.k{background:#eef2f7;font-weight:700;width:34%;white-space:nowrap}"
+   +".st{display:flex;gap:8px;margin-top:12px;text-align:center}.st .b{flex:1;border:1px solid #999;border-radius:8px;padding:8px}.st .b .l{font-size:11px;color:#555}.st .b .v{font-size:20px;font-weight:800}"
+   +".sign{display:flex;justify-content:space-between;margin-top:40px;text-align:center;font-size:12px}.sign div{width:30%}.sign .line{border-top:1px dotted #555;margin-top:30px;padding-top:3px}@media print{.noprint{display:none}}</style></head><body>"
+   +'<div class="hd"><h1>'+esc(co.name||'')+'</h1><div>'+esc(co.address||'')+'</div></div>'
+   +'<div class="ttl">บัตรสินค้าคงคลัง / Stock Card</div>'
+   +'<table>'
+   +kv('Part Number','<b style="font-size:14px">'+esc(p.pn)+'</b>')
+   +kv('ชื่อสินค้า',esc(p.name||'-'))
+   +kv('ประเภท',p.type==='RM'?'วัตถุดิบ (RM)':'สินค้าสำเร็จรูป (FG)')
+   +kv('ลูกค้า',esc(p.customer||'-'))
+   +kv('เงื่อนไขการไหล / การชุบ',esc(fl)+(p.plating&&p.plating!=='ชุบ'?' · '+esc(p.plating):''))
+   +kv('เงื่อนไขวัตถุดิบ',p.type==='RM'?esc(p.material||'-'):(p.custSupplyMat?'ลูกค้าจ่ายแมท':'บริษัทซื้อแมท'))
+   +kv('MOQ',fmt(p.moq||p.reorder||0))
+   +kv('ราคาขาย',p.salePrice?fmt2(p.salePrice):'-')
+   +kv('ราคาผลิต',p.prodPrice?fmt2(p.prodPrice):'-')
+   +'</table>'
+   +'<div class="st"><div class="b"><div class="l">คงเหลือพร้อมขาย</div><div class="v">'+fmt(p.onHand)+'</div></div><div class="b"><div class="l">WIP/ผลิตเสร็จ</div><div class="v">'+fmt(p.wip)+'</div></div><div class="b"><div class="l">ระหว่างชุบ</div><div class="v">'+fmt(p.atPlating)+'</div></div><div class="b"><div class="l">รอรับเข้า</div><div class="v">'+fmt(p.passedQC)+'</div></div><div class="b"><div class="l">ของเสีย NG</div><div class="v">'+fmt(p.ng)+'</div></div>'+(p.type==='RM'&&(p.barsOnHand||0)?'<div class="b"><div class="l">คงเหลือ (เส้น)</div><div class="v">'+fmt(p.barsOnHand)+'</div></div>':'')+'</div>'
+   +'<div style="margin-top:10px;text-align:right;font-size:11px;color:#555">พิมพ์ ณ '+esc(todayISO())+'</div>'
+   +'<div class="sign"><div><div class="line">ผู้จัดทำ</div></div><div><div class="line">ผู้ตรวจสอบ</div></div><div><div class="line">ผู้อนุมัติ</div></div></div>'
+   +'<div class="noprint" style="text-align:center;margin-top:16px"><button onclick="window.print()" style="padding:8px 22px;cursor:pointer">🖨️ พิมพ์ / PDF</button></div>'
+   +'<scr'+'ipt>setTimeout(function(){window.print()},400)</scr'+'ipt></body></html>';
+  const w=window.open('','_blank');if(!w){toast('เบราว์เซอร์บล็อก popup','err');return}w.document.write(html);w.document.close();
+}
+function printInvList(){
+  ensureSettings();const co=DB.settings.company||{};const list=invFilteredList();
+  if(!list.length){toast('ไม่มีรายการตามตัวกรอง','err');return;}
+  const byC={};list.forEach(p=>{const c=p.customer||'(ไม่ระบุลูกค้า)';(byC[c]=byC[c]||[]).push(p);});
+  let body='',gOn=0,gWip=0,gPl=0,gQc=0;
+  Object.keys(byC).sort().forEach(c=>{const g=byC[c];let sOn=0,sWip=0,sPl=0,sQc=0;
+    body+='<tr class="grp"><td colspan="10">ลูกค้า : '+esc(c)+' ('+g.length+' รายการ)</td></tr>';
+    g.forEach((p,i)=>{const fl=prodFlow(p);sOn+=p.onHand||0;sWip+=p.wip||0;sPl+=p.atPlating||0;sQc+=p.passedQC||0;
+      body+='<tr><td class="c">'+(i+1)+'</td><td><b>'+esc(p.pn)+'</b></td><td>'+esc(p.name||'')+'</td><td class="c">'+(p.type==='RM'?'RM':'FG')+'</td><td class="c">'+esc(fl)+'</td><td class="r">'+fmt(p.moq||p.reorder||0)+'</td><td class="r">'+(p.salePrice?fmt2(p.salePrice):'-')+'</td><td class="r"><b>'+fmt(p.onHand)+'</b>'+(p.type==='RM'&&(p.barsOnHand||0)?'<br><span style="font-size:8px;color:#1b6">'+fmt(p.barsOnHand)+' เส้น</span>':'')+'</td><td class="r">'+fmt(p.wip)+'</td><td class="r">'+fmt(p.atPlating+p.passedQC)+'</td></tr>';});
+    body+='<tr class="sub"><td colspan="7" class="r">รวมลูกค้า '+esc(c)+'</td><td class="r">'+fmt(sOn)+'</td><td class="r">'+fmt(sWip)+'</td><td class="r">'+fmt(sPl+sQc)+'</td></tr>';
+    gOn+=sOn;gWip+=sWip;gPl+=sPl;gQc+=sQc;});
+  const ft=invFilter.type==='all'?'ทั้งหมด':invFilter.type==='FG'?'สำเร็จรูป':invFilter.type==='RM'?'วัตถุดิบ':invFilter.type==='RMC'?'รับแมทลูกค้า':invFilter.type;
+  const html='<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"><title>สินค้าคงคลัง</title><style>'
+   +"@page{size:A4 landscape;margin:8mm}*{font-family:'Tahoma',sans-serif;box-sizing:border-box}body{margin:0;font-size:11px}"
+   +".hd{text-align:center;border-bottom:2px solid #111;padding-bottom:5px}.hd h1{font-size:14px;margin:0}.hd div{font-size:10px;color:#333}"
+   +".ttl{text-align:center;font-size:15px;font-weight:700;margin:7px 0 2px}.sub2{text-align:center;font-size:10px;color:#555;margin-bottom:6px}"
+   +"table{width:100%;border-collapse:collapse;font-size:10px}th,td{border:1px solid #888;padding:3px 5px}th{background:#dfeaf6;text-align:center}td.c{text-align:center}td.r{text-align:right}"
+   +"tr.grp td{background:#1b3a8f;color:#fff;font-weight:700}tr.sub td{background:#eef2f7;font-weight:700}@media print{.noprint{display:none}}</style></head><body>"
+   +'<div class="hd"><h1>'+esc(co.name||'')+'</h1><div>'+esc(co.address||'')+'</div></div>'
+   +'<div class="ttl">รายงานสินค้าคงคลัง (แยกตามลูกค้า)</div><div class="sub2">ตัวกรอง: '+esc(ft)+(invFilter.cust?' · ลูกค้า '+esc(invFilter.cust):'')+' · พิมพ์ '+esc(todayISO())+'</div>'
+   +'<table><thead><tr><th>#</th><th>Part Number</th><th>ชื่อ</th><th>ประเภท</th><th>การชุบ</th><th>MOQ</th><th>ราคาขาย</th><th>คงเหลือ</th><th>WIP</th><th>ชุบ/รอรับเข้า</th></tr></thead><tbody>'+body+'</tbody>'
+   +'<tfoot><tr style="font-weight:700;background:#fff7a8"><td colspan="7" class="r">รวมทั้งหมด</td><td class="r">'+fmt(gOn)+'</td><td class="r">'+fmt(gWip)+'</td><td class="r">'+fmt(gPl+gQc)+'</td></tr></tfoot></table>'
+   +'<div class="noprint" style="text-align:center;margin-top:12px"><button onclick="window.print()" style="padding:8px 22px;cursor:pointer">🖨️ พิมพ์ / PDF</button></div>'
+   +'<scr'+'ipt>setTimeout(function(){window.print()},400)</scr'+'ipt></body></html>';
+  const w=window.open('','_blank');if(!w){toast('เบราว์เซอร์บล็อก popup','err');return}w.document.write(html);w.document.close();
+}
 function renderInvTable(){
   const wrap=document.getElementById('invTableWrap');if(!wrap)return;
   const q=invFilter.q.trim().toLowerCase();
@@ -714,7 +780,7 @@ function renderInvTable(){
       <td class="num ${p.wip?'':'muted'}">${fmt(p.wip)}</td>
       <td class="num ${p.atPlating?'':'muted'}">${fmt(p.atPlating)}</td>
       <td class="num ${p.passedQC?'':'muted'}">${fmt(p.passedQC)}</td>
-      <td style="text-align:right;white-space:nowrap"><button class="btn sm" onclick="openProduct('${p.id}')">ดู</button> <button class="btn sm" onclick="openProductForm('${p.id}')">✏️ แก้ไข</button> <button class="btn sm danger" onclick="delProduct('${p.id}')">🗑️ ลบ</button></td>
+      <td style="text-align:right;white-space:nowrap"><button class="btn sm" onclick="openProduct('${p.id}')">ดู</button> <button class="btn sm" onclick="printProductCard('${p.id}')" title="พิมพ์บัตรสินค้า">🖨️</button> <button class="btn sm" onclick="openProductForm('${p.id}')">✏️ แก้ไข</button> <button class="btn sm danger" onclick="delProduct('${p.id}')">🗑️ ลบ</button></td>
     </tr>`}).join('')}
   </tbody><tfoot><tr style="font-weight:700;background:var(--panel2);border-top:2px solid var(--line)">
     <td colspan="4">SUBTOTAL — ${list.length} รายการ</td>
