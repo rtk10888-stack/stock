@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='BARS-2026.06.17s';
+const APP_BUILD='BARS-2026.06.17t';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -3397,20 +3397,19 @@ function openPurchaseForm(edit){
     <div id="puTotals"></div>
     <div class="field" style="margin-top:8px"><label>หมายเหตุ</label><input id="pu_note" value="${edit?esc(edit.note||''):''}"></div>
   `,footer:`<button class="btn" onclick="closeModal()">ยกเลิก</button><button class="btn" onclick="submitPurchase('pending','${edit?edit.id:''}')">บันทึก (รออนุมัติ)</button><button class="btn pri" onclick="submitPurchase('approved','${edit?edit.id:''}')">บันทึก + อนุมัติ</button>`});
-  poLines=edit&&edit.lines?edit.lines.map(l=>({productId:l.productId||'',name:l.name||'',qty:l.qty||'',bars:l.bars||'',unit:l.unit||'Pcs.',price:l.price||''})):[{productId:'',name:'',qty:'',unit:'Pcs.',price:''}];
+  poLines=edit&&edit.lines?edit.lines.map(l=>({productId:l.productId||'',name:l.name||'',qty:l.qty||'',bars:l.bars||'',unit:l.unit||'Kgs.',price:l.price||''})):[{productId:'',name:'',qty:'',bars:'',unit:'Kgs.',price:''}];
   setTimeout(renderPoLines,15);
 }
-function addPoLine(){poLines.push({productId:'',name:'',qty:'',bars:'',unit:'Pcs.',price:''});renderPoLines()}
+function addPoLine(){poLines.push({productId:'',name:'',qty:'',bars:'',unit:'Kgs.',price:''});renderPoLines()}
 function rmPoLine(i){poLines.splice(i,1);renderPoLines()}
 function renderPoLines(){
   const root=document.getElementById('puRoot');if(!root)return;
-  root.innerHTML=`<div style="overflow-x:auto"><table style="font-size:12.5px"><thead><tr><th style="min-width:220px">รายการ (วัตถุดิบ)</th><th style="width:80px">จำนวน</th><th style="width:78px">จำนวน (เส้น)</th><th style="width:64px">หน่วย</th><th style="width:84px">ราคา/หน่วย</th><th style="width:96px">จำนวนเงิน</th><th></th></tr></thead><tbody>
+  root.innerHTML=`<div style="overflow-x:auto"><table style="font-size:12.5px"><thead><tr><th style="min-width:220px">รายการ (วัตถุดิบ)</th><th style="width:88px">จำนวน (เส้น)</th><th style="width:96px">จำนวน (Kgs.)</th><th style="width:96px">ราคา/หน่วย Kgs.</th><th style="width:100px">จำนวนเงิน</th><th></th></tr></thead><tbody>
   ${poLines.map((l,i)=>`<tr>
     <td><input list="dl_rm3" value="${esc(l.name||'')}" placeholder="พิมพ์/เลือกวัตถุดิบ" oninput="poPick(${i},this.value)" style="padding:6px 8px"></td>
-    <td><input type="number" step="any" value="${l.qty}" oninput="poLines[${i}].qty=this.value;poLineCalc(${i})" style="padding:6px 8px"></td>
     <td><input type="number" step="any" value="${l.bars||''}" placeholder="เส้น" oninput="poLines[${i}].bars=this.value" style="padding:6px 8px;text-align:right"></td>
-    <td><input value="${esc(l.unit||'')}" oninput="poLines[${i}].unit=this.value" style="padding:6px 8px"></td>
-    <td><input type="number" step="any" value="${l.price}" oninput="poLines[${i}].price=this.value;poLineCalc(${i})" style="padding:6px 8px"></td>
+    <td><input type="number" step="any" value="${l.qty}" placeholder="กก." oninput="poLines[${i}].qty=this.value;poLineCalc(${i})" style="padding:6px 8px;text-align:right"></td>
+    <td><input type="number" step="any" value="${l.price}" placeholder="บาท/กก." oninput="poLines[${i}].price=this.value;poLineCalc(${i})" style="padding:6px 8px;text-align:right"></td>
     <td class="num" id="puamt_${i}" style="font-weight:600">${fmt2((Number(l.qty)||0)*(Number(l.price)||0))}</td>
     <td><div class="rm-x" style="height:32px" onclick="rmPoLine(${i})">✕</div></td>
   </tr>`).join('')}
