@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='MON-2026.06.17z6';
+const APP_BUILD='MON-2026.06.17z7';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -573,65 +573,70 @@ function flowRefHTML(open){
     </div>
   </div>`;
 }
-/* ===== เฝ้าติดตาม (Monitoring) ===== */
+/* ===== เฝ้าติดตาม (Monitoring KPI) ===== */
 function monThaiLabel(ym){const m=['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];const p=(ym||'').split('-');if(p.length<2)return ym;return m[+p[1]]+(String(+p[0]+543).slice(2));}
-function monitorMonths(){const set=new Set();DB.docs.forEach(d=>{if(['INV','IV2','RW','QC','GR','RMC'].includes(d.type)&&d.date&&d.status!=='cancelled')set.add(d.date.slice(0,7));});return [...set].filter(Boolean).sort().slice(-8);}
-function sumByMonth(months,types,fn){const m={};DB.docs.filter(d=>types.includes(d.type)&&d.status!=='cancelled'&&d.date).forEach(d=>{const k=d.date.slice(0,7);m[k]=(m[k]||0)+(fn(d)||0);});return months.map(k=>Math.round((m[k]||0)*100)/100);}
+function monitorMonths(){const set=new Set();DB.docs.forEach(d=>{if(['INV','IV2','RW','QC','GR','RMC','CPO','PRD','PO'].includes(d.type)&&d.date&&d.status!=='cancelled')set.add(d.date.slice(0,7));});return [...set].filter(Boolean).sort().slice(-8);}
 function qcClaimMonth(d){return (d.lines||[]).reduce((s,l)=>{const p=l.productId?P(l.productId):findProdByName(l.name,'FG');const pp=p?(Number(p.prodPrice)||0):0;const mc=claimMatCost(p);return s+(Number(l.ng)||0)*(pp+mc);},0);}
-/* SVG line chart — single (area) or multi (legend) */
+function sumQ(d){return (d.lines||[]).reduce((s,l)=>s+(Number(l.qty)||0),0);}
+function sumNG(d){return (d.lines||[]).reduce((s,l)=>s+(Number(l.ng)||0),0);}
+function sumQCtot(d){return (d.lines||[]).reduce((s,l)=>s+(Number(l.total)||(Number(l.ok)||0)+(Number(l.ng)||0)),0);}
+function ratioByMonth(months,numTypes,numFn,denTypes,denFn){const num={},den={};
+  DB.docs.filter(d=>numTypes.includes(d.type)&&d.status!=='cancelled'&&d.date).forEach(d=>{const k=d.date.slice(0,7);num[k]=(num[k]||0)+(numFn(d)||0);});
+  DB.docs.filter(d=>denTypes.includes(d.type)&&d.status!=='cancelled'&&d.date).forEach(d=>{const k=d.date.slice(0,7);den[k]=(den[k]||0)+(denFn(d)||0);});
+  return months.map(k=>{const dn=den[k]||0;return dn?Math.round((num[k]||0)/dn*1000)/10:0;});}
 function lineChart(labels,series,opt){
   opt=opt||{};const W=720,H=opt.height||230,pl=opt.pl||52,pr=16,pt=18,pb=30;const iw=W-pl-pr,ih=H-pt-pb;
   const uid='c'+Math.random().toString(36).slice(2,8);
-  let max=0,min=0;series.forEach(s=>s.data.forEach(v=>{if(v>max)max=v;if(v<min)min=v;}));if(max===min)max=min+1;max=max*1.12;const span=max-min||1;
+  let max=0,min=0;series.forEach(s=>s.data.forEach(v=>{if(v>max)max=v;if(v<min)min=v;}));
+  if(opt.target!=null&&opt.target>max)max=opt.target;if(max===min)max=min+1;max=max*1.12;const span=max-min||1;
   const X=i=>pl+(labels.length<=1?iw/2:iw*i/(labels.length-1));
   const Y=v=>pt+ih-((v-min)/span)*ih;
   const grid=[0,.25,.5,.75,1].map(f=>{const y=pt+ih-f*ih;const val=min+f*span;return '<line x1="'+pl+'" y1="'+y.toFixed(1)+'" x2="'+(W-pr)+'" y2="'+y.toFixed(1)+'" stroke="#eceff5" stroke-width="1"/><text x="'+(pl-8)+'" y="'+(y+3).toFixed(1)+'" text-anchor="end" font-size="9.5" fill="#9aa3b2">'+(opt.fy?opt.fy(val):fmt(Math.round(val)))+'</text>';}).join('');
   const xlab=labels.map((l,i)=>'<text x="'+X(i).toFixed(1)+'" y="'+(H-9)+'" text-anchor="middle" font-size="9.5" fill="#9aa3b2">'+esc(l)+'</text>').join('');
   function smooth(data){if(!data.length)return '';const pts=data.map((v,i)=>[X(i),Y(v)]);if(pts.length===1)return 'M'+pts[0][0]+' '+pts[0][1];let d='M'+pts[0][0].toFixed(1)+' '+pts[0][1].toFixed(1);for(let i=0;i<pts.length-1;i++){const p0=pts[i-1]||pts[i],p1=pts[i],p2=pts[i+1],p3=pts[i+2]||pts[i+1];const c1x=p1[0]+(p2[0]-p0[0])/6,c1y=p1[1]+(p2[1]-p0[1])/6,c2x=p2[0]-(p3[0]-p1[0])/6,c2y=p2[1]-(p3[1]-p1[1])/6;d+=' C'+c1x.toFixed(1)+' '+c1y.toFixed(1)+','+c2x.toFixed(1)+' '+c2y.toFixed(1)+','+p2[0].toFixed(1)+' '+p2[1].toFixed(1);}return d;}
+  let tline='';
+  if(opt.target!=null){const ty=Y(opt.target).toFixed(1);tline='<line x1="'+pl+'" y1="'+ty+'" x2="'+(W-pr)+'" y2="'+ty+'" stroke="#64748b" stroke-width="1.4" stroke-dasharray="6 4"/><rect x="'+(W-pr-72)+'" y="'+(Number(ty)-13)+'" width="70" height="13" rx="3" fill="#64748b"/><text x="'+(W-pr-37)+'" y="'+(Number(ty)-3)+'" text-anchor="middle" font-size="9" font-weight="700" fill="#fff">เป้า '+(opt.fy?opt.fy(opt.target):opt.target)+'</text>';}
   let body='',defs='';
-  series.forEach((s,si)=>{const col=s.color;const path=smooth(s.data);
-    if(series.length===1){defs+='<linearGradient id="'+uid+'" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="'+col+'" stop-opacity="0.28"/><stop offset="1" stop-color="'+col+'" stop-opacity="0.01"/></linearGradient>';
-      const area=path+' L'+X(s.data.length-1).toFixed(1)+' '+(pt+ih)+' L'+X(0).toFixed(1)+' '+(pt+ih)+' Z';
-      body+='<path d="'+area+'" fill="url(#'+uid+')"/>';}
+  series.forEach((s)=>{const col=s.color;const path=smooth(s.data);
+    if(series.length===1){defs+='<linearGradient id="'+uid+'" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="'+col+'" stop-opacity="0.26"/><stop offset="1" stop-color="'+col+'" stop-opacity="0.01"/></linearGradient>';
+      const area=path+' L'+X(s.data.length-1).toFixed(1)+' '+(pt+ih)+' L'+X(0).toFixed(1)+' '+(pt+ih)+' Z';body+='<path d="'+area+'" fill="url(#'+uid+')"/>';}
     body+='<path d="'+path+'" fill="none" stroke="'+col+'" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>';
     s.data.forEach((v,i)=>{body+='<circle cx="'+X(i).toFixed(1)+'" cy="'+Y(v).toFixed(1)+'" r="3.4" fill="#fff" stroke="'+col+'" stroke-width="2"><title>'+esc(labels[i])+': '+(opt.fy?opt.fy(v):fmt(v))+'</title></circle>';});
     if(series.length===1){s.data.forEach((v,i)=>{if(v)body+='<text x="'+X(i).toFixed(1)+'" y="'+(Y(v)-9).toFixed(1)+'" text-anchor="middle" font-size="9" font-weight="700" fill="'+col+'">'+(opt.fy?opt.fy(v):fmt(v))+'</text>';});}
   });
   const legend=series.length>1?'<div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-top:4px">'+series.map(s=>'<span style="font-size:11px;display:inline-flex;align-items:center;gap:4px"><span style="width:11px;height:11px;border-radius:3px;background:'+s.color+';display:inline-block"></span>'+esc(s.name)+'</span>').join('')+'</div>':'';
-  return '<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto;display:block"><defs>'+defs+'</defs>'+grid+body+xlab+'</svg>'+legend;
+  return '<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto;display:block"><defs>'+defs+'</defs>'+grid+tline+body+xlab+'</svg>'+legend;
 }
 function monPanel(icon,title,sub,labels,series,opt){
-  opt=opt||{};const last=series[0].data[series.length>1?series[0].data.length-1:series[0].data.length-1];
-  let cur=0,prev=0;if(series.length===1){const dd=series[0].data;cur=dd[dd.length-1]||0;prev=dd[dd.length-2]||0;}else{series.forEach(s=>{cur+=s.data[s.data.length-1]||0;prev+=s.data[s.data.length-2]||0;});}
-  const dir=cur>prev?'▲':cur<prev?'▼':'—';const dc=cur>prev?'var(--teal)':cur<prev?'var(--red)':'var(--ink3)';
-  const pct=prev?(Math.abs((cur-prev)/prev*100)).toFixed(0)+'%':'';
-  return '<div class="panel" style="margin:0"><div class="panel-b" style="padding:14px 16px 10px"><div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px"><div><div style="font-weight:700;font-size:14px">'+icon+' '+esc(title)+'</div><div class="muted" style="font-size:11px">'+esc(sub)+'</div></div><div style="text-align:right"><div style="font-size:20px;font-weight:800">'+(opt.fy?opt.fy(cur):fmt(cur))+'</div><div style="font-size:11px;color:'+dc+';font-weight:600">'+dir+' '+pct+' <span class="muted">vs เดือนก่อน</span></div></div></div>'+lineChart(labels,series,opt)+'</div></div>';
+  opt=opt||{};const dd=series[0].data;const cur=dd[dd.length-1]||0,prev=dd[dd.length-2]||0;
+  const dir=cur>prev?'▲':cur<prev?'▼':'—';const fy=opt.fy||(v=>fmt(v));
+  let tgtBadge='',statusBadge='';
+  if(opt.target!=null){const good=opt.tdir==='<'?(cur<=opt.target):(cur>=opt.target);
+    tgtBadge='<span class="tag gray" style="font-size:10.5px">เป้าหมาย '+(opt.tdir==='<'?'≤':'≥')+' '+fy(opt.target)+'</span>';
+    statusBadge='<div style="font-size:11px;font-weight:700;color:'+(good?'var(--teal)':'var(--red)')+'">'+(good?'✅ ถึงเป้า':'⚠️ ยังไม่ถึงเป้า')+'</div>';}
+  const dc=cur>prev?'var(--teal)':cur<prev?'var(--red)':'var(--ink3)';
+  return '<div class="panel" style="margin:0"><div class="panel-b" style="padding:14px 16px 10px"><div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;gap:8px"><div><div style="font-weight:700;font-size:14px">'+icon+' '+esc(title)+'</div><div class="muted" style="font-size:11px">'+esc(sub)+'</div><div style="margin-top:4px">'+tgtBadge+'</div></div><div style="text-align:right"><div style="font-size:22px;font-weight:800;color:'+dc+'">'+fy(cur)+'</div><div style="font-size:10.5px;color:'+dc+';font-weight:600">'+dir+' vs เดือนก่อน</div>'+statusBadge+'</div></div>'+lineChart(labels,series,opt)+'</div></div>';
 }
 function viewMonitor(el){
-  setTitle('📡 เฝ้าติดตาม','แนวโน้มตัวชี้วัดสำคัญ — อัปเดต Real Time จากข้อมูลในระบบ');
+  setTitle('📡 เฝ้าติดตาม','ตัวชี้วัด KPI เทียบเป้าหมาย — อัปเดต Real Time จากข้อมูลในระบบ');
   const months=monitorMonths();
-  if(!months.length){el.innerHTML='<div class="empty"><div class="big">📡</div><div class="t">ยังไม่มีข้อมูลพอจะแสดงแนวโน้ม</div><div>เริ่มบันทึก รับวัตถุดิบ / รับชิ้นงาน / คัดแยก / Invoice แล้วกราฟจะขึ้นอัตโนมัติ</div></div>';return;}
-  const lab=months.map(monThaiLabel);
-  const baht=v=>fmt2(v);
-  const sDeliver=sumByMonth(months,['INV','IV2'],d=>(d.lines||[]).reduce((s,l)=>s+(Number(l.qty)||0),0));
-  const sMaker=sumByMonth(months,['RW'],d=>(d.lines||[]).reduce((s,l)=>s+(Number(l.qty)||0),0));
-  const sClaim=sumByMonth(months,['QC'],qcClaimMonth);
-  const sNG=sumByMonth(months,['QC'],d=>(d.lines||[]).reduce((s,l)=>s+(Number(l.ng)||0),0));
-  const sRM=sumByMonth(months,['GR'],d=>(d.lines||[]).reduce((s,l)=>s+(Number(l.qty)||0),0));
-  // employee: top inspectors by inspected qty per month
-  const insTot={};DB.docs.filter(d=>d.type==='QC'&&d.status!=='cancelled'&&d.date).forEach(d=>(d.lines||[]).forEach(l=>{const ins=(l.inspector||'').trim();if(!ins)return;insTot[ins]=(insTot[ins]||0)+(Number(l.total)||Number(l.ok)+Number(l.ng)||0);}));
-  const topIns=Object.keys(insTot).sort((a,b)=>insTot[b]-insTot[a]).slice(0,5);
-  const palette=['#14b8a6','#3b82f6','#f59e0b','#8b5cf6','#ef4444'];
-  const insSeries=topIns.map((ins,i)=>({name:ins,color:palette[i%palette.length],data:months.map(k=>{let s=0;DB.docs.filter(d=>d.type==='QC'&&d.status!=='cancelled'&&(d.date||'').slice(0,7)===k).forEach(d=>(d.lines||[]).forEach(l=>{if((l.inspector||'').trim()===ins)s+=Number(l.total)||Number(l.ok)+Number(l.ng)||0;}));return s;})}));
+  if(!months.length){el.innerHTML='<div class="empty"><div class="big">📡</div><div class="t">ยังไม่มีข้อมูลพอจะแสดงแนวโน้ม</div><div>เริ่มบันทึกเอกสารในระบบ แล้ว KPI จะคำนวณอัตโนมัติ</div></div>';return;}
+  const lab=months.map(monThaiLabel);const pct=v=>(Math.round(v*10)/10)+'%';
+  const sDeliver=ratioByMonth(months,['INV','IV2'],sumQ,['CPO'],sumQ);
+  const sMaker=ratioByMonth(months,['RW'],sumQ,['PRD'],sumQ);
+  const sClaim=ratioByMonth(months,['QC'],sumNG,['RW'],sumQ);
+  const sNG=ratioByMonth(months,['QC'],sumNG,['QC'],sumQCtot);
+  const sRM=ratioByMonth(months,['GR'],sumQ,['PO'],sumQ);
+  const sEmp=ratioByMonth(months,['QC'],sumNG,['QC'],sumQCtot);
   el.innerHTML=`
-  <div class="hint"><span class="i">📈</span><div>กราฟแนวโน้ม 6 ตัวชี้วัด · แตะจุดบนกราฟเพื่อดูค่าตามเดือน · ตัวเลขมุมขวาคือค่าเดือนล่าสุด + แนวโน้มเทียบเดือนก่อน</div></div>
+  <div class="hint"><span class="i">📈</span><div>KPI 6 ตัว เทียบ<b>เส้นเป้าหมาย</b> (เส้นประ) · เขียว=ถึงเป้า แดง=ยังไม่ถึง · ตัวเลขมุมขวา = ค่าเดือนล่าสุด · แตะจุดดูค่ารายเดือน<br><span class="muted" style="font-size:11px">สูตร: %ส่งมอบ=ส่งจริง÷สั่ง · %ของเสีย=NG÷ตรวจทั้งหมด · %เคลม=NG÷รับจากผู้ผลิต</span></div></div>
   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:14px">
-    ${monPanel('🚚','ส่งมอบลูกค้า','จำนวนชิ้นที่ออก Invoice ให้ลูกค้า (ชิ้น)',lab,[{name:'ส่งมอบ',color:'#14b8a6',data:sDeliver}])}
-    ${monPanel('🏭','ผู้ผลิตส่งมอบ','จำนวนชิ้นที่รับจากผู้ผลิต (รับชิ้นงาน)',lab,[{name:'รับ',color:'#3b82f6',data:sMaker}])}
-    ${monPanel('🧾','เคลมผู้ผลิต','มูลค่าเคลมของเสีย NG (บาท)',lab,[{name:'เคลม',color:'#ef4444',data:sClaim}],{fy:baht})}
-    ${monPanel('⚠️','ของเสียในกระบวนการผลิต','จำนวน NG จากการคัดแยก (ชิ้น)',lab,[{name:'NG',color:'#f59e0b',data:sNG}])}
-    ${monPanel('📥','วัตถุดิบส่งมอบ','จำนวนวัตถุดิบที่รับเข้า (GR)',lab,[{name:'รับเข้า',color:'#06b6d4',data:sRM}])}
-    ${monPanel('👷','ประเมินสมรรถนะพนักงาน','ปริมาณงานที่ตรวจคัด (Top '+topIns.length+' ผู้ตรวจ)',lab,insSeries.length?insSeries:[{name:'-',color:'#8b5cf6',data:months.map(()=>0)}])}
+    ${monPanel('🚚','ส่งมอบลูกค้า','ส่งมอบจริง(INV) ÷ คำสั่งซื้อลูกค้า(CPO)',lab,[{name:'%ส่งมอบ',color:'#14b8a6',data:sDeliver}],{fy:pct,target:95,tdir:'>'})}
+    ${monPanel('🏭','ผู้ผลิตส่งมอบ','รับชิ้นงาน(RW) ÷ สั่งผลิต(PRD)',lab,[{name:'%รับ',color:'#3b82f6',data:sMaker}],{fy:pct,target:95,tdir:'>'})}
+    ${monPanel('🧾','เคลมผู้ผลิต','NG ÷ จำนวนรับจากผู้ผลิต(RW)',lab,[{name:'%เคลม',color:'#ef4444',data:sClaim}],{fy:pct,target:5,tdir:'<'})}
+    ${monPanel('⚠️','ของเสียในกระบวนการผลิต','NG ÷ รวมตรวจคัด(QC)',lab,[{name:'%NG',color:'#f59e0b',data:sNG}],{fy:pct,target:5,tdir:'<'})}
+    ${monPanel('📥','วัตถุดิบส่งมอบ','รับวัตถุดิบ(GR) ÷ สั่งซื้อ(PO)',lab,[{name:'%รับ',color:'#06b6d4',data:sRM}],{fy:pct,target:95,tdir:'>'})}
+    ${monPanel('👷','ประเมินสมรรถนะพนักงาน','อัตราตรวจพบของเสีย NG ÷ รวมตรวจ',lab,[{name:'%ตรวจพบ',color:'#8b5cf6',data:sEmp}],{fy:pct,target:2,tdir:'>'})}
   </div>`;
 }
 function viewInventory(el){
