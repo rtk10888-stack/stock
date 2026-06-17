@@ -175,14 +175,14 @@ td.num,th.num{text-align:right;font-family:'Inter',sans-serif;font-variant-numer
 .timeline .ev{position:relative;padding:0 0 16px}
 .timeline .ev::before{content:"";position:absolute;left:-15px;top:4px;width:9px;height:9px;border-radius:50%;background:var(--brand);border:2px solid #fff;box-shadow:0 0 0 2px var(--brandL)}
 .timeline::after{content:"";position:absolute;left:-11px;top:6px;bottom:6px;width:2px;background:var(--line)}
-@media(max-width:880px){.sidebar{width:70px}.brand .t1,.brand .t2,.nav-group{display:none}.nav a .lbl{display:none}.nav a{flex-direction:column;justify-content:center;gap:2px;padding:7px 2px;text-align:center}.nav a .ab{display:block;font-size:9px;font-weight:700;letter-spacing:.2px;line-height:1.1}.nav a .ico{font-size:18px;width:auto}.nav a .badge{position:absolute;top:3px;right:6px}.main{margin-left:70px}.nav a.active::before{top:5px;bottom:auto;height:auto;width:auto;left:6px;right:6px;bottom:auto}.row.c2,.row.c3,.row.c4{grid-template-columns:1fr}}
+.buildm{display:none}@media(max-width:880px){.sidebar{width:70px}.buildm{display:block;font-size:8px;color:#9fb0d0;text-align:center;line-height:1.05;margin-top:3px;padding:0 2px;word-break:break-all;max-width:66px}.brand .t1,.brand .t2,.nav-group{display:none}.nav a .lbl{display:none}.nav a{flex-direction:column;justify-content:center;gap:2px;padding:7px 2px;text-align:center}.nav a .ab{display:block;font-size:9px;font-weight:700;letter-spacing:.2px;line-height:1.1}.nav a .ico{font-size:18px;width:auto}.nav a .badge{position:absolute;top:3px;right:6px}.main{margin-left:70px}.nav a.active::before{top:5px;bottom:auto;height:auto;width:auto;left:6px;right:6px;bottom:auto}.row.c2,.row.c3,.row.c4{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
 <div class="app">
   <aside class="sidebar">
     <div class="brand">
-      <div class="logo">RTK</div>
+      <div style="display:flex;flex-direction:column;align-items:center"><div class="logo">RTK</div><div id="buildSidebarM" class="buildm"></div></div>
       <div><div class="t1">Store Control</div><div class="t2">ระบบควบคุมสต๊อค <span id="buildSidebar"></span></div></div>
     </div>
     <nav class="nav" id="nav"></nav>
@@ -222,8 +222,8 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='RMC-2026.06.17z3';
-function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;}
+const APP_BUILD='RMC-2026.06.17z4';
+function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
 function todayISO(){return new Date().toISOString().slice(0,10)}
