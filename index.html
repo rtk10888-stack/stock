@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='RMC-2026.06.17z2';
+const APP_BUILD='RMC-2026.06.17z3';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -584,6 +584,7 @@ function viewInventory(el){
         <button class="${invFilter.type==='all'?'on':''}" onclick="invSet('all')">ทั้งหมด</button>
         <button class="${invFilter.type==='FG'?'on':''}" onclick="invSet('FG')">สำเร็จรูป</button>
         <button class="${invFilter.type==='RM'?'on':''}" onclick="invSet('RM')">วัตถุดิบ</button>
+        <button class="${invFilter.type==='RMC'?'on':''}" onclick="invSet('RMC')">รับแมทลูกค้า</button>
       </div>
       <div class="searchbox"><input id="invQ" placeholder="ค้นหา PN / ชื่อ / ลูกค้า..." value="${esc(invFilter.q)}" oninput="invFilter.q=this.value;renderInvTable()"></div>
       <input list="dl_invcust" placeholder="👥 ลูกค้า (พิมพ์ค้นหา)" value="${esc(invFilter.cust)}" oninput="invFilter.cust=this.value;renderInvTable()" style="max-width:170px;width:auto"><datalist id="dl_invcust">${custs.map(v=>'<option value="'+esc(v)+'">').join('')}</datalist>
@@ -600,12 +601,12 @@ function viewInventory(el){
   </div>`;
   renderInvTable();
 }
-function invSet(t){invFilter.type=t;document.querySelectorAll('#invSeg button').forEach((b,i)=>b.classList.toggle('on',['all','FG','RM'][i]===t));renderInvTable()}
+function invSet(t){invFilter.type=t;document.querySelectorAll('#invSeg button').forEach((b,i)=>b.classList.toggle('on',['all','FG','RM','RMC'][i]===t));renderInvTable()}
 function setProdPrice(id,val){const p=P(id);if(!p)return;p.prodPrice=Number(val)||0;saveDB();toast('บันทึกราคาผลิต '+p.pn+' = '+fmt2(p.prodPrice),'ok');}
 function renderInvTable(){
   const wrap=document.getElementById('invTableWrap');if(!wrap)return;
   const q=invFilter.q.trim().toLowerCase();
-  let list=DB.products.filter(p=>invFilter.type==='all'||p.type===invFilter.type);
+  let list;if(invFilter.type==='RMC'){const _ids=new Set(DB.docs.filter(d=>d.type==='RMC').map(d=>d.productId).filter(Boolean));list=DB.products.filter(p=>_ids.has(p.id));}else list=DB.products.filter(p=>invFilter.type==='all'||p.type===invFilter.type);
   if(q)list=list.filter(p=>(p.pn+' '+p.name+' '+p.customer+' '+p.material).toLowerCase().includes(q));
   if(invFilter.cust){const cv=invFilter.cust.toLowerCase();list=list.filter(p=>(p.customer||'').toLowerCase().includes(cv));}
   if(invFilter.plating){const pv=invFilter.plating.toLowerCase(); list=list.filter(p=>prodFlow(p).toLowerCase().includes(pv)); }
