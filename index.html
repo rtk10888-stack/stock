@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='BARS-2026.06.17v';
+const APP_BUILD='BARS-2026.06.17w';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -3582,8 +3582,8 @@ function renderWdLines(){
   </tr></thead><tbody>
   ${wdLines.map((l,i)=>{const p=l.matId?P(l.matId):null;const amt=(Number(l.price)||0)*(Number(l.qty)||0);const over=p&&Number(l.qty)>p.onHand;return `<tr>
     <td><input type="date" value="${l.date}" oninput="wdLines[${i}].date=this.value" style="padding:5px 6px"></td>
-    <td><input list="dl_rm" value="${esc(l.matName||'')}" placeholder="เลือก/พิมพ์วัตถุดิบ" onchange="wdMatPick(${i},this.value)" style="padding:5px 6px">${p?`<div class="muted" style="font-size:10.5px">คงเหลือ ${fmt(p.onHand)}${over?' <span style="color:var(--red)">⚠️เกิน</span>':''}</div>`:(l.matName?'<div style="font-size:10.5px;color:var(--amber)">ไม่พบในสต๊อค (ไม่ตัดยอด)</div>':'')}</td>
-    <td><input type="number" step="any" value="${l.bars||''}" placeholder="เส้น" oninput="wdLines[${i}].bars=this.value" style="padding:5px 6px;text-align:right"></td>
+    <td><input list="dl_rm" value="${esc(l.matName||'')}" placeholder="เลือก/พิมพ์วัตถุดิบ" onchange="wdMatPick(${i},this.value)" style="padding:5px 6px">${p?`<div class="muted" style="font-size:10.5px">คงเหลือ ${fmt(p.onHand)} กก.${(p.barsOnHand||0)?' / '+fmt(p.barsOnHand)+' เส้น':''}${over?' <span style="color:var(--red)">⚠️เกิน</span>':''}</div>`:(l.matName?'<div style="font-size:10.5px;color:var(--amber)">ไม่พบในสต๊อค (ไม่ตัดยอด)</div>':'')}</td>
+    <td><input type="number" step="any" value="${l.bars||''}" placeholder="เส้น" oninput="wdLines[${i}].bars=this.value;wdTotals()" style="padding:5px 6px;text-align:right"></td>
     <td><input type="number" step="any" value="${l.qty}" placeholder="กก." oninput="wdLines[${i}].qty=this.value;wdLineCalc(${i})" style="padding:5px 6px;text-align:right"></td>
     <td><input type="number" step="any" value="${l.price}" placeholder="บาท/กก." oninput="wdLines[${i}].price=this.value;wdLineCalc(${i})" style="padding:5px 6px;text-align:right"></td>
     <td class="num" id="wdamt_${i}" style="font-weight:600">${fmt2(amt)}</td>
@@ -3600,7 +3600,7 @@ function renderWdLines(){
 function wdLineCalc(i){const l=wdLines[i];const e=document.getElementById('wdamt_'+i);if(e)e.textContent=fmt2((Number(l.price)||0)*(Number(l.qty)||0));wdTotals();}
 function wdMatPick(i,val){wdLines[i].matName=val;const pn=(val||'').split(' ')[0];const p=DB.products.find(x=>x.type==='RM'&&(x.pn===pn||x.pn===val));wdLines[i].matId=p?p.id:'';renderWdLines();}
 function wdPoLookup(i,val){wdLines[i].poNo=(val||'').trim();const key=wdLines[i].poNo.replace(/^PO/i,'');if(key){const prd=DB.docs.find(x=>x.type==='PRD'&&x.no.replace(/^PO/i,'')===key);if(prd){const it=(prd.lines||[])[0]||{};const p=it.fgId&&P(it.fgId)?P(it.fgId):null;wdLines[i].fgPn=p?(p.pn+(p.name&&p.name!=='-'?' '+p.name:'')):(it.name||'');wdLines[i].maker=prd.maker||'';wdLines[i].ordered=it.qty||0;wdLines[i].prdId=prd.id;}else{wdLines[i].ordered=0;toast('ไม่พบ PO '+wdLines[i].poNo+' ในใบสั่งผลิต','err');}}renderWdLines();}
-function wdTotals(){let q=0,amt=0;wdLines.forEach(l=>{q+=Number(l.qty)||0;amt+=(Number(l.price)||0)*(Number(l.qty)||0);});const el=document.getElementById('wdTotals');if(!el)return;el.innerHTML=`<div class="panel" style="box-shadow:none;margin:0"><div class="panel-b" style="padding:8px 14px;display:flex;gap:24px;justify-content:flex-end"><div>รวมเบิก: <b>${fmt(q)}</b></div><div>รวมเงิน: <b style="color:var(--teal)">${fmt2(amt)}</b> บาท</div></div></div>`;}
+function wdTotals(){let q=0,amt=0,b=0;wdLines.forEach(l=>{q+=Number(l.qty)||0;b+=Number(l.bars)||0;amt+=(Number(l.price)||0)*(Number(l.qty)||0);});const el=document.getElementById('wdTotals');if(!el)return;el.innerHTML=`<div class="panel" style="box-shadow:none;margin:0"><div class="panel-b" style="padding:8px 14px;display:flex;gap:22px;justify-content:flex-end;flex-wrap:wrap"><div>รวมเบิก (เส้น): <b style="color:var(--brand)">${fmt(b)}</b></div><div>รวมน้ำหนัก: <b>${fmt2(q)}</b> กก.</div><div>รวมเงิน: <b style="color:var(--teal)">${fmt2(amt)}</b> บาท</div></div></div>`;}
 function editWD(id){const d=DB.docs.find(x=>x.id===id);if(d)openWDForm(d);}
 function submitWD(status,editId){
   const v=k=>(document.getElementById(k)||{}).value;
