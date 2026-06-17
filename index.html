@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='BARS-2026.06.17t';
+const APP_BUILD='BARS-2026.06.17u';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -3039,12 +3039,17 @@ function grPoLookup(i,val){
   const no=(val||'').trim();grLines[i].poNo=no;if(!no){renderGrLines();return;}
   const po=DB.docs.find(d=>d.type==='PO'&&d.no===no);
   if(!po){grLines[i].poId='';toast('ไม่พบเลขที่ PO '+no+' ในใบสั่งซื้อ','err');renderGrLines();return;}
-  const it=(po.lines||[])[0]||{};let pid=it.productId||'';if(!pid){const pp=findProdByName(it.name,'RM');pid=pp?pp.id:'';}const p=pid?P(pid):null;
-  grLines[i].poId=po.id;grLines[i].productId=pid;
-  grLines[i].name=p?(p.pn+(p.name&&p.name!=='-'?' '+p.name:'')):(it.name||'');
-  grLines[i].orderedQty=it.qty||0;grLines[i].unit=it.unit||'Pcs.';
-  grLines[i].supplier=po.supplier||'';grLines[i].dueDate=po.deliveryDate||'';
-  renderGrLines();
+  const lines=(po.lines||[]);
+  if(!lines.length){toast('PO '+no+' ไม่มีรายการ','err');renderGrLines();return;}
+  const base=grLines[i];
+  const mk=(it)=>{let pid=it.productId||'';if(!pid){const pp=findProdByName(it.name,'RM');pid=pp?pp.id:'';}const p=pid?P(pid):null;
+    return {date:base.date||todayISO(),deliveryNote:base.deliveryNote||'',poNo:no,poId:po.id,productId:pid,
+      name:p?(p.pn+(p.name&&p.name!=='-'?' '+p.name:'')):(it.name||''),orderedQty:it.qty||0,orderedBars:it.bars||0,unit:it.unit||'Kgs.',
+      supplier:po.supplier||'',dueDate:po.deliveryDate||'',receivedQty:it.qty||'',bars:it.bars||'',remark:'',sampleCount:'',sampleWeight:'',totalWeight:'',computed:0};};
+  const rows=lines.map(mk);
+  grLines.splice(i,1,...rows);
+  toast('ดึง '+rows.length+' รายการจาก PO '+no+' (ผู้ขาย '+(po.supplier||'-')+')','ok');
+  renderGrLines();grTotals();
 }
 function grLineCalc(i){
   const l=grLines[i];const sc=Number(l.sampleCount)||0,sw=Number(l.sampleWeight)||0,tw=Number(l.totalWeight)||0;
