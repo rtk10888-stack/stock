@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='PLAN-2026.06.17a';
+const APP_BUILD='PLAN-2026.06.17d';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -4076,6 +4076,10 @@ function printPlanDoc(id,mode){
   let thead,body;
   if(d.type==='FC'){thead='<th>#</th><th>Part Number</th><th>'+ml[0]+'</th><th>'+ml[1]+'</th><th>'+ml[2]+'</th><th>'+ml[3]+'</th><th>รวม</th>';
     body=(d.lines||[]).map((l,i)=>{const pn=l.fgId&&P(l.fgId)?P(l.fgId).pn+' '+P(l.fgId).name:(l.name||'');return '<tr><td style="text-align:center">'+(i+1)+'</td><td>'+esc(pn)+'</td><td class="r">'+fmt(l.m1)+'</td><td class="r">'+fmt(l.m2)+'</td><td class="r">'+fmt(l.m3)+'</td><td class="r">'+fmt(l.m4)+'</td><td class="r">'+fmt((l.m1||0)+(l.m2||0)+(l.m3||0)+(l.m4||0))+'</td></tr>'}).join('');
+  } else if(d.type==='PL'){
+    thead='<th style="width:62px">วันที่รับ PO</th><th style="width:78px">PO. NO.</th><th style="width:28px">ลำดับ</th><th>Part No. / รายการ</th><th style="width:54px">สั่งซื้อ</th><th style="width:54px">ส่งจริง</th><th style="width:46px">ขาด</th><th style="width:66px">กำหนดส่ง</th><th style="width:110px">สถานะ (ระบบ)</th><th style="width:42px">งานพอ</th><th style="width:50px">งานไม่พอ</th><th style="width:60px">จัดส่ง</th><th style="width:70px">หมายเหตุ</th>';
+    body=(d.lines||[]).map((l,i)=>{const p=l.fgId?P(l.fgId):findProdByName(l.name,'FG');const pn=p?(p.pn+(p.name&&p.name!=='-'?' '+p.name:'')):(l.name||'');const ord=(l.order!=null&&l.order!=='')?l.order:(l.qty||0);const avail=p?(p.onHand||0):0;const ok=avail>=ord;const due=l.due||d.shipDate||'';const sh=(l.short!=null&&l.short!=='')?l.short:Math.max(0,ord-(l.deliv||0));const box='<span style=\'display:inline-block;width:14px;height:14px;border:1.6px solid #333;border-radius:2px\'></span>';const rbg=ok?'':' style=\'background:#ffe2e2\'';
+      return '<tr'+rbg+'><td style=\'text-align:center\'>'+esc(l.poDate||'')+'</td><td>'+esc(l.poNo||'')+'</td><td style=\'text-align:center\'>'+esc(l.seq!=null?l.seq:(i+1))+'</td><td>'+esc(pn)+'</td><td class=\'r\'>'+fmt(ord)+'</td><td class=\'r\'>'+(l.deliv?fmt(l.deliv):'')+'</td><td class=\'r\'>'+(sh?fmt(sh):'')+'</td><td style=\'text-align:center\'>'+esc(due)+'</td><td style=\'text-align:center;font-weight:700;color:'+(ok?'#127a3e':'#c0202e')+'\'>'+(ok?'พอ (มี '+fmt(avail)+')':'ไม่พอ (ขาด '+fmt(ord-avail)+')')+'</td><td style=\'text-align:center\'>'+box+'</td><td style=\'text-align:center\'>'+box+'</td><td style=\'text-align:center\'>'+esc(l.shipped||'')+'</td><td>'+esc(l.note||'')+'</td></tr>';}).join('');
   } else {thead='<th>#</th><th>Part Number</th><th>จำนวน</th>'+(d.type==='CPO'?'<th>กำหนดส่ง</th>':'');
     body=(d.lines||[]).map((l,i)=>{const pn=l.fgId&&P(l.fgId)?P(l.fgId).pn+' '+P(l.fgId).name:(l.name||'');return '<tr><td style="text-align:center">'+(i+1)+'</td><td>'+esc(pn)+'</td><td class="r">'+fmt(l.qty)+'</td>'+(d.type==='CPO'?'<td style="text-align:center">'+(l.due||'')+'</td>':'')+'</tr>'}).join('');
   }
@@ -4087,12 +4091,12 @@ function printPlanDoc(id,mode){
    +".meta{margin-top:10px;font-size:12.5px}.meta b{color:#555}"
    +"table{width:100%;border-collapse:collapse;margin-top:12px;font-size:12px}th,td{border:1px solid #888;padding:6px 8px}th{background:#eee;text-align:center}td.r{text-align:right}"
    +".sign{display:flex;justify-content:space-between;margin-top:46px;text-align:center;font-size:12px}.sign div{width:30%}.sign .line{border-top:1px dotted #555;margin-top:30px;padding-top:4px}"
-   +"@media print{.noprint{display:none}}</style></head><body>"
+   +"@media print{.noprint{display:none}}"+(d.type==='PL'?'@page{size:A4 landscape}body{padding:9mm}table{font-size:10px;margin-top:8px}th,td{padding:3px 4px}.t1{font-size:17px!important}':'')+"</style></head><body>"
    +'<div class="hd"><div class="co"><h1>'+esc(co.name||'')+'</h1><div>'+esc(co.address||'')+'</div><div>TAX ID: '+esc(co.taxId||'')+' &nbsp; โทร '+esc(co.tel||'')+'</div></div>'
    +'<div class="title"><div class="t1">'+titleTh+'</div><div style="margin-top:6px;font-size:13px"><b>เลขที่:</b> '+esc(d.no)+'</div></div></div>'
    +'<div class="meta"><b>ลูกค้า:</b> '+esc(d.customer||'')+(d.custPo?' &nbsp; <b>PO ลูกค้า:</b> '+esc(d.custPo):'')+(d.shipDate?' &nbsp; <b>วันที่ส่ง:</b> '+d.shipDate:'')+'</div>'
    +'<table><thead><tr>'+thead+'</tr></thead><tbody>'+body+'</tbody></table>'
-   +'<div class="sign"><div><div class="line">ผู้จัดทำ</div></div><div><div class="line">ผู้ตรวจสอบ</div></div><div><div class="line">ผู้อนุมัติ</div></div></div>'
+   +(d.type==='PL'?'<div style="margin-top:8px;font-size:11.5px;color:#555">หมายเหตุ: ฝ่ายสโตร์ตรวจนับแล้วทำเครื่องหมาย ✓ ในช่อง "งานพอ" หรือ "งานไม่พอ" · ช่อง "สถานะ (ระบบ)" คือยอดคงเหลือพร้อมส่งจากระบบ ณ เวลาพิมพ์</div>':'')+'<div class="sign"><div><div class="line">ผู้จัดทำ</div></div><div><div class="line">ผู้ตรวจสอบ</div></div><div><div class="line">ผู้อนุมัติ</div></div></div>'
    +'<div class="noprint" style="text-align:center;margin-top:22px"><button onclick="window.print()" style="padding:8px 22px;font-size:14px;cursor:pointer">🖨️ พิมพ์ / บันทึก PDF</button></div>'
    +'<scr'+'ipt>setTimeout(function(){window.print()},500)</scr'+'ipt></body></html>';
   if(mode==='image'){return shareDocImage(html.replace(/<div class="noprint"[\s\S]*?<\/script>/i,''),(d.no||'doc')+'.png',(d.no||'เอกสาร'));}
@@ -4120,6 +4124,12 @@ async function bulkImportPlan(input,type){
         col.due=cmb.findIndex(c=>/กำหนดส่ง|กำหนด.*ส่ง/.test(c));
         if(col.due<0)col.due=cmb.findIndex(c=>/กำหนด|due/.test(c));
         col.po=cmb.findIndex(c=>/po\.?\s*no|po no|เลขที่.*po/.test(c));
+        col.poDate=cmb.findIndex(c=>/รับ\s*po|วันที่รับ/.test(c));
+        col.seq=cmb.findIndex(c=>/ลำดับ/.test(c));
+        col.deliv=cmb.findIndex(c=>/ส่งจริง/.test(c));
+        col.shortc=cmb.findIndex(c=>/(^|\s)ขาด/.test(c));
+        col.shipped=cmb.findIndex(c=>/จัดส่ง/.test(c));
+        col.note=cmb.findIndex(c=>/หมายเหตุ/.test(c));
         break;}
     }
     if(hr<0){toast('ไม่พบหัวตาราง — ต้องมีคอลัมน์ Customer และ Part','err');return;}
@@ -4137,6 +4147,7 @@ async function bulkImportPlan(input,type){
       const p=findProdByName(part,'FG');
       const ln={fgId:p?p.id:'',name:p?(p.pn+(p.name&&p.name!=='-'?' '+p.name:'')):part};
       if(type==='FC'){ln.m1=qty;ln.m2=0;ln.m3=0;ln.m4=0;}else{ln.qty=qty;ln.due=due;ln.price=0;}
+      if(type==='PL'){const num=k=>col[k]>=0?Math.round(Number(String(r[col[k]]).replace(/,/g,''))||0):0;const str=k=>col[k]>=0?String(r[col[k]]==null?'':r[col[k]]).trim():'';ln.poDate=col.poDate>=0?xlDate(r[col.poDate]):'';ln.poNo=po;ln.seq=str('seq');ln.order=qty;ln.deliv=num('deliv');ln.short=num('shortc');ln.shipped=col.shipped>=0?xlDate(r[col.shipped]):'';ln.note=str('note');}
       (groups[cust]=groups[cust]||{po:po,lines:[]}).lines.push(ln);
       seen++;
     }
