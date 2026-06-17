@@ -101,7 +101,7 @@ input::placeholder{color:#aab6cf}
 .searchbox::before{content:"🔍";position:absolute;left:11px;top:50%;transform:translateY(-50%);font-size:13px;opacity:.6}
 
 /* Table */
-.tbl-wrap{overflow-x:auto;transform:rotateX(180deg)}.tbl-wrap>table{transform:rotateX(180deg)}
+.tbl-wrap{overflow-x:auto}.tbl-topscroll{overflow-x:auto;overflow-y:hidden}.tbl-topscroll::-webkit-scrollbar{height:10px}.tbl-topscroll-inner{height:1px}
 table{width:100%;border-collapse:collapse;font-size:13px}
 th{text-align:left;padding:10px 12px;background:var(--panel2);color:var(--ink2);font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:.3px;border-bottom:1px solid var(--line);position:sticky;top:0;white-space:nowrap}
 td{padding:10px 12px;border-bottom:1px solid var(--line2);vertical-align:middle}
@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='TAG-2026.06.17q';
+const APP_BUILD='TAG-2026.06.17r';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -453,6 +453,24 @@ function render(){
     demand:viewDemand,mrp:viewMRP};
   (map[route]||viewDashboard)(el);
   setBuild();
+  setupDualScroll();setTimeout(setupDualScroll,40);
+}
+function setupDualScroll(){
+  if(!window.__dualScrollInit){window.__dualScrollInit=1;window.addEventListener('resize',function(){setupDualScroll();});}
+  document.querySelectorAll('.tbl-wrap').forEach(function(w){
+    var tbl=w.querySelector('table');if(!tbl)return;
+    var top=w.previousElementSibling;
+    if(!top||!top.classList||!top.classList.contains('tbl-topscroll')){
+      top=document.createElement('div');top.className='tbl-topscroll';
+      var inner=document.createElement('div');inner.className='tbl-topscroll-inner';
+      top.appendChild(inner);w.parentNode.insertBefore(top,w);
+      var lock=false;
+      top.addEventListener('scroll',function(){if(lock)return;lock=true;w.scrollLeft=top.scrollLeft;lock=false;});
+      w.addEventListener('scroll',function(){if(lock)return;lock=true;top.scrollLeft=w.scrollLeft;lock=false;});
+    }
+    top.firstChild.style.width=tbl.scrollWidth+'px';
+    top.style.display=(tbl.scrollWidth>w.clientWidth+2)?'block':'none';
+  });
 }
 
 /* ---------- Helpers for rendering ---------- */
