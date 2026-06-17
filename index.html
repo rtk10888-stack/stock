@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='BARS-2026.06.17u';
+const APP_BUILD='BARS-2026.06.17v';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -3578,15 +3578,14 @@ function rmWdLine(i){wdLines.splice(i,1);renderWdLines()}
 function renderWdLines(){
   const root=document.getElementById('wdRoot');if(!root)return;
   root.innerHTML=`<div style="overflow-x:auto"><table style="font-size:12px;min-width:1000px"><thead><tr>
-    <th style="width:120px">วันที่</th><th style="min-width:170px">รายการเบิก (วัตถุดิบ)</th><th style="width:66px">ราคา</th><th style="width:88px">จำนวนเบิก</th><th style="width:78px">จำนวน (เส้น)</th><th style="width:60px">หน่วย</th><th style="width:84px">รวมเงิน</th><th style="width:96px">PO สั่งผลิต</th><th style="min-width:130px">PART NUMBER</th><th style="width:70px">สั่งผลิต</th><th style="width:70px">MAKER</th><th></th>
+    <th style="width:120px">วันที่</th><th style="min-width:170px">รายการเบิก (วัตถุดิบ)</th><th style="width:84px">จำนวน (เส้น)</th><th style="width:96px">จำนวน (Kgs.)</th><th style="width:96px">ราคา/หน่วย Kgs.</th><th style="width:90px">จำนวนเงิน</th><th style="width:96px">PO สั่งผลิต</th><th style="min-width:130px">PART NUMBER</th><th style="width:70px">สั่งผลิต</th><th style="width:70px">MAKER</th><th></th>
   </tr></thead><tbody>
   ${wdLines.map((l,i)=>{const p=l.matId?P(l.matId):null;const amt=(Number(l.price)||0)*(Number(l.qty)||0);const over=p&&Number(l.qty)>p.onHand;return `<tr>
     <td><input type="date" value="${l.date}" oninput="wdLines[${i}].date=this.value" style="padding:5px 6px"></td>
     <td><input list="dl_rm" value="${esc(l.matName||'')}" placeholder="เลือก/พิมพ์วัตถุดิบ" onchange="wdMatPick(${i},this.value)" style="padding:5px 6px">${p?`<div class="muted" style="font-size:10.5px">คงเหลือ ${fmt(p.onHand)}${over?' <span style="color:var(--red)">⚠️เกิน</span>':''}</div>`:(l.matName?'<div style="font-size:10.5px;color:var(--amber)">ไม่พบในสต๊อค (ไม่ตัดยอด)</div>':'')}</td>
-    <td><input type="number" step="any" value="${l.price}" oninput="wdLines[${i}].price=this.value;wdLineCalc(${i})" style="padding:5px 6px"></td>
-    <td><input type="number" step="any" value="${l.qty}" oninput="wdLines[${i}].qty=this.value;wdLineCalc(${i})" style="padding:5px 6px"></td>
     <td><input type="number" step="any" value="${l.bars||''}" placeholder="เส้น" oninput="wdLines[${i}].bars=this.value" style="padding:5px 6px;text-align:right"></td>
-    <td><input value="${esc(l.unit||'')}" oninput="wdLines[${i}].unit=this.value" style="padding:5px 6px"></td>
+    <td><input type="number" step="any" value="${l.qty}" placeholder="กก." oninput="wdLines[${i}].qty=this.value;wdLineCalc(${i})" style="padding:5px 6px;text-align:right"></td>
+    <td><input type="number" step="any" value="${l.price}" placeholder="บาท/กก." oninput="wdLines[${i}].price=this.value;wdLineCalc(${i})" style="padding:5px 6px;text-align:right"></td>
     <td class="num" id="wdamt_${i}" style="font-weight:600">${fmt2(amt)}</td>
     <td><input list="dl_wdpo" value="${esc(l.poNo||'')}" placeholder="เคาะเลขที่ PO" onchange="wdPoLookup(${i},this.value)" style="padding:5px 6px"></td>
     <td><input value="${esc(l.fgPn||'')}" oninput="wdLines[${i}].fgPn=this.value" style="padding:5px 6px"></td>
