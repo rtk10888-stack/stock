@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='PLAN-2026.06.17f';
+const APP_BUILD='PLAN-2026.06.17g';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -4213,7 +4213,7 @@ async function bulkImportPlan(input,type){
         if(col.qty<0)col.qty=cmb.findIndex(c=>/จำนวน/.test(c)&&!/ส่งจริง/.test(c));
         col.due=cmb.findIndex(c=>/กำหนดส่ง|กำหนด.*ส่ง/.test(c));
         if(col.due<0)col.due=cmb.findIndex(c=>/กำหนด|due/.test(c));
-        col.po=cmb.findIndex(c=>/po\.?\s*no|po no|เลขที่.*po/.test(c));
+        col.po=cmb.findIndex(c=>/^po\b|po\.?\s*no|po no|เลขที่.*po/.test(c));
         col.poDate=cmb.findIndex(c=>/รับ\s*po|วันที่รับ/.test(c));
         col.seq=cmb.findIndex(c=>/ลำดับ/.test(c));
         col.deliv=cmb.findIndex(c=>/ส่งจริง/.test(c));
