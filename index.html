@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='INVP-2026.06.18a';
+const APP_BUILD='INVP-2026.06.18b';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -787,6 +787,7 @@ function renderInvTable(){
     <td class="num">${fmt(tMoq)}</td><td class="num">${fmt2(tPrice)}</td><td></td><td></td><td></td>
     <td class="num">${fmt(tOn)}</td><td class="num">${fmt(tWip)}</td><td class="num">${fmt(tPl)}</td><td class="num">${fmt(tQC)}</td><td></td>
   </tr></tfoot></table></div>`;
+  if(typeof setupDualScroll==='function'){setupDualScroll();setTimeout(setupDualScroll,30);}
 }
 function delProduct(id){const p=P(id);if(!p)return;confirmBox('ลบสินค้า?','ลบ '+esc(p.pn)+' ('+esc(p.name)+') ออกจากระบบถาวร? ความเคลื่อนไหวของสินค้านี้จะถูกลบด้วย',()=>{DB.products=DB.products.filter(x=>x.id!==id);DB.movements=DB.movements.filter(m=>m.productId!==id);closeModal();render();toast('ลบสินค้าแล้ว','ok')})}
 
