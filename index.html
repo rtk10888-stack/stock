@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='BARS-2026.06.17y';
+const APP_BUILD='RMC-2026.06.17z2';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -384,6 +384,7 @@ function applyDoc(d){
     else if(t==='PR'){ const p=P(d.productId);p.atPlating-=d.qty;p.wip+=d.qty;move(p.id,'atPlating',-d.qty,'PR',d.no,'รับคืนชุบ');move(p.id,'wip',+d.qty,'PR',d.no,'รับคืนชุบ'); }
     else if(t==='QC'){ if(d.productId&&!d.lines){const p=P(d.productId);const tot=d.qtyOk+d.qtyNg;p.wip-=tot;p.passedQC+=d.qtyOk;p.ng+=d.qtyNg;move(p.id,'wip',-tot,'QC',d.no,'คัดแยก');if(d.qtyOk)move(p.id,'passedQC',+d.qtyOk,'QC',d.no,'OK');if(d.qtyNg)move(p.id,'ng',+d.qtyNg,'QC',d.no,'NG');} }
     else if(t==='SI'){ if(d.lines){ d.lines.forEach(l=>{const p=P(l.productId);if(p){const q=Number(l.weighed)||0;if(q){const wr=Math.min(q,p.wip||0);if(wr>0){p.wip-=wr;move(p.id,'wip',-wr,'SI',d.no,'รับเข้าสต๊อค');}p.onHand+=q;move(p.id,'onHand',+q,'SI',d.no,'รับเข้าสต๊อค');}}}); } else if(d.productId){const p=P(d.productId);p.passedQC-=d.qty;p.onHand+=d.qty;move(p.id,'passedQC',-d.qty,'SI',d.no,'รับเข้าสต๊อค');move(p.id,'onHand',+d.qty,'SI',d.no,'รับเข้าสต๊อค');} }
+    else if(t==='RMC'){ const p=P(d.productId);if(p){p.onHand+=d.qty;move(p.id,'onHand',+d.qty,'RMC',d.no,'รับแมทลูกค้า '+(d.customer||''));} }
     else if(t==='INV'){ d.lines.forEach(l=>{const p=P(l.productId);if(p){p.onHand-=l.qty;move(p.id,'onHand',-l.qty,'INV',d.no,'ขาย '+(d.customer||''));}}); }
     else if(t==='IV2'){ d.lines.forEach(l=>{const p=P(l.productId);if(p){p.onHand-=l.qty;move(p.id,'onHand',-l.qty,'IV2',d.no,'ขายพิเศษ '+(d.customer||''));}}); }
     else if(t==='ADJ'){ const p=P(d.productId);const before=p.onHand;const after=d.mode==='set'?d.qty:before+d.qty;const delta=after-before;p.onHand=after;move(p.id,'onHand',delta,'ADJ',d.no,d.mode==='set'?'ตรวจนับตั้งยอด':'ปรับยอด'); d.delta=delta; }
@@ -417,6 +418,7 @@ const NAV=[
   {id:'plate',ico:'✨',label:'ส่งชุบ / รับชุบ',dt:'PS'},
   {id:'qc',ico:'🔎',label:'คัดแยก OK/NG',dt:'QC'},
   {id:'si',ico:'📦',label:'รับเข้าสต๊อค',dt:'SI'},
+  {id:'rmc',ico:'📥',label:'รับแมทลูกค้า'},
   {g:'วางแผนจัดส่ง'},
   {id:'demand',ico:'📈',label:'Forecast / PO / PL'},
   {id:'mrp',ico:'✅',label:'เช็คความเพียงพอ'},
@@ -448,7 +450,7 @@ function render(){
   const el=document.getElementById('content');
   const map={dashboard:viewDashboard,inventory:viewInventory,approvals:viewApprovals,
     po:()=>viewDocs('PO'),ip:()=>viewDocs('IP'),sp:()=>viewDocs('SP'),gr:()=>viewDocs('GR'),prd:()=>viewDocs('PRD'),wd:()=>viewDocs('WD'),
-    dp:()=>viewDocs('DP'),rw:()=>viewDocs('RW'),plate:()=>viewDocs('PL'),qc:()=>viewDocs('QC'),si:()=>viewDocs('SI'),
+    dp:()=>viewDocs('DP'),rw:()=>viewDocs('RW'),plate:()=>viewDocs('PL'),qc:()=>viewDocs('QC'),si:()=>viewDocs('SI'),rmc:viewRMC,
     inv:()=>viewDocs('INV'),iv2:()=>viewDocs('IV2'),adj:()=>viewDocs('ADJ'),moves:viewMoves,settings:viewSettings,
     demand:viewDemand,mrp:viewMRP};
   (map[route]||viewDashboard)(el);
@@ -4139,6 +4141,126 @@ function applyBalanceUpdate(input){
 let planLines=[]; let planTab='FC'; let mrpOnlyShort=false; let planMrpMode='all';
 const PLAN={FC:{label:'Forecast ลูกค้า',icon:'📈'},CPO:{label:'Customer PO',icon:'📑'},PL:{label:'แผนจัดส่ง (PL)',icon:'🚛'}};
 function monthLabels(){const d=new Date();const th=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];return [0,1,2,3].map(i=>{const m=new Date(d.getFullYear(),d.getMonth()+i,1);return th[m.getMonth()]+' '+String(m.getFullYear()+543).slice(2)})}
+function rmcOutMap(){const m={};DB.docs.filter(x=>(x.type==='INV'||x.type==='IV2')&&x.status==='approved').forEach(x=>(x.lines||[]).forEach(l=>{if(l.productId)m[l.productId]=(m[l.productId]||0)+(l.qty||0);}));return m;}
+function rmcDistinct(field){const set=new Set();DB.docs.filter(d=>d.type==='RMC').forEach(d=>{let v=field==='mon'?((d.date||'')+'').slice(0,7):field==='order'?d.orderNo:field==='maker'?d.maker:field==='cust'?d.customer:field==='part'?(d.productId&&P(d.productId)?P(d.productId).pn:(d.partNo||'')):'';if(v)set.add(String(v));});return [...set].sort();}
+function viewRMC(el){
+  setTitle('📥 รับแมทลูกค้า','รับชิ้นงาน/วัตถุดิบจากลูกค้า — เข้าคงเหลือทันที (ไม่ชุบ) · จ่ายออกด้วย Invoice');
+  const mk=(id,ph,field)=>`<input id="${id}" class="fchip" list="dl_${id}" placeholder="${ph}" oninput="filterRmcRows()" style="max-width:150px"><datalist id="dl_${id}">${rmcDistinct(field).map(v=>`<option value="${esc(v)}">`).join('')}</datalist>`;
+  el.innerHTML=`
+  <div class="hint"><span class="i">💡</span><div>บันทึกการรับแมท (ชิ้นงาน/วัตถุดิบ) ที่ลูกค้าส่งมา → <b>เข้าคงเหลือทันที</b> · ตัดออกเมื่อออก <b>Invoice ส่งลูกค้า</b></div></div>
+  <div class="panel"><div class="panel-h" style="flex-wrap:wrap;gap:8px">
+    <div class="searchbox"><input id="rmcSearch" placeholder="ค้นหา เลขที่ / Part / ลูกค้า" oninput="filterRmcRows()"></div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">${mk('rf_mon','📆 เดือน','mon')}${mk('rf_order','🔢 เลขที่ใบสั่ง','order')}${mk('rf_maker','🏭 Maker','maker')}${mk('rf_cust','👤 ลูกค้า','cust')}${mk('rf_part','🔩 Part No.','part')}</div>
+    <div class="right" style="display:flex;gap:6px"><input type="file" id="rmcFile" accept=".xlsx,.xls,.csv" style="display:none" onchange="bulkImportRMC(this)"><button class="btn sm" onclick="document.getElementById('rmcFile').click()">📥 นำเข้า</button><button class="btn sm" onclick="printRMCMonth()">🖨️ พิมพ์เดือน</button><button class="btn sm danger" onclick="clearAllRMC()">🗑️ ล้าง</button><button class="btn pri" onclick="openRMCForm()">+ รายการใหม่</button></div>
+  </div><div class="panel-b nopad" id="rmcList"></div></div>`;
+  renderRMCTable();
+}
+function renderRMCTable(){
+  const wrap=document.getElementById('rmcList');if(!wrap)return;
+  const docs=DB.docs.filter(d=>d.type==='RMC').sort((a,b)=>(b.date||'').localeCompare(a.date||'')||b.ts-a.ts);
+  if(!docs.length){wrap.innerHTML=`<div class="empty"><div class="big">📥</div><div class="t">ยังไม่มีรายการรับแมทลูกค้า</div><div>กด "นำเข้า" โหลดไฟล์ หรือ "+ รายการใหม่"</div></div>`;return;}
+  const outMap=rmcOutMap();let tR=0;
+  const rows=docs.map(d=>{const p=d.productId?P(d.productId):null;const pn=p?p.pn:(d.partNo||'');const pname=p?(p.name&&p.name!=='-'?p.name:''):(d.partName||'');const out=p?(outMap[p.id]||0):0;const bal=p?(p.onHand||0):'';tR+=Number(d.qty)||0;
+    return `<tr data-mon="${esc((d.date||'').slice(0,7))}" data-order="${esc(d.orderNo||'')}" data-maker="${esc(d.maker||'')}" data-cust="${esc(d.customer||'')}" data-part="${esc(pn)}">
+      <td class="muted">${esc(d.date||'')}</td><td class="pn linkish" onclick="openRMCForm(DB.docs.find(x=>x.id==='${d.id}'))">${esc(d.orderNo||d.no||'')}</td>
+      <td><span class="tag amber">${esc(d.maker||'-')}</span></td><td><b>${esc(pn)}</b></td><td class="muted">${esc(pname)}</td>
+      <td>${esc(d.customer||'')}</td><td class="num"><b style="color:var(--teal)">${fmt(d.qty)}</b></td>
+      <td class="num ${out?'':'muted'}">${out?fmt(out):'-'}</td><td class="num"><b>${bal===''?'-':fmt(bal)}</b></td>
+      <td class="muted" style="font-size:11px">${esc(d.note||'')}</td>
+      <td style="white-space:nowrap"><button class="btn sm" onclick="openRMCForm(DB.docs.find(x=>x.id==='${d.id}'))">✏️</button> <button class="btn sm danger" onclick="delRMC('${d.id}')">ยกเลิก</button></td>
+    </tr>`;}).join('');
+  wrap.innerHTML=`<div class="tbl-wrap"><table style="white-space:nowrap"><thead><tr>
+    <th>วันที่</th><th>เลขที่ใบสั่ง</th><th>Maker</th><th>Part Number</th><th>Part Name</th><th>ลูกค้า</th><th class="num">รับแมท ลูกค้า</th><th class="num">จำนวนจ่ายออก</th><th class="num">คงเหลือ</th><th>หมายเหตุ</th><th></th>
+  </tr></thead><tbody id="rmcFilterBody">${rows}</tbody>
+  <tfoot><tr style="background:#fff7a8;font-weight:700"><td colspan="6" style="text-align:right">รวมรับแมท</td><td class="num">${fmt(tR)}</td><td colspan="4"></td></tr></tfoot></table></div>`;
+}
+function filterRmcRows(){const g=id=>((document.getElementById(id)||{}).value||'').trim().toLowerCase();const q=g('rmcSearch'),fm=g('rf_mon'),fo=g('rf_order'),fk=g('rf_maker'),fc=g('rf_cust'),fp=g('rf_part');document.querySelectorAll('#rmcFilterBody tr').forEach(tr=>{const ds=tr.dataset||{};const t=tr.textContent.toLowerCase();const show=(!q||t.includes(q))&&(!fm||(ds.mon||'').includes(fm))&&(!fo||(ds.order||'').toLowerCase().includes(fo))&&(!fk||(ds.maker||'').toLowerCase().includes(fk))&&(!fc||(ds.cust||'').toLowerCase().includes(fc))&&(!fp||(ds.part||'').toLowerCase().includes(fp));tr.style.display=show?'':'none';});}
+function openRMCForm(edit){
+  ensureSettings();const custs=DB.settings.customers||[];const makers=(DB.settings.makers||[]).map(m=>m.code||m).filter(Boolean);
+  const e=edit||{};
+  modal({title:(edit?'✏️ แก้ไข':'+ ')+'รับแมทลูกค้า',size:'lg',body:`
+    <div class="row c3">
+      <div class="field"><label>วันที่</label><input type="date" id="rm_date" value="${esc(e.date||todayISO())}"></div>
+      <div class="field"><label>เลขที่ใบสั่ง</label><input id="rm_order" value="${esc(e.orderNo||'')}"></div>
+      <div class="field"><label>Maker</label><input id="rm_maker" list="dl_rmmaker" value="${esc(e.maker||'')}"><datalist id="dl_rmmaker">${makers.map(m=>`<option value="${esc(m)}">`).join('')}</datalist></div>
+    </div>
+    <div class="row c2">
+      <div class="field"><label>Part Number <span class="req">*</span></label><input id="rm_part" list="dl_rmfg" value="${esc(e.partNo||'')}" placeholder="พิมพ์/เลือก Part" onchange="rmcPartPick()"><datalist id="dl_rmfg">${DB.products.filter(p=>p.type==='FG').slice(0,1600).map(p=>`<option value="${esc(p.pn)}">${esc(p.name||'')}</option>`).join('')}</datalist></div>
+      <div class="field"><label>Part Name</label><input id="rm_pname" value="${esc(e.partName||'')}"></div>
+    </div>
+    <div class="row c2">
+      <div class="field"><label>ลูกค้า</label><input id="rm_cust" list="dl_rmcust" value="${esc(e.customer||'')}"><datalist id="dl_rmcust">${custs.map(c=>`<option value="${esc(c)}">`).join('')}</datalist></div>
+      <div class="field"><label>รับแมท ลูกค้า (จำนวน) <span class="req">*</span></label><input type="number" id="rm_qty" value="${esc(e.qty||'')}"></div>
+    </div>
+    <div class="field"><label>หมายเหตุ</label><input id="rm_note" value="${esc(e.note||'')}"></div>
+  `,footer:`<button class="btn" onclick="closeModal()">ยกเลิก</button><button class="btn pri" onclick="submitRMC('${edit?edit.id:''}')">บันทึก + เข้าคงเหลือ</button>`});
+}
+function rmcPartPick(){const v=((document.getElementById('rm_part')||{}).value||'').trim();const p=DB.products.find(x=>x.type==='FG'&&x.pn===v);if(p){const nm=document.getElementById('rm_pname');if(nm&&!nm.value&&p.name&&p.name!=='-')nm.value=p.name;const cu=document.getElementById('rm_cust');if(cu&&!cu.value&&p.customer&&p.customer!=='ไม่ระบุ')cu.value=p.customer;}}
+function submitRMC(editId){
+  const v=k=>((document.getElementById(k)||{}).value||'').trim();
+  const partNo=v('rm_part');const qty=Number(v('rm_qty'))||0;
+  if(!partNo){toast('กรุณาระบุ Part Number','err');return;}
+  if(qty<=0){toast('กรุณาระบุจำนวน','err');return;}
+  const p=DB.products.find(x=>x.type==='FG'&&x.pn===partNo)||findProdByName(partNo,'FG');
+  let d;
+  if(editId){d=DB.docs.find(x=>x.id===editId);if(!d)return;if(d.status==='approved')reverseDoc(d);}
+  else{d={id:uid(),type:'RMC',ts:Date.now()};DB.docs.push(d);}
+  if(!d.no)d.no=nextNo('RMC');
+  d.date=v('rm_date')||todayISO();d.orderNo=v('rm_order');d.maker=v('rm_maker');d.productId=p?p.id:'';d.partNo=partNo;d.partName=v('rm_pname');d.customer=v('rm_cust');d.qty=qty;d.note=v('rm_note');d.status='approved';
+  const r=doApprove(d);if(!r.ok){toast('ไม่สำเร็จ: '+r.err,'err');return;}
+  if(d.customer&&!DB.settings.customers.includes(d.customer))DB.settings.customers.push(d.customer);
+  closeModal();render();toast('บันทึกรับแมท '+(d.orderNo||d.no)+' เข้าคงเหลือแล้ว','ok');
+}
+function delRMC(id){const d=DB.docs.find(x=>x.id===id);if(!d)return;confirmBox('ยกเลิก/ลบรายการนี้?','คืนยอดคงเหลือที่รับเข้า',()=>{if(d.status==='approved')reverseDoc(d);DB.docs=DB.docs.filter(x=>x.id!==id);saveDB();closeModal();render();toast('ลบแล้ว','ok');});}
+function clearAllRMC(){const n=DB.docs.filter(d=>d.type==='RMC').length;if(!n){toast('ไม่มีข้อมูล','err');return}confirmBox('ล้างรับแมททั้งหมด?','ลบ '+fmt(n)+' รายการ และคืนยอดคงเหลือ',()=>{DB.docs.filter(d=>d.type==='RMC').forEach(d=>{if(d.status==='approved')reverseDoc(d);});DB.docs=DB.docs.filter(d=>d.type!=='RMC');saveDB();closeModal();render();toast('ล้างแล้ว','ok');});}
+async function bulkImportRMC(input){
+  const f=input.files[0];if(!f)return;input.value='';
+  try{
+    await loadScript('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js');
+    const buf=await f.arrayBuffer();const wb=window.XLSX.read(buf,{type:'array'});
+    let best=null,bestCol=null,bestHr=-1;
+    wb.SheetNames.forEach(sn=>{const ws=wb.Sheets[sn];const rows=window.XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:''});
+      for(let i=0;i<Math.min(rows.length,8);i++){const r=rows[i].map(c=>String(c).toLowerCase());
+        const di=r.findIndex(c=>/part number|part no/.test(c));const qi=r.findIndex(c=>/รับแมท/.test(c));const oi=r.findIndex(c=>/ใบสั่ง|order\s*no|^order$/.test(c));
+        if(di>=0&&qi>=0&&oi>=0){best=rows;bestHr=i;bestCol={date:r.findIndex(c=>/วันที่|date/.test(c)),order:oi,maker:r.findIndex(c=>/maker/.test(c)),part:di,pname:r.findIndex(c=>/part name/.test(c)),cust:r.findIndex(c=>/ลูกค้า|customer/.test(c)),qty:qi,note:r.findIndex(c=>/หมายเหตุ/.test(c))};return;}
+      }
+    });
+    if(!best){toast('ไม่พบชีตรับแมท (ต้องมี Part Number และ รับแมท)','err');return;}
+    const c=bestCol;const byPn={};DB.products.forEach(p=>{if(p.type==='FG')byPn[String(p.pn).trim()]=p;});
+    let added=0,matched=0;
+    for(let i=bestHr+1;i<best.length;i++){const r=best[i];if(!r)continue;
+      const partNo=String(r[c.part]==null?'':r[c.part]).trim();if(!partNo||/part number/i.test(partNo))continue;
+      const qty=c.qty>=0?Math.round(Number(String(r[c.qty]).replace(/,/g,''))||0):0;if(qty<=0)continue;
+      const p=byPn[partNo]||findProdByName(partNo,'FG');
+      const d={id:uid(),type:'RMC',ts:Date.now()+added,no:nextNo('RMC'),date:c.date>=0?xlDate(r[c.date]):'',orderNo:c.order>=0?String(r[c.order]==null?'':r[c.order]).trim():'',maker:c.maker>=0?String(r[c.maker]==null?'':r[c.maker]).trim():'',productId:p?p.id:'',partNo:partNo,partName:c.pname>=0?String(r[c.pname]==null?'':r[c.pname]).trim():'',customer:c.cust>=0?String(r[c.cust]==null?'':r[c.cust]).trim():'',qty:qty,note:c.note>=0?String(r[c.note]==null?'':r[c.note]).trim():'',status:'approved',imported:true};
+      DB.docs.push(d);doApprove(d);if(d.customer&&!DB.settings.customers.includes(d.customer))DB.settings.customers.push(d.customer);
+      added++;if(p)matched++;
+    }
+    saveDB();render();
+    modal({title:'📥 นำเข้ารับแมทลูกค้าสำเร็จ',body:`<div class="kv"><span class="k">เพิ่มรายการ</span><b style="color:var(--teal)">${fmt(added)}</b></div><div class="kv"><span class="k">จับคู่ Part ในระบบ</span><b>${fmt(matched)}/${fmt(added)}</b></div><div class="hint" style="margin-top:8px"><span class="i">✅</span><div>ยอดเข้าคงเหลือทันที (ไม่ชุบ) — ตัดออกเมื่อออก Invoice</div></div>`,footer:`<button class="btn pri" onclick="closeModal()">ตกลง</button>`});
+  }catch(e){toast('นำเข้าไม่สำเร็จ: '+e.message,'err');}
+}
+function printRMCMonth(){
+  ensureSettings();const co=DB.settings.company||{};
+  const docs=DB.docs.filter(d=>d.type==='RMC').sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+  if(!docs.length){toast('ไม่มีรายการ','err');return;}
+  const outMap=rmcOutMap();let tR=0;
+  const rows=docs.map((d,i)=>{const p=d.productId?P(d.productId):null;const pn=p?p.pn:(d.partNo||'');const pname=p?(p.name&&p.name!=='-'?p.name:''):(d.partName||'');const out=p?(outMap[p.id]||0):0;const bal=p?(p.onHand||0):'';tR+=Number(d.qty)||0;
+    return '<tr><td class="c">'+esc(d.date||'')+'</td><td class="c">'+esc(d.orderNo||'')+'</td><td class="c">'+esc(d.maker||'')+'</td><td><b>'+esc(pn)+'</b></td><td>'+esc(pname)+'</td><td class="c">'+esc(d.customer||'')+'</td><td class="r">'+fmt(d.qty)+'</td><td class="r">'+(out?fmt(out):'')+'</td><td class="r">'+(bal===''?'':fmt(bal))+'</td><td>'+esc(d.note||'')+'</td></tr>';}).join('');
+  const html='<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"><title>รับแมทลูกค้า</title><style>'
+   +"@page{size:A4 landscape;margin:8mm}*{font-family:'Tahoma',sans-serif;box-sizing:border-box}body{margin:0;font-size:11px}"
+   +".hd{text-align:center;border-bottom:2px solid #111;padding-bottom:5px}.hd h1{font-size:14px;margin:0}.hd div{font-size:10px;color:#333}"
+   +".ttl{background:#1b3a8f;color:#fff;font-weight:700;text-align:center;font-size:14px;padding:5px;margin:8px 0}"
+   +"table{width:100%;border-collapse:collapse;font-size:10px}th,td{border:1px solid #888;padding:3px 5px}th{background:#dfeaf6;text-align:center}td.c{text-align:center}td.r{text-align:right}"
+   +"tfoot td{background:#fff7a8;font-weight:700}@media print{.noprint{display:none}}</style></head><body>"
+   +'<div class="hd"><h1>'+esc(co.name||'')+'</h1><div>'+esc(co.address||'')+'</div></div>'
+   +'<div class="ttl">รับแมทลูกค้า</div>'
+   +'<table><thead><tr><th>วันที่</th><th>เลขที่ใบสั่ง</th><th>Maker</th><th>Part Number</th><th>Part Name</th><th>ลูกค้า</th><th>รับแมท ลูกค้า</th><th>จำนวนจ่ายออก</th><th>คงเหลือ</th><th>หมายเหตุ</th></tr></thead><tbody>'+rows+'</tbody>'
+   +'<tfoot><tr><td colspan="6" style="text-align:right">รวมรับแมท</td><td class="r">'+fmt(tR)+'</td><td colspan="3"></td></tr></tfoot></table>'
+   +'<div class="noprint" style="text-align:center;margin-top:14px"><button onclick="window.print()" style="padding:8px 22px;font-size:14px;cursor:pointer">🖨️ พิมพ์ / PDF</button></div>'
+   +'<scr'+'ipt>setTimeout(function(){window.print()},400)</scr'+'ipt></body></html>';
+  const w=window.open('','_blank');if(!w){toast('เบราว์เซอร์บล็อก popup','err');return}w.document.write(html);w.document.close();
+}
 function viewDemand(el){
   setTitle('📈 Forecast / PO / แผนจัดส่ง','บันทึกความต้องการลูกค้า เชื่อม Part Number อัตโนมัติ');
   el.innerHTML=`
