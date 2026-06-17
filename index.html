@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='PLAN-2026.06.17e';
+const APP_BUILD='PLAN-2026.06.17f';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -3910,8 +3910,75 @@ function viewDemand(el){
   renderPlanList();
 }
 function planSet(t){planTab=t;render()}
+function plOnOrderMap(){const m={};DB.docs.filter(x=>x.type==='PRD'&&(x.status==='approved'||x.status==='pending')&&!x.imported).forEach(x=>(x.lines||[]).forEach(ll=>{const kk=ll.fgId||('pn:'+((ll.name||'').split(' ')[0]));m[kk]=(m[kk]||0)+(ll.qty||0)}));return m;}
+function plCalc(l,onOrder){const p=l.fgId?P(l.fgId):findProdByName(l.name,'FG');const pn=p?(p.pn+(p.name&&p.name!=='-'?' '+p.name:'')):(l.name||'');const order=(l.order!=null&&l.order!=='')?Number(l.order):(Number(l.qty)||0);const onHand=p?(p.onHand||0):0,waitQC=p?((p.wip||0)+(p.passedQC||0)):0,atPlating=p?(p.atPlating||0):0;const key=l.fgId||('pn:'+((l.name||'').split(' ')[0]));const makerOut=onOrder[key]||(p&&onOrder[p.id])||0;const total=onHand+waitQC+atPlating+makerOut;let st,stc;if(onHand>=order&&order>0){st='พร้อมส่ง';stc='var(--teal)';}else if(onHand>0){st='ขาด '+fmt(order-onHand);stc='var(--red)';}else{st='ไม่พร้อมส่ง';stc='var(--red)';}return {p,pn,order,onHand,waitQC,atPlating,makerOut,total,st,stc};}
+function plEditRow(id){const d=DB.docs.find(x=>x.id===id);if(!d||!d.lines||!d.lines[0])return;const l=d.lines[0];ensureSettings();const custs=DB.settings.customers||[];
+  modal({title:'✏️ แก้ไขแผนจัดส่ง '+esc(d.no),size:'lg',body:`
+    <div class="row c3">
+      <div class="field"><label>วันที่รับ PO</label><input type="date" id="ple_podate" value="${esc(l.poDate||'')}"></div>
+      <div class="field"><label>PO. NO.</label><input id="ple_pono" value="${esc(l.poNo||'')}"></div>
+      <div class="field"><label>ลำดับ</label><input type="number" id="ple_seq" value="${esc(l.seq!=null?l.seq:'')}"></div>
+    </div>
+    <div class="row c2">
+      <div class="field"><label>CUSTOMER</label><input id="ple_cust" list="dl_plecust" value="${esc(l.customer||d.customer||'')}"><datalist id="dl_plecust">${custs.map(c=>`<option value="${esc(c)}">`).join('')}</datalist></div>
+      <div class="field"><label>Part No. / รายการ</label><input id="ple_part" list="dl_fg2" value="${esc(l.name||'')}" placeholder="พิมพ์/เลือก Part"></div>
+    </div>
+    <div class="row c3">
+      <div class="field"><label>สั่งซื้อ</label><input type="number" id="ple_order" value="${esc(l.order!=null?l.order:(l.qty||''))}"></div>
+      <div class="field"><label>กำหนดส่ง</label><input type="date" id="ple_due" value="${esc(l.due||'')}"></div>
+      <div class="field"><label>จำนวนส่งจริง</label><input type="number" id="ple_deliv" value="${esc(l.deliv!=null?l.deliv:'')}"></div>
+    </div>
+    <div class="row c2">
+      <div class="field"><label>วันที่จัดส่ง</label><input type="date" id="ple_shipped" value="${esc(l.shipped||'')}"></div>
+      <div class="field"><label>หมายเหตุ</label><input id="ple_note" value="${esc(l.note||'')}"></div>
+    </div>
+    <datalist id="dl_fg2">${DB.products.filter(p=>p.type==='FG').slice(0,1600).map(p=>`<option value="${esc(p.pn+(p.name&&p.name!=='-'?' '+p.name:''))}">`).join('')}</datalist>
+  `,footer:`<button class="btn" onclick="closeModal()">ยกเลิก</button><button class="btn danger" onclick="delPlan('${d.id}')">🗑️ ลบรายการนี้</button><button class="btn pri" onclick="plSaveRow('${d.id}')">บันทึก</button>`});}
+function plSaveRow(id){const d=DB.docs.find(x=>x.id===id);if(!d||!d.lines||!d.lines[0])return;const l=d.lines[0];const v=k=>((document.getElementById(k)||{}).value||'').trim();
+  l.poDate=v('ple_podate');l.poNo=v('ple_pono');l.seq=v('ple_seq');l.customer=v('ple_cust');d.customer=l.customer;
+  const part=v('ple_part');l.name=part;const p=findProdByName(part,'FG');l.fgId=p?p.id:'';
+  l.order=Number(v('ple_order'))||0;l.qty=l.order;l.due=v('ple_due');d.shipDate=v('ple_shipped')||d.shipDate;
+  l.deliv=v('ple_deliv')===''?'':Math.round(Number(v('ple_deliv'))||0);l.shipped=v('ple_shipped');l.note=v('ple_note');
+  if(l.customer&&!DB.settings.customers.includes(l.customer))DB.settings.customers.push(l.customer);
+  saveDB();closeModal();render();toast('บันทึกแล้ว','ok');}
+function renderPLTable(){
+  const wrap=document.getElementById('planList');if(!wrap)return;
+  const docs=DB.docs.filter(d=>d.type==='PL').sort((a,b)=>{const sa=Number((a.lines&&a.lines[0]&&a.lines[0].seq)||0),sb=Number((b.lines&&b.lines[0]&&b.lines[0].seq)||0);return (sa-sb)||(a.ts-b.ts);});
+  if(!docs.length){wrap.innerHTML=`<div class="empty"><div class="big">🚛</div><div class="t">ยังไม่มีแผนจัดส่ง</div><div>กด "นำเข้าตาราง" เพื่อโหลดไฟล์ PLANNING หรือ "+ สร้างแผนจัดส่ง"</div></div>`;return;}
+  const onOrder=plOnOrderMap();let tOrder=0,tOh=0,tDeliv=0;
+  const rows=docs.map(d=>{const l=(d.lines&&d.lines[0])||{};const c=plCalc(l,onOrder);tOrder+=c.order;tOh+=c.onHand;tDeliv+=Number(l.deliv)||0;const due=l.due||d.shipDate||'';
+    return `<tr>
+      <td class="pn linkish" onclick="printPlanDoc('${d.id}')">${esc(d.no)}</td>
+      <td class="c">${esc(l.poDate||'')}</td><td class="c">${esc(l.poNo||'')}</td><td>${esc(l.customer||d.customer||'')}</td>
+      <td class="c">${esc(l.seq!=null&&l.seq!==''?l.seq:'')}</td><td>${esc(c.pn)}</td>
+      <td class="num">${fmt(c.order)}</td>
+      <td class="num" style="color:var(--brand)">${c.onHand?fmt(c.onHand):'-'}</td>
+      <td style="padding:2px"><input type="number" value="${l.deliv!=null&&l.deliv!==''?l.deliv:''}" placeholder="0" onchange="plSetDeliv('${d.id}',this.value)" style="width:74px;padding:4px 6px;text-align:right"></td>
+      <td class="c" style="font-weight:700;color:${c.stc}">${c.st}</td>
+      <td class="c">${esc(due)}</td>
+      <td style="padding:2px"><input type="date" value="${esc(l.shipped||'')}" onchange="plSetShip('${d.id}',this.value)" style="width:128px;padding:4px 6px"></td>
+      <td class="num ${c.waitQC?'':'muted'}">${c.waitQC?fmt(c.waitQC):'-'}</td>
+      <td class="num ${c.atPlating?'':'muted'}">${c.atPlating?fmt(c.atPlating):'-'}</td>
+      <td class="num ${c.makerOut?'':'muted'}">${c.makerOut?fmt(c.makerOut):'-'}</td>
+      <td class="num"><b>${fmt(c.total)}</b></td>
+      <td style="color:var(--red);font-size:11px">${esc(l.note||'')}</td>
+      <td style="white-space:nowrap"><button class="btn sm" onclick="printPlanDoc('${d.id}')" title="พิมพ์">🖨️</button> <button class="btn sm" onclick="plEditRow('${d.id}')" title="แก้ไข">✏️</button> <button class="btn sm danger" onclick="delPlan('${d.id}')" title="ยกเลิก">ยกเลิก</button></td>
+    </tr>`;}).join('');
+  wrap.innerHTML=`<div style="padding:8px 12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><span class="muted" style="font-size:12px">ช่อง <b>มีสต๊อค/สถานะ/รอคัด-QC/รอชุบ/ผู้ผลิตยังไม่มาส่ง/รวมที่จะมี</b> = ระบบดึงสด · <b>จำนวนส่งจริง/จัดส่ง</b> = กรอกเองได้</span><span style="display:flex;gap:6px"><button class="btn sm" onclick="printAllPL()">🖨️ พิมพ์ทั้งหมด</button><button class="btn sm danger" onclick="clearAllPL()">🗑️ ล้างแผนทั้งหมด</button></span></div>
+  <div class="tbl-wrap"><table style="font-size:11.5px;white-space:nowrap"><thead>
+    <tr><th rowspan="2">เลขที่</th><th rowspan="2">วันที่รับ PO</th><th rowspan="2">PO. NO.</th><th rowspan="2">CUSTOMER</th><th rowspan="2">ลำดับ</th><th rowspan="2">Part No.</th><th rowspan="2" class="num">สั่งซื้อ</th><th rowspan="2" class="num">มีสต๊อค</th><th rowspan="2">จำนวนส่งจริง</th><th rowspan="2">สถานะ</th><th colspan="2">วันที่</th><th colspan="4">WIP</th><th rowspan="2">หมายเหตุ</th><th rowspan="2"></th></tr>
+    <tr><th>กำหนดส่ง</th><th>จัดส่ง</th><th class="num">รอคัด/QC</th><th class="num">รอชุบ</th><th class="num">ผู้ผลิตยังไม่มาส่ง</th><th class="num">รวมที่จะมี</th></tr>
+  </thead><tbody>${rows}</tbody>
+  <tfoot><tr style="background:#f3f6fb;font-weight:700"><td colspan="6" style="text-align:right">รวม</td><td class="num">${fmt(tOrder)}</td><td class="num">${fmt(tOh)}</td><td class="num">${fmt(tDeliv)}</td><td colspan="8"></td></tr></tfoot>
+  </table></div>`;
+}
+function plSetDeliv(id,v){const d=DB.docs.find(x=>x.id===id);if(!d||!d.lines||!d.lines[0])return;d.lines[0].deliv=v===''?'':Math.round(Number(v)||0);saveDB();}
+function plSetShip(id,v){const d=DB.docs.find(x=>x.id===id);if(!d||!d.lines||!d.lines[0])return;d.lines[0].shipped=v||'';d.shipDate=v||d.shipDate;saveDB();}
+function printAllPL(){const lines=[];DB.docs.filter(d=>d.type==='PL').sort((a,b)=>{const sa=Number((a.lines&&a.lines[0]&&a.lines[0].seq)||0),sb=Number((b.lines&&b.lines[0]&&b.lines[0].seq)||0);return (sa-sb)||(a.ts-b.ts);}).forEach(d=>(d.lines||[]).forEach(l=>lines.push(l)));if(!lines.length){toast('ยังไม่มีแผนจัดส่ง','err');return}const tmp={id:'__tmpPL',type:'PL',no:'แผนจัดส่ง (รวมทั้งหมด)',customer:'(ทั้งหมด)',lines,shipDate:''};DB.docs.push(tmp);printPlanDoc('__tmpPL');DB.docs=DB.docs.filter(d=>d.id!=='__tmpPL');}
+function clearAllPL(){const n=DB.docs.filter(d=>d.type==='PL').length;if(!n){toast('ไม่มีแผนจัดส่ง','err');return}confirmBox('ล้างแผนจัดส่งทั้งหมด?','ลบแผนจัดส่ง '+fmt(n)+' รายการออกจากระบบ',()=>{DB.docs=DB.docs.filter(d=>d.type!=='PL');saveDB();closeModal();render();toast('ล้างแผนจัดส่งแล้ว','ok')})}
 function renderPlanList(){
   const wrap=document.getElementById('planList');if(!wrap)return;
+  if(planTab==='PL'){return renderPLTable();}
   const docs=DB.docs.filter(d=>d.type===planTab).sort((a,b)=>b.ts-a.ts);const ml=monthLabels();
   if(!docs.length){wrap.innerHTML=`<div class="empty"><div class="big">${PLAN[planTab].icon}</div><div class="t">ยังไม่มี${PLAN[planTab].label}</div><div>กดปุ่ม "สร้าง" เพื่อเริ่ม</div></div>`;return}
   let head;
@@ -4180,9 +4247,8 @@ async function bulkImportPlan(input,type){
     if(type==='PL'){
       const allLines=[];custs.forEach(c=>{groups[c].lines.forEach(l=>{l.customer=c;allLines.push(l);});if(!DB.settings.customers.includes(c))DB.settings.customers.push(c);});
       allLines.sort((a,b)=>(Number(a.seq)||0)-(Number(b.seq)||0));
-      const d={id:uid(),type:'PL',ts:Date.now(),status:'active',no:peekPlan('PL'),customer:custs.length>1?'(หลายลูกค้า)':custs[0],lines:allLines,imported:true,shipDate:todayISO()};
-      DB.docs.push(d);DB.counters['PLAN_PL']=(DB.counters['PLAN_PL']||0)+1;
-      made=1;allLines.forEach(l=>{total++;if(l.fgId)matched++;});
+      allLines.forEach(l=>{const dd={id:uid(),type:'PL',ts:Date.now(),status:'active',no:peekPlan('PL'),customer:l.customer||'',lines:[l],imported:true,shipDate:l.shipped||''};DB.docs.push(dd);DB.counters['PLAN_PL']=(DB.counters['PLAN_PL']||0)+1;total++;if(l.fgId)matched++;});
+      made=allLines.length;
     } else {
       custs.forEach(c=>{
         const g=groups[c];
