@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='TAG-2026.06.17l';
+const APP_BUILD='TAG-2026.06.17m';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -779,7 +779,7 @@ function viewDocs(type){
     </div>
     <div class="panel-b nopad">
       ${docs.length?`<div class="tbl-wrap"><table><thead><tr>
-        <th>เลขที่</th><th>วันที่</th>${(isGR||isRW||isDP||isPL||isQC||isSI)?'<th>PO เลขที่</th>':''}<th>รายละเอียด</th>${isSI?'<th>ลูกค้า</th><th class="num">QC OK</th><th class="num">QC NG</th>':''}${isQC?'<th>ผู้ตรวจ</th><th>จุดตรวจ</th><th>เครื่องมือ</th>':''}${(isPRD||isRW)?'<th class="num">ราคาผลิต</th>':''}${isQC?'<th class="num">ยอดรอคัด</th><th class="num">รวมคัด</th><th class="num">OK</th><th>TAG</th><th class="num">NG</th>':'<th class="num">จำนวน</th>'}<th>สถานะ</th><th></th>
+        <th>เลขที่</th><th>วันที่</th>${(isGR||isRW||isDP||isPL||isQC||isSI)?'<th>PO เลขที่</th>':''}<th>รายละเอียด</th>${isSI?'<th>ลูกค้า</th><th class="num">QC OK</th><th class="num">QC NG</th>':''}${isQC?'<th>ผู้ตรวจ</th><th>จุดตรวจ</th><th>เครื่องมือ</th>':''}${(isPRD||isRW)?'<th class="num">ราคาผลิต</th>':''}${isQC?'<th class="num">ยอดรอคัด</th><th class="num">รวมคัด</th><th class="num">OK</th><th>TAG</th><th class="num">NG</th><th>NG TAG</th>':'<th class="num">จำนวน</th>'}<th>สถานะ</th><th></th>
       </tr></thead><tbody id="docRows">
       ${docs.map(d=>docRow(d)).join('')}
       </tbody>${isPO?`<tfoot><tr style="font-weight:700;background:var(--panel2);border-top:2px solid var(--line)"><td colspan="3">SUBTOTAL (รวมยอดเงินตามที่กรอง)</td><td class="num" id="poSubtotal">${fmt2(poTotal)}</td><td colspan="2"></td></tr></tfoot>`:''}${isPRD?`<tfoot><tr style="font-weight:700;background:var(--panel2);border-top:2px solid var(--line)"><td colspan="3">SUBTOTAL (รวมจำนวนผลิตตามที่กรอง)</td><td class="num"></td><td class="num" id="prdSubtotal">${fmt(prdTotal)}</td><td colspan="2"></td></tr></tfoot>`:''}${isGR?`<tfoot><tr style="font-weight:700;background:var(--panel2);border-top:2px solid var(--line)"><td colspan="4">SUBTOTAL (รวมจำนวนรับตามที่กรอง)</td><td class="num" id="grSubtotal">${fmt(grTotal)}</td><td colspan="2"></td></tr></tfoot>`:''}${isRW?`<tfoot><tr style="font-weight:700;background:var(--panel2);border-top:2px solid var(--line)"><td colspan="4">SUBTOTAL (รวมจำนวนรับชิ้นงานตามที่กรอง)</td><td class="num"></td><td class="num" id="rwSubtotal">${fmt(rwTotal)}</td><td colspan="2"></td></tr></tfoot>`:''}${isDP?`<tfoot><tr style="font-weight:700;background:var(--panel2);border-top:2px solid var(--line)"><td colspan="4">SUBTOTAL (รวมจำนวนส่งตามที่กรอง)</td><td class="num" id="dpSubtotal">${fmt(dpTotal)}</td><td colspan="2"></td></tr></tfoot>`:''}${isPL?`<tfoot><tr style="font-weight:700;background:var(--panel2);border-top:2px solid var(--line)"><td colspan="4">SUBTOTAL (รวมรับชุบตามที่กรอง)</td><td class="num" id="plSubtotal">${fmt(plTotal)}</td><td colspan="2"></td></tr></tfoot>`:''}${isQC?`<tfoot><tr style="font-weight:700;background:var(--panel2);border-top:2px solid var(--line)"><td colspan="7">SUBTOTAL</td><td class="num" id="qcSubStg">${fmt(qcStgSum)}</td><td class="num" id="qcSubTotF">${fmt(qcTotSum)}</td><td class="num" id="qcSubOkF">${fmt(qcOkSum)}</td><td class="num" id="qcSubtotal" style="color:var(--red)">${fmt(qcTotal)}</td><td colspan="2"></td></tr></tfoot>`:''}${isSI?`<tfoot><tr style="font-weight:700;background:var(--panel2);border-top:2px solid var(--line)"><td colspan="4">SUBTOTAL</td><td></td><td class="num" id="siSubOkF">${fmt(siOkSum)}</td><td class="num" id="siSubNgF" style="color:var(--red)">${fmt(siNgSum)}</td><td class="num" id="siSubtotal">${fmt(siTotal)}</td><td colspan="2"></td></tr></tfoot>`:''}${isIP?`<tfoot><tr style="font-weight:700;background:var(--panel2);border-top:2px solid var(--line)"><td colspan="3">SUBTOTAL (รวมมูลค่า USD ตามที่กรอง)</td><td class="num" id="ipSubtotal">US$ ${fmt2(ipTotal)}</td><td colspan="2"></td></tr></tfoot>`:''}${isSP?`<tfoot><tr style="font-weight:700;background:var(--panel2);border-top:2px solid var(--line)"><td colspan="3">SUBTOTAL (รวมมูลค่า บาท ตามที่กรอง)</td><td class="num" id="spSubtotal">฿ ${fmt2(spTotal)}</td><td colspan="2"></td></tr></tfoot>`:''}${isINV?`<tfoot><tr style="font-weight:700;background:var(--panel2);border-top:2px solid var(--line)"><td colspan="3">SUBTOTAL (รวมจำนวนส่งตามที่กรอง)</td><td class="num" id="ivSubtotal">${fmt(ivTotal)}</td><td colspan="2"></td></tr></tfoot>`:''}${isIV2?`<tfoot><tr style="font-weight:700;background:var(--panel2);border-top:2px solid var(--line)"><td colspan="3">SUBTOTAL (รวมจำนวนส่งตามที่กรอง)</td><td class="num" id="iwSubtotal">${fmt(iwTotal)}</td><td colspan="2"></td></tr></tfoot>`:''}${isWD?`<tfoot><tr style="font-weight:700;background:var(--panel2);border-top:2px solid var(--line)"><td colspan="3">SUBTOTAL (รวมจำนวนเบิกตามที่กรอง)</td><td class="num" id="wdSubtotal">${fmt(wdTotal)}</td><td colspan="2"></td></tr></tfoot>`:''}</table></div>`:`<div class="empty"><div class="big">${cfg.icon}</div><div class="t">ยังไม่มีเอกสาร</div><div>กดปุ่ม "สร้าง${cfg.label}" เพื่อเริ่มต้น</div></div>`}
@@ -2218,6 +2218,73 @@ function editQCInline(id){
 }
 function setQCTotal(id,val){const d=DB.docs.find(x=>x.id===id);if(!d)return;const l=(d.lines&&d.lines[0]);if(!l)return;l.total=Number(val)||0;l.ok=l.total-(Number(l.ng)||0);saveDB();render();toast('บันทึกรวมคัด '+d.no,'ok');}
 function setQCOk(id,val){const d=DB.docs.find(x=>x.id===id);if(!d)return;const l=(d.lines&&d.lines[0]);if(!l)return;l.ok=Number(val)||0;saveDB();render();}
+function openNgTagDialog(docId){
+  const d=DB.docs.find(x=>x.id===docId);if(!d)return;
+  const f0=(d.lines||[]).find(l=>Number(l.ng)>0)||(d.lines||[])[0]||{};
+  const pr=f0.productId?P(f0.productId):null;const pno=pr?pr.pn:((f0.name||'').split(' ')[0]);
+  const ng=Number(f0.ng)||0;
+  const prob=((f0.defects||[]).filter(x=>Number(x.qty)>0).map(x=>x.type+(x.qty?' ('+x.qty+')':'')).join(', '))||'';
+  modal({title:'🏷️ พิมพ์ NG TAG',size:'lg',body:`
+    <div class="hint" style="margin-bottom:8px"><span class="i">💡</span><div>ดึงข้อมูลจากใบตรวจอัตโนมัติ แก้ไขได้ · กรอก <b>จำนวนชิ้น/ถุง</b> ออก TAG ตามจำนวนถุง (NG ÷ ชิ้น/ถุง) · A4 = 12 ดวง</div></div>
+    <div class="row c3">
+      <div class="field"><label>PO.</label><input id="ng_po" value="${esc(f0.poNo||'')}"></div>
+      <div class="field"><label>P/NO. (ชิ้นงาน)</label><input id="ng_pno" value="${esc(pno||'')}"></div>
+      <div class="field"><label>LOT/DATE</label><input id="ng_lot" value="${esc(f0.lot||f0.date||'')}"></div>
+    </div>
+    <div class="row c3">
+      <div class="field"><label>CUSTOMER</label><input id="ng_cust" value="${esc(f0.cust||'')}"></div>
+      <div class="field"><label>ผู้ผลิต</label><input id="ng_maker" value="${esc(f0.maker||d.maker||'')}"></div>
+      <div class="field"><label>ขั้นตอน</label><input id="ng_step" value="QC Final 100%"></div>
+    </div>
+    <div class="field"><label>ปัญหา NG.</label><input id="ng_prob" value="${esc(prob)}"></div>
+    <div class="row c3">
+      <div class="field"><label>ผู้ตรวจสอบ</label><input id="ng_insp" value="${esc(f0.inspector||'')}"></div>
+      <div class="field"><label>NG ทั้งหมด</label><input id="ng_ng" type="number" value="${ng}" oninput="ngTagCalc()"></div>
+      <div class="field"><label>จำนวนชิ้น/ถุง <span class="req">*</span></label><input id="ng_per" type="number" value="${ng||1}" oninput="ngTagCalc()"></div>
+    </div>
+    <div class="kv" style="margin-top:4px;font-size:14px"><span class="k">จำนวน TAG ที่จะพิมพ์</span><b id="ng_count" style="color:var(--red);font-size:18px">1</b></div>
+  `,footer:`<button class="btn" onclick="closeModal()">ปิด</button><button class="btn" onclick="printNgTags(true)">👁️ ดูตัวอย่าง</button><button class="btn pri" onclick="printNgTags(false)">🖨️ พิมพ์ NG TAG</button>`});
+  setTimeout(ngTagCalc,20);
+}
+function ngTagCalc(){const ng=Number((document.getElementById('ng_ng')||{}).value)||0;const per=Number((document.getElementById('ng_per')||{}).value)||0;const n=per>0?Math.ceil(ng/per):0;const e=document.getElementById('ng_count');if(e)e.textContent=fmt(n);return n;}
+function ngTagOne(t){const box='<span class="cb"></span>';
+  return '<div class="ngtag"><table>'
+   +'<tr><td class="rtk" rowspan="2">RTK</td><td class="ngh" colspan="3">NG TAG</td></tr>'
+   +'<tr><td class="l">PO.</td><td>'+esc(t.po)+'</td><td class="pn2"><span class="l2">P/NO.</span> <b>'+esc(t.pno)+'</b></td></tr>'
+   +'<tr><td class="l">LOT/DATE</td><td class="hl">'+esc(t.lot)+'</td><td class="l">CUSTOMER</td><td>'+esc(t.cust)+'</td></tr>'
+   +'<tr><td class="l">ผู้ผลิต</td><td>'+esc(t.maker)+'</td><td class="l">จำนวนชิ้น</td><td class="qty">'+fmt(t.qty)+'</td></tr>'
+   +'<tr><td class="l">ขั้นตอน</td><td colspan="3">'+esc(t.step)+'</td></tr>'
+   +'<tr><td class="l">ปัญหา NG.</td><td colspan="3" class="prob">'+esc(t.prob)+'</td></tr>'
+   +'<tr><td class="l">ผู้ตรวจสอบ</td><td>'+esc(t.insp)+'</td><td class="l">วันที่</td><td></td></tr>'
+   +'<tr><td class="dec" colspan="4">ผลการพิจารณา&nbsp;&nbsp;'+box+' ซ่อม&nbsp;&nbsp;'+box+' ทำลาย&nbsp;&nbsp;'+box+' คืน&nbsp;&nbsp;'+box+' ยอมรับใช้</td></tr>'
+   +'<tr><td class="l">หัวหน้างาน</td><td></td><td class="l">วันที่</td><td></td></tr>'
+   +'<tr><td colspan="4" class="fm">FM-QC-14 REV.01</td></tr>'
+   +'</table></div>';}
+function printNgTags(preview){
+  const v=k=>((document.getElementById(k)||{}).value||'').trim();
+  const ng=Number(v('ng_ng'))||0, per=Number(v('ng_per'))||0;
+  if(per<=0){toast('กรอกจำนวนชิ้น/ถุง','err');return;}
+  const n=Math.ceil(ng/per); if(n<=0){toast('ไม่มีจำนวน NG','err');return;}
+  const base={po:v('ng_po'),pno:v('ng_pno'),lot:v('ng_lot'),cust:v('ng_cust'),maker:v('ng_maker'),step:v('ng_step'),prob:v('ng_prob'),insp:v('ng_insp')};
+  let tags='';for(let i=0;i<n;i++){const qty=(i===n-1)?(ng-per*(n-1)):per;tags+=ngTagOne(Object.assign({qty},base));}
+  const css="@page{size:A4;margin:7mm}*{box-sizing:border-box;font-family:'Tahoma',sans-serif}body{margin:0}.sheet{font-size:0}"
+   +".ngtag{display:inline-block;vertical-align:top;width:95mm;height:45mm;border:1.6px solid #c0202e;page-break-inside:avoid;margin:0 1mm 1mm 0;overflow:hidden}"
+   +".ngtag table{width:100%;height:100%;border-collapse:collapse;table-layout:fixed}"
+   +".ngtag td{border:.6px solid #555;font-size:8px;padding:1px 3px;line-height:1.1;text-align:left}"
+   +".ngtag .rtk{font-weight:800;font-size:13px;color:#c0202e;text-align:center;width:16%;background:#fff;border:1.6px solid #c0202e}"
+   +".ngtag .ngh{background:#c0202e;color:#fff;font-weight:800;font-size:15px;text-align:center;letter-spacing:1px}"
+   +".ngtag .l{font-weight:700;background:#fdf3c0;width:18%;white-space:nowrap}.ngtag .l2{font-weight:700}"
+   +".ngtag .hl{background:#c9f7c5}.ngtag .qty{font-weight:800;font-size:11px}.ngtag .pn2 b{font-size:10px}"
+   +".ngtag .prob{color:#c0202e;font-weight:600}.ngtag .dec{background:#fff7a8;font-weight:600;font-size:7.6px}"
+   +".ngtag .cb{display:inline-block;width:9px;height:9px;border:1.2px solid #333;vertical-align:-1px}"
+   +".ngtag .fm{font-size:5.5px;text-align:right;color:#444;border:none;padding:0 3px 0 0}"
+   +"@media print{.noprint{display:none}}";
+  const auto=preview?'':'setTimeout(function(){window.print();},250);';
+  const html='<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"><title>NG TAG</title><style>'+css+'</style></head><body>'
+   +'<div class="noprint" style="text-align:center;padding:8px;font-family:Tahoma"><b>NG TAG '+fmt(n)+' ดวง</b> (A4 = 12 ดวง/แผ่น) &nbsp; <button onclick="window.print()" style="padding:6px 18px;cursor:pointer">🖨️ พิมพ์</button></div>'
+   +'<div class="sheet">'+tags+'</div><scr'+'ipt>'+auto+'</scr'+'ipt></body></html>';
+  const w=window.open('','_blank');if(!w){toast('เบราว์เซอร์บล็อก popup','err');return}w.document.write(html);w.document.close();
+}
 function openTagDialog(docId){
   const d=DB.docs.find(x=>x.id===docId);if(!d)return;
   const f0=(d.lines||[]).find(l=>Number(l.ok)>0)||(d.lines||[])[0]||{};
@@ -2299,7 +2366,8 @@ function qcRow(d){
     <td class="num"><input type="number" value="${(f0.total!=null&&f0.total!=='')?f0.total:''}" placeholder="${_stg||''}" onchange="setQCTotal('${d.id}',this.value)" style="width:74px;text-align:right;padding:4px 6px"></td>
     <td class="num"><input type="number" value="${(f0.ok!=null&&f0.ok!=='')?f0.ok:''}" onchange="setQCOk('${d.id}',this.value)" style="width:70px;text-align:right;padding:4px 6px"></td>
     <td style="text-align:center"><button class="btn sm" onclick="openTagDialog('${d.id}')" title="พิมพ์ OK TAG ใส่ถุง">🏷️ TAG</button></td>
-    <td class="num"${ng?' style="color:var(--red);font-weight:700"':''}>${fmt(ng)}</td><td>${statusTag(d.status)}</td>
+    <td class="num"${ng?' style="color:var(--red);font-weight:700"':''}>${fmt(ng)}</td>
+    <td style="text-align:center"><button class="btn sm" onclick="openNgTagDialog('${d.id}')" title="พิมพ์ NG TAG ใส่ถุง">🏷️ NG</button></td><td>${statusTag(d.status)}</td>
     <td style="text-align:right;white-space:nowrap">
       <button class="btn sm" onclick="viewDoc('${d.id}')">ดู</button>
       <button class="btn sm" onclick="editQCInline('${d.id}')">✏️</button>
