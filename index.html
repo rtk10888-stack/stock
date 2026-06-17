@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='CUST-2026.06.13bo';
+const APP_BUILD='CUST-2026.06.13bp';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -463,6 +463,8 @@ function prodOptions(filterType){
   return DB.products.filter(p=>!filterType||p.type===filterType)
     .map(p=>`<option value="${p.id}">${p.pn} — ${p.name} ${p.customer&&p.customer!=='ไม่ระบุ'?'('+p.customer+')':''}</option>`).join('');
 }
+function prodPickOptions(filterType){return DB.products.filter(p=>!filterType||p.type===filterType).map(p=>`<option value="${esc(p.pn+' \u2014 '+p.name+(p.customer&&p.customer!=='ไม่ระบุ'?' ('+p.customer+')':''))}"></option>`).join('');}
+function adjProdResolve(){const inp=document.getElementById('d_prodlabel'),hid=document.getElementById('d_prod');if(!inp||!hid)return;const v=(inp.value||'').trim();const lbl=p=>p.pn+' \u2014 '+p.name+(p.customer&&p.customer!=='ไม่ระบุ'?' ('+p.customer+')':'');let f=DB.products.find(p=>lbl(p)===v);if(!f){const t=v.toLowerCase();f=DB.products.find(p=>(p.pn||'').toLowerCase()===t)||(t.length>=2?DB.products.find(p=>((p.pn||'')+' '+(p.name||'')).toLowerCase().includes(t)):null);}hid.value=f?f.id:'';docStageInfo('ADJ');}
 function prodLabel(id){const p=P(id);return p?`<span class="pn">${p.pn}</span> <span class="muted">${p.name}</span>`:'-'}
 
 /* ============================================================
@@ -896,7 +898,7 @@ function openDocForm(type){
       <div id="stageInfo"></div>`;
   } else if(type==='ADJ'){
     body=`<div class="row c2">${dateF}
-      <div class="field"><label>สินค้า <span class="req">*</span></label><select id="d_prod" onchange="docStageInfo('ADJ')">${prodOptions()}</select></div></div>
+      <div class="field"><label>สินค้า <span class="req">*</span></label><input id="d_prodlabel" list="dl_adjprod" placeholder="พิมพ์รหัส/ชื่อสินค้าเพื่อค้นหา" autocomplete="off" oninput="adjProdResolve()" onchange="adjProdResolve()"><datalist id="dl_adjprod">${prodPickOptions()}</datalist><input type="hidden" id="d_prod"></div></div>
       <div class="row c2">
         <div class="field"><label>วิธีปรับ</label><select id="d_mode" onchange="docStageInfo('ADJ')"><option value="set">ตั้งยอดตามนับจริง</option><option value="delta">ปรับเพิ่ม/ลด (+/-)</option></select></div>
         <div class="field"><label>จำนวน <span class="req">*</span></label><input type="number" id="d_qty" placeholder="0" oninput="docStageInfo('ADJ')"></div>
