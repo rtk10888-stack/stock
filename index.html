@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='TAG-2026.06.17m';
+const APP_BUILD='TAG-2026.06.17n';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -2237,8 +2237,11 @@ function openNgTagDialog(docId){
       <div class="field"><label>ขั้นตอน</label><input id="ng_step" value="QC Final 100%"></div>
     </div>
     <div class="field"><label>ปัญหา NG.</label><input id="ng_prob" value="${esc(prob)}"></div>
-    <div class="row c3">
+    <div class="row c2">
       <div class="field"><label>ผู้ตรวจสอบ</label><input id="ng_insp" value="${esc(f0.inspector||'')}"></div>
+      <div class="field"><label>วันที่ตรวจสอบ</label><input id="ng_date" value="${esc(d.date||todayISO())}"></div>
+    </div>
+    <div class="row c2">
       <div class="field"><label>NG ทั้งหมด</label><input id="ng_ng" type="number" value="${ng}" oninput="ngTagCalc()"></div>
       <div class="field"><label>จำนวนชิ้น/ถุง <span class="req">*</span></label><input id="ng_per" type="number" value="${ng||1}" oninput="ngTagCalc()"></div>
     </div>
@@ -2255,7 +2258,7 @@ function ngTagOne(t){const box='<span class="cb"></span>';
    +'<tr><td class="l">ผู้ผลิต</td><td>'+esc(t.maker)+'</td><td class="l">จำนวนชิ้น</td><td class="qty">'+fmt(t.qty)+'</td></tr>'
    +'<tr><td class="l">ขั้นตอน</td><td colspan="3">'+esc(t.step)+'</td></tr>'
    +'<tr><td class="l">ปัญหา NG.</td><td colspan="3" class="prob">'+esc(t.prob)+'</td></tr>'
-   +'<tr><td class="l">ผู้ตรวจสอบ</td><td>'+esc(t.insp)+'</td><td class="l">วันที่</td><td></td></tr>'
+   +'<tr><td class="l">ผู้ตรวจสอบ</td><td>'+esc(t.insp)+'</td><td class="l">วันที่</td><td>'+esc(t.date||'')+'</td></tr>'
    +'<tr><td class="dec" colspan="4">ผลการพิจารณา&nbsp;&nbsp;'+box+' ซ่อม&nbsp;&nbsp;'+box+' ทำลาย&nbsp;&nbsp;'+box+' คืน&nbsp;&nbsp;'+box+' ยอมรับใช้</td></tr>'
    +'<tr><td class="l">หัวหน้างาน</td><td></td><td class="l">วันที่</td><td></td></tr>'
    +'<tr><td colspan="4" class="fm">FM-QC-14 REV.01</td></tr>'
@@ -2265,7 +2268,7 @@ function printNgTags(preview){
   const ng=Number(v('ng_ng'))||0, per=Number(v('ng_per'))||0;
   if(per<=0){toast('กรอกจำนวนชิ้น/ถุง','err');return;}
   const n=Math.ceil(ng/per); if(n<=0){toast('ไม่มีจำนวน NG','err');return;}
-  const base={po:v('ng_po'),pno:v('ng_pno'),lot:v('ng_lot'),cust:v('ng_cust'),maker:v('ng_maker'),step:v('ng_step'),prob:v('ng_prob'),insp:v('ng_insp')};
+  const base={po:v('ng_po'),pno:v('ng_pno'),lot:v('ng_lot'),cust:v('ng_cust'),maker:v('ng_maker'),step:v('ng_step'),prob:v('ng_prob'),insp:v('ng_insp'),date:v('ng_date')};
   let tags='';for(let i=0;i<n;i++){const qty=(i===n-1)?(ng-per*(n-1)):per;tags+=ngTagOne(Object.assign({qty},base));}
   const css="@page{size:A4;margin:7mm}*{box-sizing:border-box;font-family:'Tahoma',sans-serif}body{margin:0}.sheet{font-size:0}"
    +".ngtag{display:inline-block;vertical-align:top;width:95mm;height:45mm;border:1.6px solid #c0202e;page-break-inside:avoid;margin:0 1mm 1mm 0;overflow:hidden}"
