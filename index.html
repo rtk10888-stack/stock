@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='MON-2026.06.17z7';
+const APP_BUILD='MON-2026.06.17z8';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -1897,7 +1897,8 @@ function spRow(d){
     <td><span class="tag cyan">${esc(d.supplier||'-')}</span> <span class="muted">${esc(items)}</span></td>
     <td class="num">฿ ${fmt2(d.total||0)}</td><td>${statusTag(d.status)}</td>
     <td style="text-align:right;white-space:nowrap">
-      <button class="btn sm" onclick="printIP('${d.id}')">ดู/พิมพ์</button>
+      <button class="btn sm" onclick="printIP('${d.id}')">ดู</button>
+      <button class="btn sm" onclick="printIP('${d.id}')" title="พิมพ์ / บันทึก PDF">🖨️</button>
       <button class="btn sm" onclick="printIP('${d.id}','image')">📤 ส่ง</button>
       <button class="btn sm" onclick="editSPDoc('${d.id}')">✏️</button>
       ${d.status==='pending'?`<button class="btn sm ok" onclick="approveDoc('${d.id}')">อนุมัติ</button> <button class="btn sm danger" onclick="deleteDoc('${d.id}')">🗑️ ลบ</button>`:''}
@@ -1996,7 +1997,8 @@ function ipRow(d){
     <td><span class="tag cyan">${esc(d.supplier||'-')}</span> <span class="muted">${esc(items)}</span></td>
     <td class="num">US$ ${fmt2(d.total||0)}</td><td>${statusTag(d.status)}</td>
     <td style="text-align:right;white-space:nowrap">
-      <button class="btn sm" onclick="printIP('${d.id}')">ดู/พิมพ์</button>
+      <button class="btn sm" onclick="printIP('${d.id}')">ดู</button>
+      <button class="btn sm" onclick="printIP('${d.id}')" title="พิมพ์ / บันทึก PDF">🖨️</button>
       <button class="btn sm" onclick="printIP('${d.id}','image')">📤 ส่ง</button>
       <button class="btn sm" onclick="editIPDoc('${d.id}')">✏️</button>
       ${d.status==='pending'?`<button class="btn sm ok" onclick="approveDoc('${d.id}')">อนุมัติ</button> <button class="btn sm danger" onclick="deleteDoc('${d.id}')">🗑️ ลบ</button>`:''}
