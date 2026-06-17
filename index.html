@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='CUST-2026.06.13bp';
+const APP_BUILD='PLAN-2026.06.17a';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -3892,7 +3892,7 @@ function applyBalanceUpdate(input){
 /* ============================================================
    วางแผนจัดส่ง — Forecast / Customer PO / Packing List + MRP
    ============================================================ */
-let planLines=[]; let planTab='FC'; let mrpOnlyShort=false;
+let planLines=[]; let planTab='FC'; let mrpOnlyShort=false; let planMrpMode='all';
 const PLAN={FC:{label:'Forecast ลูกค้า',icon:'📈'},CPO:{label:'Customer PO',icon:'📑'},PL:{label:'แผนจัดส่ง (PL)',icon:'🚛'}};
 function monthLabels(){const d=new Date();const th=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];return [0,1,2,3].map(i=>{const m=new Date(d.getFullYear(),d.getMonth()+i,1);return th[m.getMonth()]+' '+String(m.getFullYear()+543).slice(2)})}
 function viewDemand(el){
@@ -3905,7 +3905,7 @@ function viewDemand(el){
       <button class="${planTab==='CPO'?'on':''}" onclick="planSet('CPO')">📑 Customer PO</button>
       <button class="${planTab==='PL'?'on':''}" onclick="planSet('PL')">🚛 แผนจัดส่ง</button>
     </div>
-    <div class="right"><div class="searchbox"><input id="planSearch" placeholder="ค้นหา เลขที่ / ลูกค้า / Part" oninput="filterPlanRows()"></div><button class="btn pri" onclick="openPlanForm('${planTab}')">+ สร้าง${PLAN[planTab].label}</button></div>
+    <div class="right"><div class="searchbox"><input id="planSearch" placeholder="ค้นหา เลขที่ / ลูกค้า / Part" oninput="filterPlanRows()"></div><input type="file" id="bulkPlanFile" accept=".xlsx,.xls,.csv" style="display:none" onchange="bulkImportPlan(this,planTab)"><button class="btn" onclick="document.getElementById('bulkPlanFile').click()" title="นำเข้าตารางแผนทั้งไฟล์ แยกเป็นเอกสารต่อลูกค้าอัตโนมัติ">📥 นำเข้าตาราง</button> <button class="btn pri" onclick="openPlanForm('${planTab}')">+ สร้าง${PLAN[planTab].label}</button></div>
   </div><div class="panel-b nopad" id="planList"></div></div>`;
   renderPlanList();
 }
@@ -4099,7 +4099,65 @@ function printPlanDoc(id,mode){
   const w=window.open('','_blank');if(!w){toast('เบราว์เซอร์บล็อก popup','err');return}w.document.write(html);w.document.close();
 }
 /* MRP — เช็คความเพียงพอ */
-function mrpRows(){
+function xlDate(v){if(v==null||v==='')return '';if(typeof v==='number'&&v>20000&&v<80000){const d=new Date(Math.round((v-25569)*86400*1000));return d.toISOString().slice(0,10);}const s=String(v).trim();const m=s.match(/(\d{1,4})[-\/.](\d{1,2})[-\/.](\d{1,4})/);if(m){let[_,a,b,c]=m;if(a.length===4)return `${a}-${b.padStart(2,'0')}-${c.padStart(2,'0')}`;let y=c.length===4?c:('20'+c.padStart(2,'0'));return `${y}-${b.padStart(2,'0')}-${a.padStart(2,'0')}`;}return '';}
+async function bulkImportPlan(input,type){
+  const f=input.files[0];if(!f)return;input.value='';
+  try{
+    await loadScript('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js');
+    const buf=await f.arrayBuffer();const wb=window.XLSX.read(buf,{type:'array'});
+    const ws=wb.Sheets[wb.SheetNames[0]];
+    const rows=window.XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:''});
+    let hr=-1,col={};
+    for(let i=0;i<Math.min(rows.length,10);i++){
+      const r=rows[i].map(c=>String(c).toLowerCase());
+      const ci=r.findIndex(c=>/customer|ลูกค้า/.test(c));
+      const pi=r.findIndex(c=>/part/.test(c));
+      if(ci>=0&&pi>=0){hr=i;col.cust=ci;col.part=pi;
+        const r2=(rows[i+1]||[]).map(c=>String(c).toLowerCase());
+        const cmb=r.map((c,j)=>(c+' '+(r2[j]||'')).trim());
+        col.qty=cmb.findIndex(c=>/สั่งซื้อ|จำนวนสั่ง|order qty|^qty/.test(c));
+        if(col.qty<0)col.qty=cmb.findIndex(c=>/จำนวน/.test(c)&&!/ส่งจริง/.test(c));
+        col.due=cmb.findIndex(c=>/กำหนดส่ง|กำหนด.*ส่ง/.test(c));
+        if(col.due<0)col.due=cmb.findIndex(c=>/กำหนด|due/.test(c));
+        col.po=cmb.findIndex(c=>/po\.?\s*no|po no|เลขที่.*po/.test(c));
+        break;}
+    }
+    if(hr<0){toast('ไม่พบหัวตาราง — ต้องมีคอลัมน์ Customer และ Part','err');return;}
+    const groups={};let seen=0;
+    for(let i=hr+1;i<rows.length;i++){
+      const r=rows[i];if(!r)continue;
+      const part=String(r[col.part]==null?'':r[col.part]).trim();
+      const cust=String(r[col.cust]==null?'':r[col.cust]).trim();
+      if(!part||!cust)continue;
+      if(/^part|^customer/i.test(part))continue;
+      const qty=col.qty>=0?Math.round(Number(String(r[col.qty]).replace(/,/g,''))||0):0;
+      if(type==='CPO'&&qty<=0)continue;
+      const due=col.due>=0?xlDate(r[col.due]):'';
+      const po=col.po>=0?String(r[col.po]==null?'':r[col.po]).trim():'';
+      const p=findProdByName(part,'FG');
+      const ln={fgId:p?p.id:'',name:p?(p.pn+(p.name&&p.name!=='-'?' '+p.name:'')):part};
+      if(type==='FC'){ln.m1=qty;ln.m2=0;ln.m3=0;ln.m4=0;}else{ln.qty=qty;ln.due=due;ln.price=0;}
+      (groups[cust]=groups[cust]||{po:po,lines:[]}).lines.push(ln);
+      seen++;
+    }
+    const custs=Object.keys(groups);
+    if(!custs.length){toast('ไม่พบรายการที่นำเข้าได้','err');return;}
+    ensureSettings();let made=0,matched=0,total=0;
+    custs.forEach(c=>{
+      const g=groups[c];
+      const d={id:uid(),type,ts:Date.now(),status:'active',no:peekPlan(type),customer:c,lines:g.lines,imported:true};
+      if(type==='CPO')d.custPo=g.po||'';
+      if(type==='PL')d.shipDate=todayISO();
+      DB.docs.push(d);DB.counters['PLAN_'+type]=(DB.counters['PLAN_'+type]||0)+1;
+      if(!DB.settings.customers.includes(c))DB.settings.customers.push(c);
+      made++;g.lines.forEach(l=>{total++;if(l.fgId)matched++;});
+    });
+    saveDB&&saveDB();render();
+    modal({title:'📥 นำเข้า'+PLAN[type].label+'สำเร็จ',body:`<div class="kv"><span class="k">สร้างเอกสาร (แยกตามลูกค้า)</span><b style="color:var(--teal)">${fmt(made)}</b></div><div class="kv"><span class="k">รายการรวม</span><b>${fmt(total)}</b></div><div class="kv"><span class="k">จับคู่ Part กับสินค้าได้</span><b>${fmt(matched)}/${fmt(total)}</b></div><div class="hint" style="margin-top:10px"><span class="i">💡</span><div>ไปดูผลพอ/ไม่พอที่เมนู <b>เช็คความเพียงพอ</b> → เลือกแท็บ ${type==='FC'?'📈 เทียบ Forecast':'📑 เทียบ PO ลูกค้า'}</div></div>`,footer:`<button class="btn pri" onclick="closeModal()">ตกลง</button>`});
+  }catch(e){toast('นำเข้าไม่สำเร็จ: '+e.message,'err');}
+}
+function mrpRows(mode){
+  mode=mode||(typeof planMrpMode!=='undefined'?planMrpMode:'all');
   const agg={};
   const keyOf=l=>l.fgId||('pn:'+((l.name||'').split(' ')[0]));
   const ens=(k,l)=>{if(!agg[k])agg[k]={fgId:l.fgId||'',pn:(l.name||'').split(' ')[0]||'',fc:0,po:0,pl:0};return agg[k]};
@@ -4108,40 +4166,56 @@ function mrpRows(){
   DB.docs.filter(d=>d.type==='PL').forEach(d=>d.lines.forEach(l=>{const a=ens(keyOf(l),l);a.pl+=l.qty||0}));
   const onOrder={};DB.docs.filter(d=>d.type==='PRD'&&(d.status==='approved'||d.status==='pending')&&!d.imported).forEach(d=>(d.lines||[]).forEach(l=>{const k=l.fgId||('pn:'+((l.name||'').split(' ')[0]));onOrder[k]=(onOrder[k]||0)+(l.qty||0)}));
   return Object.keys(agg).map(k=>{const a=agg[k];const p=a.fgId?P(a.fgId):DB.products.find(x=>x.type==='FG'&&x.pn===a.pn);
-    const avail=p?(p.onHand+p.wip+p.atPlating+p.passedQC):0;const oo=onOrder[k]||(p&&onOrder[p.id])||0;
-    const demand=a.fc+a.po+a.pl;const supply=avail+oo;const bal=supply-demand;
-    return {pn:a.pn||(p?p.pn:'?'),name:p?p.name:'',cust:p?p.customer:'',fc:a.fc,po:a.po,pl:a.pl,demand,avail,oo,bal,short:Math.max(0,-bal),pid:p?p.id:''};
-  }).sort((x,y)=>x.bal-y.bal);
+    const onHand=p?(p.onHand||0):0, waitQC=p?((p.wip||0)+(p.passedQC||0)):0, atPlating=p?(p.atPlating||0):0;
+    const makerOut=onOrder[k]||(p&&onOrder[p.id])||0;
+    const total=onHand+waitQC+atPlating+makerOut;
+    const demand=mode==='fc'?a.fc:mode==='po'?a.po:(a.fc+a.po+a.pl);
+    const bal=total-demand;
+    return {pn:a.pn||(p?p.pn:'?'),name:p?p.name:'',cust:p?p.customer:'',fc:a.fc,po:a.po,pl:a.pl,demand,
+      onHand,waitQC,atPlating,makerOut,avail:onHand+waitQC+atPlating,total,oo:makerOut,
+      bal,short:Math.max(0,-bal),enoughNow:onHand>=demand&&demand>0,pid:p?p.id:''};
+  }).filter(r=>r.demand>0).sort((x,y)=>x.bal-y.bal);
 }
+function mrpModeLabel(m){return m==='fc'?'Forecast':m==='po'?'PO ลูกค้า':'รวม (FC+PO+แผนส่ง)';}
 function viewMRP(el){
-  setTitle('✅ เช็คความเพียงพอ','เทียบความต้องการ (Forecast+PO+แผนส่ง) กับของที่มี + แนะนำการดำเนินการ');
-  let rows=mrpRows();const shortN=rows.filter(r=>r.bal<0).length;const okN=rows.length-shortN;
+  const mode=(typeof planMrpMode!=='undefined'?planMrpMode:'all');
+  setTitle('✅ เช็คความเพียงพอ','เทียบความต้องการลูกค้ากับของจริงในระบบ — บอกพอ/ไม่พอ พร้อม breakdown แบบ Real Time');
+  let rows=mrpRows(mode);
+  const shortN=rows.filter(r=>r.bal<0).length;
+  const partialN=rows.filter(r=>r.bal>=0&&!r.enoughNow).length;
+  const okN=rows.filter(r=>r.enoughNow).length;
   const totDemand=rows.reduce((s,r)=>s+r.demand,0),totShort=rows.reduce((s,r)=>s+r.short,0);
   if(mrpOnlyShort)rows=rows.filter(r=>r.bal<0);
+  const stBtn=(m,t)=>`<button class="${mode===m?'on':''}" onclick="planMrpMode='${m}';render()">${t}</button>`;
   el.innerHTML=`
+  <div class="hint"><span class="i">💡</span><div>เลือกแหล่งความต้องการด้านล่าง: <b>Forecast</b> = พยากรณ์ลูกค้า · <b>PO ลูกค้า</b> = คำสั่งซื้อจริง → ระบบเทียบกับ <b>มีสต๊อค + รอคัด/QC + รอชุบ + ผู้ผลิตยังไม่ส่ง</b> แล้วบอกว่าพอหรือไม่</div></div>
+  <div class="panel" style="margin-bottom:12px"><div class="panel-b" style="padding:10px 14px"><div class="seg">${stBtn('fc','📈 เทียบ Forecast')}${stBtn('po','📑 เทียบ PO ลูกค้า')}${stBtn('all','📊 รวมทั้งหมด')}</div></div></div>
   <div class="cards">
-    <div class="card"><div class="lbl"><span class="dot d-brand">📦</span>รายการที่มีความต้องการ</div><div class="val">${fmt(mrpRows().length)}</div></div>
-    <div class="card"><div class="lbl"><span class="dot d-red">🚨</span>ของขาด (ต้องผลิต/ซื้อ)</div><div class="val">${fmt(shortN)}</div><div class="sub">ขาดรวม ${fmt(totShort)} ชิ้น</div></div>
-    <div class="card"><div class="lbl"><span class="dot d-teal">✅</span>เพียงพอ</div><div class="val">${fmt(okN)}</div></div>
-    <div class="card"><div class="lbl"><span class="dot d-violet">📈</span>ความต้องการรวม</div><div class="val">${fmt(totDemand)}</div></div>
+    <div class="card"><div class="lbl"><span class="dot d-brand">📦</span>รายการ (${esc(mrpModeLabel(mode))})</div><div class="val">${fmt(mrpRows(mode).length)}</div></div>
+    <div class="card"><div class="lbl"><span class="dot d-red">🚨</span>ไม่พอ — ต้องผลิต/ซื้อ</div><div class="val">${fmt(shortN)}</div><div class="sub">ขาดรวม ${fmt(totShort)} ชิ้น</div></div>
+    <div class="card"><div class="lbl"><span class="dot d-amber">🟡</span>พอเมื่อของเข้า</div><div class="val">${fmt(partialN)}</div><div class="sub">สต๊อคยังไม่พร้อมส่ง</div></div>
+    <div class="card"><div class="lbl"><span class="dot d-teal">✅</span>พอ พร้อมส่งทันที</div><div class="val">${fmt(okN)}</div></div>
   </div>
-  <div class="panel"><div class="panel-h"><h2>ตารางความเพียงพอ (MRP)</h2>
+  <div class="panel"><div class="panel-h"><h2>ตารางความเพียงพอ — ${esc(mrpModeLabel(mode))}</h2>
     <div class="right"><div class="searchbox"><input id="mrpSearch" placeholder="ค้นหา PN / ชื่อ / ลูกค้า" oninput="filterMrpRows()"></div><div class="seg"><button class="${!mrpOnlyShort?'on':''}" onclick="mrpOnlyShort=false;render()">ทั้งหมด</button><button class="${mrpOnlyShort?'on':''}" onclick="mrpOnlyShort=true;render()">เฉพาะที่ขาด</button></div></div>
   </div><div class="panel-b nopad">
     ${rows.length?`<div class="tbl-wrap"><table><thead><tr>
-      <th>Part Number</th><th>ลูกค้า</th><th class="num">Forecast</th><th class="num">PO</th><th class="num">แผนส่ง</th><th class="num">รวมต้องการ</th><th class="num">ของที่มี</th><th class="num">กำลังผลิต</th><th class="num">คงเหลือสุทธิ</th><th>สถานะ</th><th>ดำเนินการ</th>
+      <th>Part Number</th><th>ลูกค้า</th><th class="num">ต้องการ</th><th class="num">มีสต๊อค</th><th class="num">รอคัด/QC</th><th class="num">รอชุบ</th><th class="num">ผู้ผลิตยังไม่ส่ง</th><th class="num">รวมที่จะมี</th><th class="num">ขาด/เหลือ</th><th>สถานะ</th><th>ดำเนินการ</th>
     </tr></thead><tbody id="mrpRows">
     ${rows.map(r=>`<tr>
       <td><span class="pn ${r.pid?'linkish':''}" ${r.pid?`onclick="openProduct('${r.pid}')"`:''}>${esc(r.pn)}</span><br><span class="muted" style="font-size:11px">${esc(r.name||'')}</span></td>
       <td>${esc(r.cust||'-')}</td>
-      <td class="num ${r.fc?'':'muted'}">${fmt(r.fc)}</td><td class="num ${r.po?'':'muted'}">${fmt(r.po)}</td><td class="num ${r.pl?'':'muted'}">${fmt(r.pl)}</td>
       <td class="num"><b>${fmt(r.demand)}</b></td>
-      <td class="num">${fmt(r.avail)}</td><td class="num ${r.oo?'':'muted'}">${fmt(r.oo)}</td>
+      <td class="num" style="color:var(--teal)">${fmt(r.onHand)}</td>
+      <td class="num ${r.waitQC?'':'muted'}">${fmt(r.waitQC)}</td>
+      <td class="num ${r.atPlating?'':'muted'}">${fmt(r.atPlating)}</td>
+      <td class="num ${r.makerOut?'':'muted'}">${fmt(r.makerOut)}</td>
+      <td class="num"><b>${fmt(r.total)}</b></td>
       <td class="num"><b style="color:${r.bal<0?'var(--red)':'var(--teal)'}">${r.bal>=0?'+':''}${fmt(r.bal)}</b></td>
-      <td>${r.bal<0?`<span class="tag red">ขาด ${fmt(r.short)}</span>`:(r.avail<r.demand?`<span class="tag amber">รอผลิต</span>`:`<span class="tag green">เพียงพอ</span>`)}</td>
-      <td style="white-space:nowrap">${r.bal<0&&r.pid?`<button class="btn sm pri" onclick="mrpMakePO('${r.pid}',${r.short})">เปิดใบสั่งผลิต</button>`:(r.avail<r.demand&&r.oo>0?'<span class="muted">รอผลิตที่สั่งไว้</span>':'<span class="muted">—</span>')}</td>
+      <td>${r.enoughNow?`<span class="tag green">✅ พอ พร้อมส่ง</span>`:(r.bal>=0?`<span class="tag amber">🟡 พอเมื่อของเข้า</span>`:`<span class="tag red">🔴 ขาด ${fmt(r.short)}</span>`)}</td>
+      <td style="white-space:nowrap">${r.bal<0&&r.pid?`<button class="btn sm pri" onclick="mrpMakePO('${r.pid}',${r.short})">เปิดใบสั่งผลิต</button>`:(!r.enoughNow&&r.makerOut>0?'<span class="muted">รอผู้ผลิตส่ง</span>':'<span class="muted">—</span>')}</td>
     </tr>`).join('')}
-    </tbody></table></div>`:`<div class="empty"><div class="big">📭</div><div class="t">${mrpOnlyShort?'ไม่มีรายการที่ขาด — ของพอทั้งหมด ✅':'ยังไม่มีข้อมูลความต้องการ'}</div><div>${mrpOnlyShort?'':'ไปบันทึก Forecast / Customer PO / แผนจัดส่งก่อน'}</div></div>`}
+    </tbody></table></div>`:`<div class="empty"><div class="big">📭</div><div class="t">${mrpOnlyShort?'ไม่มีรายการที่ขาด — ของพอทั้งหมด ✅':'ยังไม่มีข้อมูลความต้องการ ('+esc(mrpModeLabel(mode))+')'}</div><div>${mrpOnlyShort?'':'ไปบันทึก/นำเข้า Forecast หรือ Customer PO ที่เมนู Forecast / PO / PL ก่อน'}</div></div>`}
   </div></div>`;
 }
 function mrpMakePO(pid,qty){const p=P(pid);if(!p)return;openPRDForm(null,[{fgId:pid,name:p.pn+(p.name&&p.name!=='-'?' '+p.name:''),qty:qty}]);}
