@@ -101,7 +101,7 @@ input::placeholder{color:#aab6cf}
 .searchbox::before{content:"🔍";position:absolute;left:11px;top:50%;transform:translateY(-50%);font-size:13px;opacity:.6}
 
 /* Table */
-.tbl-wrap{overflow-x:auto}.tbl-topscroll{overflow-x:auto;overflow-y:hidden;height:13px;margin-bottom:2px}.tbl-topscroll::-webkit-scrollbar{height:11px}.tbl-topscroll::-webkit-scrollbar-thumb{background:#c2c9d6;border-radius:6px}.tbl-topscroll::-webkit-scrollbar-track{background:#f0f2f6;border-radius:6px}.tbl-topscroll-inner{height:1px}
+.tbl-wrap{overflow-x:auto}.tbl-topscroll{overflow-x:scroll;overflow-y:hidden;height:13px;margin-bottom:2px}.tbl-topscroll::-webkit-scrollbar{height:11px}.tbl-topscroll::-webkit-scrollbar-thumb{background:#aeb6c6;border-radius:6px}.tbl-topscroll::-webkit-scrollbar-track{background:#eef0f5;border-radius:6px}.tbl-topscroll-inner{height:1px}
 table{width:100%;border-collapse:collapse;font-size:13px}
 th{text-align:left;padding:10px 12px;background:var(--panel2);color:var(--ink2);font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:.3px;border-bottom:1px solid var(--line);position:sticky;top:0;white-space:nowrap}
 td{padding:10px 12px;border-bottom:1px solid var(--line2);vertical-align:middle}
@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SCRL-2026.06.18c';
+const APP_BUILD='SCRL-2026.06.18d';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -471,8 +471,8 @@ function setupDualScroll(){
       top.addEventListener('scroll',function(){if(lock)return;lock=true;w.scrollLeft=top.scrollLeft;lock=false;});
       w.addEventListener('scroll',function(){if(lock)return;lock=true;top.scrollLeft=w.scrollLeft;lock=false;});
     }
-    top.firstChild.style.width=tbl.scrollWidth+'px';
-    top.style.display=(tbl.scrollWidth>w.clientWidth+2)?'block':'none';
+    top.firstChild.style.width=Math.max(tbl.scrollWidth,w.clientWidth+1)+'px';
+    top.style.display='block';
   });
 }
 
