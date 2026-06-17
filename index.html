@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='PLAN-2026.06.17i';
+const APP_BUILD='PLAN-2026.06.17j';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -1018,7 +1018,9 @@ function validateStage(type,d,p){
 let prdLines=[];
 function filterDocRows(){const q=((document.getElementById('docSearch')||{}).value||'').trim().toLowerCase();const mk=((document.getElementById('docMaker')||{}).value||'').trim().toLowerCase();document.querySelectorAll('#docRows tr').forEach(tr=>{const t=tr.textContent.toLowerCase();tr.style.display=((!q||t.includes(q))&&(!mk||t.includes(mk)))?'':'none'})}
 function filterMrpRows(){const q=((document.getElementById('mrpSearch')||{}).value||'').trim().toLowerCase();document.querySelectorAll('#mrpRows tr').forEach(tr=>{tr.style.display=(!q||tr.textContent.toLowerCase().includes(q))?'':'none'})}
-function filterPlanRows(){const q=((document.getElementById('planSearch')||{}).value||'').trim().toLowerCase();document.querySelectorAll('#planRows tr').forEach(tr=>{tr.style.display=(!q||tr.textContent.toLowerCase().includes(q))?'':'none'})}
+function filterPlanRows(){const g=id=>((document.getElementById(id)||{}).value||'').trim().toLowerCase();const q=g('planSearch'),fd=g('pf_date'),fp=g('pf_po'),fc=g('pf_cust'),fpa=g('pf_part');document.querySelectorAll('#planFilterBody tr').forEach(tr=>{const ds=tr.dataset||{};const t=tr.textContent.toLowerCase();const show=(!q||t.includes(q))&&(!fd||(ds.date||'').toLowerCase().includes(fd))&&(!fp||(ds.po||'').toLowerCase().includes(fp))&&(!fc||(ds.cust||'').toLowerCase().includes(fc))&&(!fpa||(ds.part||'').toLowerCase().includes(fpa));tr.style.display=show?'':'none';});}
+function planDistinct(type,field){const set=new Set();DB.docs.filter(d=>d.type===type).forEach(d=>(d.lines||[]).forEach(l=>{const p=l.fgId&&P(l.fgId)?P(l.fgId):null;let v=field==='date'?(l.poDate||l.due||d.shipDate||''):field==='po'?(d.custPo||l.poNo||''):field==='cust'?(l.customer||d.customer||''):field==='part'?(p?p.pn:((l.name||'').split(' ')[0])):'';if(v)set.add(String(v));}));return [...set].sort();}
+function planFilterBar(type){const mk=(id,ph,field)=>`<input id="${id}" class="fchip" list="dl_${id}" placeholder="${ph}" oninput="filterPlanRows()" style="max-width:150px"><datalist id="dl_${id}">${planDistinct(type,field).map(v=>`<option value="${esc(v)}">`).join('')}</datalist>`;return `<div style="display:flex;gap:6px;flex-wrap:wrap;padding:8px 12px;border-bottom:1px solid var(--line);align-items:center"><span class="muted" style="font-size:11.5px;margin-right:2px">กรอง:</span>${mk('pf_date','📅 วันที่','date')}${mk('pf_po','🔢 PO. NO.','po')}${mk('pf_cust','👤 CUSTOMER','cust')}${mk('pf_part','🔩 PART NO.','part')}<button class="btn sm" onclick="['pf_date','pf_po','pf_cust','pf_part'].forEach(i=>{var e=document.getElementById(i);if(e)e.value=''});filterPlanRows()">ล้าง</button></div>`;}
 function prdRow(d){
   const first=(d.lines&&d.lines[0])||{};
   const more=(d.lines||[]).length>1?` <span class="muted">+${d.lines.length-1}</span>`:'';
@@ -3064,7 +3066,7 @@ function viewPO(d){
     <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">${statusTag(d.status)}<span class="tag violet">ใบสั่งผลิต</span><span class="tag gray">วันที่ ${d.date}</span><span class="tag gray">MAKER: ${esc(d.maker||'-')}</span></div>
     ${mk&&mk.name?`<div class="kv"><span class="k">ผู้ผลิต</span>${esc(mk.name)}${mk.tel?' · '+esc(mk.tel):''}</div>`:''}
     ${d.producer?`<div class="kv"><span class="k">ผู้สั่งผลิต</span>${esc(d.producer)}</div>`:''}
-    <table style="margin-top:10px"><thead><tr><th>รายการ</th><th class="num">จำนวนสั่ง</th><th class="num">ราคา</th><th class="num">รวมเงิน</th><th>กำหนดส่ง</th></tr></thead><tbody>${rows}</tbody></table>
+    <table style="margin-top:10px"><thead><tr><th>รายการ</th><th class="num">จำนวนสั่ง</th><th class="num">ราคา</th><th class="num">รวมเงิน</th><th>กำหนดส่ง</th></tr></thead><tbody id="planFilterBody">${rows}</tbody></table>
     <div style="margin-top:10px"><div class="kv"><span class="k">รวมเงิน</span><b>${fmt2(d.subtotal||0)}</b></div>${d.wht3?`<div class="kv"><span class="k">หัก ณ ที่จ่าย 3%</span><b style="color:var(--red)">-${fmt2(d.wht||0)}</b></div>`:''}<div class="kv"><span class="k">ยอดสุทธิ</span><b style="color:var(--teal)">${fmt2(d.net||0)} บาท</b></div></div>
     ${d.note?`<div class="kv" style="margin-top:6px"><span class="k">หมายเหตุ</span>${esc(d.note)}</div>`:''}
   `,footer:`
@@ -3205,7 +3207,7 @@ function viewPurchase(d){
   const rows=(d.lines||[]).map((l,i)=>{const p=l.productId?P(l.productId):null;return `<tr><td style="text-align:center">${i+1}</td><td>${esc(l.name||(p?p.pn:''))}</td><td class="num">${fmt(l.qty)}</td><td>${esc(l.unit||'')}</td><td class="num">${fmt2(l.price)}</td><td class="num">${fmt2(l.qty*l.price)}</td></tr>`}).join('');
   modal({title:'🛒 '+d.no,size:'lg',body:`
     <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">${statusTag(d.status)}<span class="tag cyan">ใบสั่งซื้อวัตถุดิบ</span><span class="tag gray">วันที่ ${d.date}</span><span class="tag gray">ผู้ขาย: ${esc(d.supplier||'-')}</span>${d.deliveryDate?`<span class="tag gray">กำหนดส่ง ${d.deliveryDate}</span>`:''}${d.creditTerms?`<span class="tag gray">เครดิต ${esc(d.creditTerms)}</span>`:''}</div>
-    <div style="overflow-x:auto"><table style="margin-top:4px"><thead><tr><th>#</th><th>รายการ</th><th class="num">จำนวน</th><th>หน่วย</th><th class="num">ราคา</th><th class="num">จำนวนเงิน</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div style="overflow-x:auto"><table style="margin-top:4px"><thead><tr><th>#</th><th>รายการ</th><th class="num">จำนวน</th><th>หน่วย</th><th class="num">ราคา</th><th class="num">จำนวนเงิน</th></tr></thead><tbody id="planFilterBody">${rows}</tbody></table></div>
     <div style="margin-top:10px"><div class="kv"><span class="k">TOTAL (รวมเป็นเงิน)</span><b>${fmt2(d.subtotal||0)}</b></div>${d.discount?`<div class="kv"><span class="k">Discount (ส่วนลด)</span><b style="color:var(--red)">-${fmt2(d.discount)}</b></div>`:''}<div class="kv"><span class="k">AMOUNT</span><b>${fmt2((d.amount!=null)?d.amount:(d.subtotal||0))}</b></div>${d.vat7?`<div class="kv"><span class="k">VAT 7%</span><b>${fmt2(d.vat||0)}</b></div>`:''}<div class="kv"><span class="k">GRAND TOTAL (ยอดสุทธิ)</span><b style="color:var(--teal)">${fmt2((d.grandTotal!=null)?d.grandTotal:(d.total||d.subtotal||0))} บาท</b></div></div>
     ${d.note?`<div class="kv" style="margin-top:6px"><span class="k">หมายเหตุ</span>${esc(d.note)}</div>`:''}
   `,footer:`${d.status==='pending'?`<button class="btn ok" onclick="approveDoc('${d.id}')">✓ อนุมัติ</button><button class="btn" onclick="closeModal();openPurchaseForm(DB.docs.find(x=>x.id==='${d.id}'))">✏️ แก้ไข</button>`:''}<button class="btn" onclick="printPurchase('${d.id}','image')">📤 ส่งรูป (LINE)</button><button class="btn pri" onclick="printPurchase('${d.id}')">🖨️ พิมพ์/PDF</button>`});
@@ -3378,7 +3380,7 @@ function viewWD(d){
   const rows=(d.lines||[]).map((l,i)=>`<tr><td style="text-align:center">${i+1}</td><td class="muted">${l.date||''}</td><td>${esc(l.matName||'')}</td><td class="num">${fmt2(l.price)}</td><td class="num">${fmt(l.qty)}</td><td>${esc(l.unit||'')}</td><td class="num">${fmt2(l.price*l.qty)}</td><td class="pn">${esc(l.poNo||'')}</td><td class="pn">${esc(l.fgPn||'')}</td><td>${esc(l.maker||'')}</td></tr>`).join('');
   modal({title:'📤 '+d.no,size:'lg',body:`
     <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">${statusTag(d.status)}<span class="tag amber">ใบเบิกวัตถุดิบ</span><span class="tag gray">วันที่ ${d.date}</span>${d.supplier?`<span class="tag gray">Supplier: ${esc(d.supplier)}</span>`:''}</div>
-    <div style="overflow-x:auto"><table style="font-size:12px;min-width:820px"><thead><tr><th>#</th><th>วันที่</th><th>รายการเบิก</th><th class="num">ราคา</th><th class="num">จำนวน</th><th>หน่วย</th><th class="num">รวมเงิน</th><th>PO</th><th>PART NUMBER</th><th>MAKER</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div style="overflow-x:auto"><table style="font-size:12px;min-width:820px"><thead><tr><th>#</th><th>วันที่</th><th>รายการเบิก</th><th class="num">ราคา</th><th class="num">จำนวน</th><th>หน่วย</th><th class="num">รวมเงิน</th><th>PO</th><th>PART NUMBER</th><th>MAKER</th></tr></thead><tbody id="planFilterBody">${rows}</tbody></table></div>
     <div style="display:flex;gap:24px;justify-content:flex-end;margin-top:8px"><div>รวมเบิก: <b>${fmt(d.totalQty||0)}</b></div><div>รวมเงิน: <b style="color:var(--teal)">${fmt2(d.subtotal||0)}</b> บาท</div></div>
     ${d.note?`<div class="kv" style="margin-top:8px"><span class="k">ผู้จ่าย/หมายเหตุ</span>${esc(d.note)}</div>`:''}
   `,footer:`${d.status==='pending'?`<button class="btn ok" onclick="approveDoc('${d.id}')">✓ อนุมัติ (ตัดยอด)</button><button class="btn" onclick="closeModal();openWDForm(DB.docs.find(x=>x.id==='${d.id}'))">✏️ แก้ไข</button>`:d.status==='approved'?`<button class="btn danger" onclick="cancelDoc('${d.id}')">ยกเลิก (คืนยอด)</button>`:''}<button class="btn" onclick="printWD('${d.id}','image')">📤 ส่งรูป (LINE)</button><button class="btn pri" onclick="printWD('${d.id}')">🖨️ พิมพ์/PDF</button>`});
@@ -3925,11 +3927,11 @@ function renderCPOTable(){
   if(!docs.length){wrap.innerHTML=`<div class="empty"><div class="big">📑</div><div class="t">ยังไม่มี Customer PO</div><div>กด "นำเข้าตาราง" หรือ "+ สร้าง"</div></div>`;return;}
   const onOrder=plOnOrderMap();let tQ=0,tOh=0;
   const rows=[];docs.forEach(d=>(d.lines||[]).forEach((l,idx)=>{const c=plCalc(l,onOrder);const demand=c.order;tQ+=demand;tOh+=c.onHand;const due=l.due||'';
-    rows.push(`<tr><td class="pn linkish" onclick="printPlanDoc('${d.id}')">${esc(d.no)}</td><td class="c">${esc(l.poDate||'')}</td><td>${esc(d.custPo||l.poNo||'')}</td><td>${esc(l.customer||d.customer||'')}</td><td>${esc(c.pn)}</td><td class="num"><b>${fmt(demand)}</b></td><td class="num" style="color:var(--brand)">${c.onHand?fmt(c.onHand):'-'}</td>${planStatusHtml(c.onHand,demand,c.total)}<td class="c">${esc(due)}</td>${planWipCells(c)}<td style="color:var(--red);font-size:11px">${esc(l.note||'')}</td>${planRowActions(d,idx)}</tr>`);
+    rows.push(`<tr data-date="${esc(l.poDate||'')}" data-po="${esc(d.custPo||l.poNo||'')}" data-cust="${esc(l.customer||d.customer||'')}" data-part="${esc(c.pn)}"><td class="pn linkish" onclick="printPlanDoc('${d.id}')">${esc(d.no)}</td><td class="c">${esc(l.poDate||'')}</td><td>${esc(d.custPo||l.poNo||'')}</td><td>${esc(l.customer||d.customer||'')}</td><td>${esc(c.pn)}</td><td class="num"><b>${fmt(demand)}</b></td><td class="num" style="color:var(--brand)">${c.onHand?fmt(c.onHand):'-'}</td>${planStatusHtml(c.onHand,demand,c.total)}<td class="c">${esc(due)}</td>${planWipCells(c)}<td style="color:var(--red);font-size:11px">${esc(l.note||'')}</td>${planRowActions(d,idx)}</tr>`);
   }));
-  wrap.innerHTML=planToolbar('CPO')+`<div class="tbl-wrap"><table style="font-size:11.5px;white-space:nowrap"><thead><tr>
+  wrap.innerHTML=planToolbar('CPO')+planFilterBar('CPO')+`<div class="tbl-wrap"><table style="font-size:11.5px;white-space:nowrap"><thead><tr>
     <th>เลขที่</th><th>วันที่รับ PO</th><th>PO ลูกค้า</th><th>CUSTOMER</th><th>Part No.</th><th class="num">จำนวน</th><th class="num">มีสต๊อค</th><th>สถานะ</th><th>กำหนดส่ง</th><th class="num">รอคัด/QC</th><th class="num">รอชุบ</th><th class="num">ผู้ผลิตยังไม่มาส่ง</th><th class="num">รวมที่จะมี</th><th>หมายเหตุ</th><th></th>
-  </tr></thead><tbody>${rows.join('')}</tbody>
+  </tr></thead><tbody id="planFilterBody">${rows.join('')}</tbody>
   <tfoot><tr style="background:#f3f6fb;font-weight:700"><td colspan="5" style="text-align:right">รวม</td><td class="num">${fmt(tQ)}</td><td class="num">${fmt(tOh)}</td><td colspan="8"></td></tr></tfoot></table></div>`;
 }
 function renderFCTable(){
@@ -3938,11 +3940,11 @@ function renderFCTable(){
   if(!docs.length){wrap.innerHTML=`<div class="empty"><div class="big">📈</div><div class="t">ยังไม่มี Forecast</div><div>กด "นำเข้าตาราง" หรือ "+ สร้าง"</div></div>`;return;}
   const onOrder=plOnOrderMap();let tF=0,tOh=0;
   const rows=[];docs.forEach(d=>(d.lines||[]).forEach((l,idx)=>{const c=plCalc(l,onOrder);const demand=(l.m1||0)+(l.m2||0)+(l.m3||0)+(l.m4||0);tF+=demand;tOh+=c.onHand;
-    rows.push(`<tr><td class="pn linkish" onclick="printPlanDoc('${d.id}')">${esc(d.no)}</td><td>${esc(l.customer||d.customer||'')}</td><td>${esc(c.pn)}</td><td class="num">${fmt(l.m1)}</td><td class="num">${fmt(l.m2)}</td><td class="num">${fmt(l.m3)}</td><td class="num">${fmt(l.m4)}</td><td class="num"><b>${fmt(demand)}</b></td><td class="num" style="color:var(--brand)">${c.onHand?fmt(c.onHand):'-'}</td>${planStatusHtml(c.onHand,demand,c.total)}${planWipCells(c)}${planRowActions(d,idx)}</tr>`);
+    rows.push(`<tr data-date="${esc(l.due||'')}" data-po="" data-cust="${esc(l.customer||d.customer||'')}" data-part="${esc(c.pn)}"><td class="pn linkish" onclick="printPlanDoc('${d.id}')">${esc(d.no)}</td><td>${esc(l.customer||d.customer||'')}</td><td>${esc(c.pn)}</td><td class="num">${fmt(l.m1)}</td><td class="num">${fmt(l.m2)}</td><td class="num">${fmt(l.m3)}</td><td class="num">${fmt(l.m4)}</td><td class="num"><b>${fmt(demand)}</b></td><td class="num" style="color:var(--brand)">${c.onHand?fmt(c.onHand):'-'}</td>${planStatusHtml(c.onHand,demand,c.total)}${planWipCells(c)}${planRowActions(d,idx)}</tr>`);
   }));
-  wrap.innerHTML=planToolbar('FC')+`<div class="tbl-wrap"><table style="font-size:11.5px;white-space:nowrap"><thead><tr>
+  wrap.innerHTML=planToolbar('FC')+planFilterBar('FC')+`<div class="tbl-wrap"><table style="font-size:11.5px;white-space:nowrap"><thead><tr>
     <th>เลขที่</th><th>ลูกค้า</th><th>Part No.</th><th class="num">${ml[0]}</th><th class="num">${ml[1]}</th><th class="num">${ml[2]}</th><th class="num">${ml[3]}</th><th class="num">รวม FC</th><th class="num">มีสต๊อค</th><th>สถานะ</th><th class="num">รอคัด/QC</th><th class="num">รอชุบ</th><th class="num">ผู้ผลิตยังไม่มาส่ง</th><th class="num">รวมที่จะมี</th><th></th>
-  </tr></thead><tbody>${rows.join('')}</tbody>
+  </tr></thead><tbody id="planFilterBody">${rows.join('')}</tbody>
   <tfoot><tr style="background:#f3f6fb;font-weight:700"><td colspan="7" style="text-align:right">รวม</td><td class="num">${fmt(tF)}</td><td class="num">${fmt(tOh)}</td><td colspan="6"></td></tr></tfoot></table></div>`;
 }
 function planRowEdit(docId,idx){const d=DB.docs.find(x=>x.id===docId);if(!d)return;const l=(d.lines||[])[idx];if(!l)return;ensureSettings();const custs=DB.settings.customers||[];const ml=monthLabels();const t=d.type;
@@ -4000,7 +4002,7 @@ function renderPLTable(){
   if(!docs.length){wrap.innerHTML=`<div class="empty"><div class="big">🚛</div><div class="t">ยังไม่มีแผนจัดส่ง</div><div>กด "นำเข้าตาราง" เพื่อโหลดไฟล์ PLANNING หรือ "+ สร้างแผนจัดส่ง"</div></div>`;return;}
   const onOrder=plOnOrderMap();let tOrder=0,tOh=0,tDeliv=0;
   const rows=docs.map(d=>{const l=(d.lines&&d.lines[0])||{};const c=plCalc(l,onOrder);tOrder+=c.order;tOh+=c.onHand;tDeliv+=Number(l.deliv)||0;const due=l.due||d.shipDate||'';
-    return `<tr>
+    return `<tr data-date="${esc(l.poDate||'')}" data-po="${esc(l.poNo||'')}" data-cust="${esc(l.customer||d.customer||'')}" data-part="${esc(c.pn)}">
       <td class="pn linkish" onclick="printPlanDoc('${d.id}')">${esc(d.no)}</td>
       <td class="c">${esc(l.poDate||'')}</td><td class="c">${esc(l.poNo||'')}</td><td>${esc(l.customer||d.customer||'')}</td>
       <td class="c">${esc(l.seq!=null&&l.seq!==''?l.seq:'')}</td><td>${esc(c.pn)}</td>
@@ -4017,11 +4019,11 @@ function renderPLTable(){
       <td style="color:var(--red);font-size:11px">${esc(l.note||'')}</td>
       <td style="white-space:nowrap"><button class="btn sm" onclick="printPlanDoc('${d.id}')" title="พิมพ์">🖨️</button> <button class="btn sm" onclick="plEditRow('${d.id}')" title="แก้ไข">✏️</button> <button class="btn sm danger" onclick="delPlan('${d.id}')" title="ยกเลิก">ยกเลิก</button></td>
     </tr>`;}).join('');
-  wrap.innerHTML=`<div style="padding:8px 12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><span class="muted" style="font-size:12px">ช่อง <b>มีสต๊อค/สถานะ/รอคัด-QC/รอชุบ/ผู้ผลิตยังไม่มาส่ง/รวมที่จะมี</b> = ระบบดึงสด · <b>จำนวนส่งจริง/จัดส่ง</b> = กรอกเองได้</span><span style="display:flex;gap:6px"><button class="btn sm" onclick="printAllPL()">🖨️ พิมพ์ทั้งหมด</button><button class="btn sm danger" onclick="clearAllPL()">🗑️ ล้างแผนทั้งหมด</button></span></div>
+  wrap.innerHTML=`<div style="padding:8px 12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><span class="muted" style="font-size:12px">ช่อง <b>มีสต๊อค/สถานะ/รอคัด-QC/รอชุบ/ผู้ผลิตยังไม่มาส่ง/รวมที่จะมี</b> = ระบบดึงสด · <b>จำนวนส่งจริง/จัดส่ง</b> = กรอกเองได้</span><span style="display:flex;gap:6px"><button class="btn sm" onclick="printAllPL()">🖨️ พิมพ์ทั้งหมด</button><button class="btn sm danger" onclick="clearAllPL()">🗑️ ล้างแผนทั้งหมด</button></span></div>${planFilterBar('PL')}
   <div class="tbl-wrap"><table style="font-size:11.5px;white-space:nowrap"><thead>
     <tr><th rowspan="2">เลขที่</th><th rowspan="2">วันที่รับ PO</th><th rowspan="2">PO. NO.</th><th rowspan="2">CUSTOMER</th><th rowspan="2">ลำดับ</th><th rowspan="2">Part No.</th><th rowspan="2" class="num">สั่งซื้อ</th><th rowspan="2" class="num">มีสต๊อค</th><th rowspan="2">จำนวนส่งจริง</th><th rowspan="2">สถานะ</th><th colspan="2">วันที่</th><th colspan="4">WIP</th><th rowspan="2">หมายเหตุ</th><th rowspan="2"></th></tr>
     <tr><th>กำหนดส่ง</th><th>จัดส่ง</th><th class="num">รอคัด/QC</th><th class="num">รอชุบ</th><th class="num">ผู้ผลิตยังไม่มาส่ง</th><th class="num">รวมที่จะมี</th></tr>
-  </thead><tbody>${rows}</tbody>
+  </thead><tbody id="planFilterBody">${rows}</tbody>
   <tfoot><tr style="background:#f3f6fb;font-weight:700"><td colspan="6" style="text-align:right">รวม</td><td class="num">${fmt(tOrder)}</td><td class="num">${fmt(tOh)}</td><td class="num">${fmt(tDeliv)}</td><td colspan="8"></td></tr></tfoot>
   </table></div>`;
 }
