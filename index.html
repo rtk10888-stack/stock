@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='BARS-2026.06.17w';
+const APP_BUILD='BARS-2026.06.17y';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -3629,7 +3629,8 @@ function viewWD(d){
 function shareWDLine(id){const d=DB.docs.find(x=>x.id===id);if(!d)return;const items=(d.lines||[]).map(l=>`• ${l.matName||''} ${fmt(l.qty)}${l.unit||''}${l.poNo?' [PO '+l.poNo+']':''}`).join('\n');const txt=`📤 ใบเบิกวัตถุดิบ ${d.no}\nวันที่ ${d.date}\n${items}\nรวมเงิน: ${fmt2(d.subtotal||0)} บาท\n\nระบบสต๊อค: ${location.origin+location.pathname}`;window.open('https://line.me/R/msg/text/?'+encodeURIComponent(txt),'_blank');}
 function printWD(id,mode){
   const d=DB.docs.find(x=>x.id===id);if(!d)return;ensureSettings();const co=DB.settings.company||{};const sup=makerByCode(d.supplier)||{};
-  const rows=(d.lines||[]).map((l,i)=>'<tr><td style="text-align:center">'+(i+1)+'</td><td style="text-align:center">'+(l.date||'')+'</td><td>'+esc(l.matName||'')+'</td><td class="r">'+fmt2(l.price)+'</td><td class="r">'+fmt(l.qty)+'</td><td style="text-align:center">'+esc(l.unit||'')+'</td><td class="r">'+fmt2(l.price*l.qty)+'</td><td style="text-align:center">'+esc(l.poNo||'')+'</td><td>'+esc(l.fgPn||'')+'</td><td style="text-align:center">'+esc(l.maker||'')+'</td></tr>').join('');
+  const barsTot=(d.lines||[]).reduce((s,l)=>s+(Number(l.bars)||0),0);
+  const rows=(d.lines||[]).map((l,i)=>'<tr><td style="text-align:center">'+(i+1)+'</td><td style="text-align:center">'+(l.date||'')+'</td><td>'+esc(l.matName||'')+'</td><td class="r">'+fmt(l.bars||0)+'</td><td class="r">'+fmt2(l.qty)+'</td><td class="r">'+fmt2(l.price)+'</td><td class="r">'+fmt2(l.price*l.qty)+'</td><td style="text-align:center">'+esc(l.poNo||'')+'</td><td>'+esc(l.fgPn||'')+'</td><td style="text-align:center">'+esc(l.maker||'')+'</td></tr>').join('');
   const blanks=Array.from({length:Math.max(0,6-(d.lines||[]).length)}).map(()=>'<tr><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>').join('');
   const html='<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"><title>'+esc(d.no)+'</title><style>'
    +"*{font-family:'Tahoma','TH Sarabun New',sans-serif;box-sizing:border-box}body{margin:0;padding:14mm 10mm;color:#111;font-size:12px}"
@@ -3642,8 +3643,8 @@ function printWD(id,mode){
    +'<div class="hd"><h1>'+esc(co.name||'')+'</h1><div>'+esc(co.address||'')+'</div><div>TEL : '+esc(co.tel||'')+'  E-Mail : '+esc(co.email||'')+'</div></div>'
    +'<div class="ttl">ใบเบิกวัตถุดิบ</div>'
    +'<div class="sup"><div><b>Supplier :</b> '+esc(sup.name||d.supplier||'')+'<br><b>Address :</b> '+esc(sup.address||'')+'<br><b>Tax ID :</b> '+esc(sup.taxId||'')+'</div><div style="text-align:right"><b>เลขที่ :</b> '+esc(d.no)+'<br><b>วันที่ :</b> '+esc(d.date)+'<br><b>Tel :</b> '+esc(sup.tel||'')+'</div></div>'
-   +'<table><thead><tr><th style="width:26px">ลำดับ</th><th style="width:62px">วันที่</th><th>รายการเบิก</th><th style="width:46px">ราคา</th><th style="width:58px">จำนวนเบิก</th><th style="width:38px">หน่วย</th><th style="width:68px">รวมเงิน</th><th style="width:58px">PO</th><th style="width:88px">PART NUMBER</th><th style="width:46px">MAKER</th></tr></thead><tbody>'+rows+blanks+'</tbody></table>'
-   +'<div style="display:flex;justify-content:flex-end;gap:20px;margin-top:6px;font-size:12px;font-weight:700"><div>รวมเบิก : '+fmt(d.totalQty||0)+'</div><div>รวมเงิน : '+fmt2(d.subtotal||0)+' บาท</div></div>'
+   +'<table><thead><tr><th style="width:26px">ลำดับ</th><th style="width:60px">วันที่</th><th>รายการเบิก</th><th style="width:50px">Pcs.</th><th style="width:58px">Kgs.</th><th style="width:48px">@</th><th style="width:70px">รวมเงิน</th><th style="width:56px">PO</th><th style="width:88px">PART NUMBER</th><th style="width:46px">MAKER</th></tr></thead><tbody>'+rows+blanks+'</tbody></table>'
+   +'<div style="display:flex;justify-content:flex-end;gap:20px;margin-top:6px;font-size:12px;font-weight:700"><div>รวมเบิก '+fmt(barsTot)+' PCS.</div><div>รวมน้ำหนัก '+fmt2(d.totalQty||0)+' Kgs.</div><div>รวมเงิน '+fmt2(d.subtotal||0)+' บาท</div></div>'
    +'<div class="sign"><div><div class="line">VENDER</div></div><div><div class="line">ISSUE / ผู้จ่าย</div></div><div><div class="line">CHECKED</div></div><div><div class="line">APPROVED</div></div></div>'
    +'<div class="noprint" style="text-align:center;margin-top:18px"><button onclick="window.print()" style="padding:8px 22px;font-size:14px;cursor:pointer">🖨️ พิมพ์ / บันทึก PDF</button></div>'
    +'<scr'+'ipt>setTimeout(function(){window.print()},500)</scr'+'ipt></body></html>';
