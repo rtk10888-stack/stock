@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='TAXSALE-2026.06.18b';
+const APP_BUILD='RMCSORT-2026.06.18a';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -5047,14 +5047,20 @@ function viewRMC(el){
   <div class="hint"><span class="i">💡</span><div>บันทึกการรับแมท (ชิ้นงาน/วัตถุดิบ) ที่ลูกค้าส่งมา → <b>เข้าคงเหลือทันที</b> · ตัดออกเมื่อออก <b>Invoice ส่งลูกค้า</b></div></div>
   <div class="panel"><div class="panel-h" style="flex-wrap:wrap;gap:8px">
     <div class="searchbox"><input id="rmcSearch" placeholder="ค้นหา เลขที่ / Part / ลูกค้า" oninput="filterRmcRows()"></div>
-    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">${mk('rf_mon','📆 เดือน','mon')}${mk('rf_order','🔢 เลขที่ใบสั่ง','order')}${mk('rf_maker','🏭 Maker','maker')}${mk('rf_cust','👤 ลูกค้า','cust')}${mk('rf_part','🔩 Part No.','part')}</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">${mk('rf_mon','📆 เดือน','mon')}${mk('rf_order','🔢 เลขที่ใบสั่ง','order')}${mk('rf_maker','🏭 Maker','maker')}${mk('rf_cust','👤 ลูกค้า','cust')}${mk('rf_part','🔩 Part No.','part')}<select id="rmcSort" onchange="renderRMCTable()" style="max-width:170px;width:auto"><option value="ts_desc">⬇ ใหม่ → เก่า</option><option value="ts_asc">⬆ เก่า → ใหม่</option><option value="no_desc">เลขที่: มาก → น้อย</option><option value="no_asc">เลขที่: น้อย → มาก</option></select></div>
     <div class="right" style="display:flex;gap:6px"><input type="file" id="rmcFile" accept=".xlsx,.xls,.csv" style="display:none" onchange="bulkImportRMC(this)"><button class="btn sm" onclick="document.getElementById('rmcFile').click()">📥 นำเข้า</button><button class="btn sm" onclick="printRMCMonth()">🖨️ พิมพ์เดือน</button><button class="btn sm danger" onclick="clearAllRMC()">🗑️ ล้าง</button><button class="btn pri" onclick="openRMCForm()">+ รายการใหม่</button></div>
   </div><div class="panel-b nopad" id="rmcList"></div></div>`;
   renderRMCTable();
 }
 function renderRMCTable(){
   const wrap=document.getElementById('rmcList');if(!wrap)return;
-  const docs=DB.docs.filter(d=>d.type==='RMC').sort((a,b)=>(b.date||'').localeCompare(a.date||'')||b.ts-a.ts);
+  const sv=((document.getElementById('rmcSort')||{}).value)||'ts_desc';
+  const docs=DB.docs.filter(d=>d.type==='RMC').slice().sort((a,b)=>{
+    if(sv==='no_asc')return String(a.orderNo||a.no||'').localeCompare(String(b.orderNo||b.no||''),undefined,{numeric:true});
+    if(sv==='no_desc')return String(b.orderNo||b.no||'').localeCompare(String(a.orderNo||a.no||''),undefined,{numeric:true});
+    if(sv==='ts_asc')return (a.date||'').localeCompare(b.date||'')||(a.ts-b.ts);
+    return (b.date||'').localeCompare(a.date||'')||(b.ts-a.ts);
+  });
   if(!docs.length){wrap.innerHTML=`<div class="empty"><div class="big">📥</div><div class="t">ยังไม่มีรายการรับแมทลูกค้า</div><div>กด "นำเข้า" โหลดไฟล์ หรือ "+ รายการใหม่"</div></div>`;return;}
   const outMap=rmcOutMap();let tR=0;
   const rows=docs.map(d=>{const p=d.productId?P(d.productId):null;const pn=p?p.pn:(d.partNo||'');const pname=p?(p.name&&p.name!=='-'?p.name:''):(d.partName||'');const out=p?(outMap[p.id]||0):0;const bal=p?(p.onHand||0):'';tR+=Number(d.qty)||0;
@@ -5070,6 +5076,7 @@ function renderRMCTable(){
     <th>วันที่</th><th>เลขที่ใบสั่ง</th><th>Maker</th><th>Part Number</th><th>Part Name</th><th>ลูกค้า</th><th class="num">รับแมท ลูกค้า</th><th class="num">จำนวนจ่ายออก</th><th class="num">คงเหลือ</th><th>หมายเหตุ</th><th></th>
   </tr></thead><tbody id="rmcFilterBody">${rows}</tbody>
   <tfoot><tr style="background:#fff7a8;font-weight:700"><td colspan="6" style="text-align:right">รวมรับแมท</td><td class="num">${fmt(tR)}</td><td colspan="4"></td></tr></tfoot></table></div>`;
+  try{filterRmcRows();}catch(e){}
 }
 function filterRmcRows(){const g=id=>((document.getElementById(id)||{}).value||'').trim().toLowerCase();const q=g('rmcSearch'),fm=g('rf_mon'),fo=g('rf_order'),fk=g('rf_maker'),fc=g('rf_cust'),fp=g('rf_part');document.querySelectorAll('#rmcFilterBody tr').forEach(tr=>{const ds=tr.dataset||{};const t=tr.textContent.toLowerCase();const show=(!q||t.includes(q))&&(!fm||(ds.mon||'').includes(fm))&&(!fo||(ds.order||'').toLowerCase().includes(fo))&&(!fk||(ds.maker||'').toLowerCase().includes(fk))&&(!fc||(ds.cust||'').toLowerCase().includes(fc))&&(!fp||(ds.part||'').toLowerCase().includes(fp));tr.style.display=show?'':'none';});}
 function openRMCForm(edit){
