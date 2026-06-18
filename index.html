@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='GR-2026.06.18b';
+const APP_BUILD='GR-2026.06.18c';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -3937,6 +3937,19 @@ function approveAll(){const pend=DB.docs.filter(d=>d.status==='pending');let ok=
    ============================================================ */
 let moveFilter={q:'',bucket:'all'};
 /* ===== รายงานภาษีซื้อ (Monthly Generator from GR+SUP) ===== */
+function normSupName(s){return String(s||'').replace(/บริษัท|บจก\.?|หจก\.?|จำกัด|\(.*?\)|ฯ|\s|\./g,'').toLowerCase();}
+function supplierDirectory(){
+  const dir=[];const seen={};
+  DB.docs.forEach(d=>{ if(d.type==='TAX'&&d.supplier&&String(d.taxId||'').length>=10){ const k=d.supplier+'|'+d.taxId; if(!seen[k]){seen[k]=1;dir.push({name:d.supplier,taxId:d.taxId});} } });
+  return dir;
+}
+function resolveSupplier(short){
+  short=(short||'').trim();if(!short)return {name:'',taxId:''};
+  const ns=normSupName(short);if(!ns)return {name:short,taxId:''};
+  const dir=supplierDirectory();let best=null;
+  for(const e of dir){const ne=normSupName(e.name);if(ne===ns){best=e;break;}if(!best&&ne&&(ne.includes(ns)||ns.includes(ne)))best=e;}
+  return best?{name:best.name,taxId:best.taxId}:{name:short,taxId:''};
+}
 function taxSourceEntries(mon){
   const out=[];const poSeen={};
   DB.docs.filter(d=>d.type==='GR'&&d.status!=='cancelled'&&(d.date||'').slice(0,7)===mon).forEach(gr=>{
@@ -3944,7 +3957,8 @@ function taxSourceEntries(mon){
     if(val<=0)return;
     const poNos=[...new Set((gr.lines||[]).map(l=>(l.poNo||'').trim()).filter(Boolean))];
     const po=poNos.length?DB.docs.find(x=>x.type==='PO'&&x.no===poNos[0]):null;const si=(po&&po.supplierInfo)||{};
-    out.push({date:gr.date,invNo:gr.invNo||'',supplier:gr.supplier||(po&&po.supplier)||'',taxId:si.taxId||'',category:'วัตถุดิบ',value:val,vat:Math.round(val*0.07*100)/100,sourceType:'GR',sourceId:gr.id,note:'รับวัตถุดิบ '+(gr.no||'')+(poNos.length?' / PO '+poNos.join(','):'')});
+    const supRes=resolveSupplier(gr.supplier||(po&&po.supplier)||'');
+    out.push({date:gr.date,invNo:gr.invNo||'',supplier:supRes.name,taxId:supRes.taxId||si.taxId||'',category:'วัตถุดิบ',value:val,vat:Math.round(val*0.07*100)/100,sourceType:'GR',sourceId:gr.id,note:'รับวัตถุดิบ '+(gr.no||'')+(poNos.length?' / PO '+poNos.join(','):'')});
   });
   DB.docs.filter(d=>d.type==='SUP'&&d.status!=='cancelled'&&(d.date||'').slice(0,7)===mon).forEach(d=>{const val=Number(d.subtotal)||0;if(val<=0)return;
     out.push({date:d.date,invNo:d.refNo||d.no,supplier:d.supplier||'',taxId:'',category:'สิ้นเปลือง',value:val,vat:Math.round(val*0.07*100)/100,sourceType:'SUP',sourceId:d.id,note:'วัสดุสิ้นเปลือง'});});
