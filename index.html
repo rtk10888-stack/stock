@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SUP-2026.06.18f';
+const APP_BUILD='TAX-2026.06.18g';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -432,6 +432,7 @@ const NAV=[
   {id:'iv2',ico:'🧾',label:'Invoice ส่งพิเศษ',dt:'IV2'},
   {id:'adj',ico:'⚖️',label:'ปรับยอด/ตรวจนับ',dt:'ADJ'},
   {id:'moves',ico:'🔁',label:'ความเคลื่อนไหว'},
+  {id:'tax',ico:'🧾',label:'ภาษีซื้อ'},
   {g:'อื่นๆ'},
   {id:'settings',ico:'⚙️',label:'ตั้งค่า'},
 ];
@@ -456,7 +457,7 @@ function render(){
   const map={dashboard:viewDashboard,inventory:viewInventory,approvals:viewApprovals,monitor:viewMonitor,
     po:()=>viewDocs('PO'),ip:()=>viewDocs('IP'),sp:()=>viewDocs('SP'),gr:()=>viewDocs('GR'),prd:()=>viewDocs('PRD'),wd:()=>viewDocs('WD'),
     dp:()=>viewDocs('DP'),rw:()=>viewDocs('RW'),plate:()=>viewDocs('PL'),qc:()=>viewDocs('QC'),si:()=>viewDocs('SI'),rmc:viewRMC,sup:viewSUP,ws:viewWS,
-    inv:()=>viewDocs('INV'),iv2:()=>viewDocs('IV2'),adj:()=>viewDocs('ADJ'),moves:viewMoves,settings:viewSettings,
+    inv:()=>viewDocs('INV'),iv2:()=>viewDocs('IV2'),adj:()=>viewDocs('ADJ'),moves:viewMoves,tax:viewTax,settings:viewSettings,
     demand:viewDemand,mrp:viewMRP};
   (map[route]||viewDashboard)(el);
   setBuild();
@@ -3911,6 +3912,129 @@ function approveAll(){const pend=DB.docs.filter(d=>d.status==='pending');let ok=
    MOVEMENTS
    ============================================================ */
 let moveFilter={q:'',bucket:'all'};
+/* ===== ภาษีซื้อ (Input VAT Report) ===== */
+var TAX_CATS=['สินค้าสำเร็จรูป','วัตถุดิบ','ค่าจ้างแรงงาน','สิ้นเปลือง','ทรัพย์สิน','อื่นๆ'];
+function taxMonths(){const set=new Set();DB.docs.filter(d=>d.type==='TAX'&&d.date).forEach(d=>set.add(d.date.slice(0,7)));DB.docs.filter(d=>(d.type==='PO'||d.type==='SUP')&&d.date&&d.status!=='cancelled').forEach(d=>set.add(d.date.slice(0,7)));const a=[...set].filter(Boolean).sort();return a.length?a:[todayISO().slice(0,7)];}
+function viewTax(el){
+  ensureSettings();
+  if(!window.__taxMon){const ms=taxMonths();window.__taxMon=ms[ms.length-1];}
+  const mon=window.__taxMon;const months=taxMonths();
+  setTitle('🧾 ภาษีซื้อ','รายงานภาษีซื้อ (ยื่นสรรพากร) · ดึงจากใบสั่งซื้อ + วัสดุสิ้นเปลือง · ติดตามการจ่ายเงิน');
+  const rows=DB.docs.filter(d=>d.type==='TAX'&&(d.date||'').slice(0,7)===mon).sort((a,b)=>(a.date||'').localeCompare(b.date||'')||(a.invNo||'').localeCompare(b.invNo||''));
+  const tVal=rows.reduce((s,r)=>s+(Number(r.value)||0),0),tVat=rows.reduce((s,r)=>s+(Number(r.vat)||0),0);
+  const paid=rows.filter(r=>Number(r.payAmount)>0).length,unpaid=rows.length-paid;
+  el.innerHTML=`
+  <div class="hint"><span class="i">💡</span><div>เลือกเดือนภาษี → กด <b>ดึงรายการ</b> เพื่อสร้างภาษีซื้อจากใบสั่งซื้อวัตถุดิบ/วัสดุสิ้นเปลือง · เพิ่ม/แก้เองได้ · ติดตามการจ่าย + แนบสลิป · พิมพ์รายงานมาตรฐานสรรพากร</div></div>
+  <div class="cards">
+    <div class="card"><div class="lbl"><span class="dot d-brand">🧾</span>รายการภาษีซื้อ (${esc(mon)})</div><div class="val">${fmt(rows.length)}</div></div>
+    <div class="card"><div class="lbl"><span class="dot d-violet">💵</span>มูลค่าซื้อรวม</div><div class="val">${fmt2(tVal)}</div></div>
+    <div class="card"><div class="lbl"><span class="dot d-teal">🧮</span>ภาษีซื้อรวม</div><div class="val">${fmt2(tVat)}</div><div class="sub">บาท</div></div>
+    <div class="card"><div class="lbl"><span class="dot d-red">⏳</span>ค้างจ่าย</div><div class="val">${fmt(unpaid)}</div><div class="sub">จ่ายแล้ว ${fmt(paid)}</div></div>
+  </div>
+  <div class="panel"><div class="panel-h" style="flex-wrap:wrap;gap:8px">
+    <div style="display:flex;gap:8px;align-items:center"><label style="font-size:12.5px;font-weight:600">เดือนภาษี</label><select onchange="window.__taxMon=this.value;render()" style="padding:6px 10px">${months.map(m=>`<option value="${m}" ${m===mon?'selected':''}>${esc(m)}</option>`).join('')}</select></div>
+    <div class="right" style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn sm" onclick="pullTax()">📥 ดึงรายการ (PO/วัสดุ)</button><button class="btn sm" onclick="printTaxReport()">🖨️ พิมพ์รายงาน</button><button class="btn pri" onclick="openTaxForm()">+ เพิ่มรายการ</button></div>
+  </div><div class="panel-b nopad">
+    ${rows.length?`<div class="tbl-wrap"><table style="white-space:nowrap;font-size:12px"><thead><tr>
+      <th>ลำดับ</th><th>วันที่ใบกำกับ</th><th>เลขที่ใบกำกับ</th><th>ผู้ขาย</th><th>เลขผู้เสียภาษี</th><th>สนญ./สาขา</th><th>ประเภท</th><th class="num">มูลค่า</th><th class="num">ภาษีซื้อ</th>
+      <th>กำหนดจ่าย</th><th>วิธีจ่าย</th><th>เลขที่จ่าย</th><th>วันที่จ่าย</th><th class="num">ยอดจ่าย</th><th>สลิป</th><th></th>
+    </tr></thead><tbody>${rows.map((r,i)=>taxRow(r,i)).join('')}</tbody>
+    <tfoot><tr style="background:#fff7a8;font-weight:700"><td colspan="7" style="text-align:right">รวม</td><td class="num">${fmt2(tVal)}</td><td class="num">${fmt2(tVat)}</td><td colspan="7"></td></tr></tfoot></table></div>`:`<div class="empty"><div class="big">🧾</div><div class="t">ยังไม่มีรายการภาษีซื้อเดือน ${esc(mon)}</div><div>กด "📥 ดึงรายการ" หรือ "+ เพิ่มรายการ"</div></div>`}
+  </div></div>`;
+}
+function taxRow(r,i){
+  const pay=Number(r.payAmount)>0;
+  return `<tr>
+    <td class="c">${i+1}</td><td class="muted">${esc(r.date||'')}</td><td class="pn linkish" onclick="openTaxForm(DB.docs.find(x=>x.id==='${r.id}'))">${esc(r.invNo||'')}</td>
+    <td>${esc(r.supplier||'')}</td><td class="muted">${esc(r.taxId||'')}</td><td class="c">${esc(r.branch||'สำนักงานใหญ่')}</td>
+    <td><span class="tag gray">${esc(r.category||'')}</span></td><td class="num">${fmt2(r.value)}</td><td class="num"><b>${fmt2(r.vat)}</b></td>
+    <td class="muted">${esc(r.payDue||'')}</td><td class="c">${r.payMethod?'<span class="tag '+(r.payMethod==='เงินสด'?'teal':r.payMethod==='เช็ค'?'amber':'violet')+'">'+esc(r.payMethod)+'</span>':''}</td>
+    <td class="muted">${esc(r.payNo||'')}</td><td class="muted">${esc(r.payDate||'')}</td>
+    <td class="num ${pay?'':'muted'}">${pay?fmt2(r.payAmount):'-'}</td>
+    <td class="c">${r.slip?'<span class="linkish" onclick="viewTaxSlip(\''+r.id+'\')" style="cursor:pointer">🧾 ดู</span>':'<span class="muted">-</span>'}</td>
+    <td style="white-space:nowrap"><button class="btn sm" onclick="openTaxForm(DB.docs.find(x=>x.id==='${r.id}'))">✏️</button> <button class="btn sm danger" onclick="delTax('${r.id}')">ลบ</button></td>
+  </tr>`;
+}
+function pullTax(){
+  ensureSettings();const mon=window.__taxMon;let add=0;
+  DB.docs.filter(d=>d.type==='PO'&&d.status!=='cancelled'&&(d.date||'').slice(0,7)===mon).forEach(d=>{
+    const val=Number(d.amount)||0,vat=Number(d.vat)||0;if(val<=0)return;
+    if(DB.docs.find(x=>x.type==='TAX'&&x.sourceType==='PO'&&x.sourceId===d.id))return;
+    const si=d.supplierInfo||{};
+    DB.docs.push({id:uid(),type:'TAX',date:d.date,invNo:d.no,supplier:d.supplier||'',taxId:si.taxId||'',branch:'สำนักงานใหญ่',category:'วัตถุดิบ',value:val,vat:vat,note:'',payDue:d.deliveryDate||'',payMethod:'',payNo:'',payDate:'',payAmount:0,slip:'',sourceType:'PO',sourceId:d.id,status:'active'});add++;});
+  DB.docs.filter(d=>d.type==='SUP'&&d.status!=='cancelled'&&(d.date||'').slice(0,7)===mon).forEach(d=>{
+    const val=Number(d.subtotal)||0;if(val<=0)return;
+    if(DB.docs.find(x=>x.type==='TAX'&&x.sourceType==='SUP'&&x.sourceId===d.id))return;
+    DB.docs.push({id:uid(),type:'TAX',date:d.date,invNo:d.refNo||d.no,supplier:d.supplier||'',taxId:'',branch:'สำนักงานใหญ่',category:'สิ้นเปลือง',value:val,vat:Math.round(val*0.07*100)/100,note:'',payDue:'',payMethod:'',payNo:'',payDate:'',payAmount:0,slip:'',sourceType:'SUP',sourceId:d.id,status:'active'});add++;});
+  saveDB();render();toast(add?('ดึง '+add+' รายการเข้าภาษีซื้อแล้ว'):'ไม่มีรายการใหม่ (ดึงครบแล้ว)',add?'ok':'err');
+}
+function openTaxForm(edit){
+  ensureSettings();const sups=DB.settings.suppliers||[];const e=edit||{};window.__taxSlip=e.slip||'';
+  modal({title:(edit?'✏️ แก้ไข':'+ ')+'รายการภาษีซื้อ',size:'lg',body:`
+    <div class="row c3">
+      <div class="field"><label>วันที่ใบกำกับภาษี</label><input type="date" id="tx_date" value="${esc(e.date||todayISO())}"></div>
+      <div class="field"><label>เลขที่ใบกำกับภาษี</label><input id="tx_inv" value="${esc(e.invNo||'')}"></div>
+      <div class="field"><label>ประเภท</label><select id="tx_cat">${TAX_CATS.map(c=>`<option ${e.category===c?'selected':''}>${c}</option>`).join('')}</select></div>
+    </div>
+    <div class="row c2">
+      <div class="field"><label>ผู้ขาย / ผู้ให้บริการ <span class="req">*</span></label><input id="tx_sup" list="dl_txsup" value="${esc(e.supplier||'')}"><datalist id="dl_txsup">${sups.map(s=>`<option value="${esc(s)}">`).join('')}</datalist></div>
+      <div class="field"><label>เลขประจำตัวผู้เสียภาษีผู้ขาย</label><input id="tx_taxid" value="${esc(e.taxId||'')}"></div>
+    </div>
+    <div class="row c3">
+      <div class="field"><label>สถานประกอบการ</label><input id="tx_branch" value="${esc(e.branch||'สำนักงานใหญ่')}"></div>
+      <div class="field"><label>มูลค่าสินค้า/บริการ <span class="req">*</span></label><input type="number" step="any" id="tx_val" value="${esc(e.value||'')}" oninput="document.getElementById('tx_vat').value=(Math.round((Number(this.value)||0)*0.07*100)/100)"></div>
+      <div class="field"><label>ภาษีซื้อ (VAT 7%)</label><input type="number" step="any" id="tx_vat" value="${esc(e.vat||'')}"></div>
+    </div>
+    <div style="border-top:1px solid var(--line);margin:10px 0 6px;padding-top:8px;font-weight:600;font-size:12.5px;color:var(--ink2)">📌 การติดตามการจ่ายเงิน</div>
+    <div class="row c3">
+      <div class="field"><label>กำหนดวันจ่ายเงิน</label><input type="date" id="tx_due" value="${esc(e.payDue||'')}"></div>
+      <div class="field"><label>รูปแบบการจ่าย</label><select id="tx_method"><option value=""></option>${['เงินสด','เช็ค','โอนเงิน'].map(m=>`<option ${e.payMethod===m?'selected':''}>${m}</option>`).join('')}</select></div>
+      <div class="field"><label>เลขที่จ่าย / เลขที่เช็ค</label><input id="tx_payno" value="${esc(e.payNo||'')}"></div>
+    </div>
+    <div class="row c3">
+      <div class="field"><label>วันที่จ่าย</label><input type="date" id="tx_paydate" value="${esc(e.payDate||'')}"></div>
+      <div class="field"><label>ยอดจ่าย</label><input type="number" step="any" id="tx_payamt" value="${esc(e.payAmount||'')}"></div>
+      <div class="field"><label>สลิปการจ่าย</label><input type="file" id="tx_slipfile" accept="image/*,application/pdf" onchange="taxSlipPick(this)"><div id="tx_slipinfo" class="muted" style="font-size:11px;margin-top:3px">${e.slip?'✅ มีสลิปแนบแล้ว':'ยังไม่มีสลิป'}</div></div>
+    </div>
+    <div class="field"><label>หมายเหตุ</label><input id="tx_note" value="${esc(e.note||'')}"></div>
+  `,footer:`<button class="btn" onclick="closeModal()">ยกเลิก</button><button class="btn pri" onclick="submitTax('${edit?edit.id:''}')">บันทึก</button>`});
+}
+function taxSlipPick(input){const f=input.files[0];if(!f)return;if(f.size>3500000){toast('ไฟล์ใหญ่เกิน 3.5MB','err');input.value='';return;}const r=new FileReader();r.onload=e=>{window.__taxSlip=e.target.result;const inf=document.getElementById('tx_slipinfo');if(inf)inf.textContent='✅ แนบสลิปแล้ว ('+Math.round(f.size/1024)+' KB)';};r.readAsDataURL(f);}
+function submitTax(editId){
+  const v=k=>((document.getElementById(k)||{}).value||'').trim();
+  const sup=v('tx_sup');if(!sup){toast('กรุณาระบุผู้ขาย','err');return;}
+  const val=Number(v('tx_val'))||0;if(val<=0){toast('กรุณาระบุมูลค่า','err');return;}
+  let d;if(editId){d=DB.docs.find(x=>x.id===editId);if(!d)return;}else{d={id:uid(),type:'TAX',status:'active'};DB.docs.push(d);}
+  d.date=v('tx_date')||todayISO();d.invNo=v('tx_inv');d.category=v('tx_cat');d.supplier=sup;d.taxId=v('tx_taxid');d.branch=v('tx_branch')||'สำนักงานใหญ่';
+  d.value=val;d.vat=Number(v('tx_vat'))||0;d.payDue=v('tx_due');d.payMethod=v('tx_method');d.payNo=v('tx_payno');d.payDate=v('tx_paydate');d.payAmount=Number(v('tx_payamt'))||0;d.slip=window.__taxSlip||'';d.note=v('tx_note');
+  if(sup&&!(DB.settings.suppliers||[]).includes(sup)){ensureSettings();DB.settings.suppliers.push(sup);}
+  saveDB();closeModal();render();toast('บันทึกรายการภาษีซื้อแล้ว','ok');
+}
+function delTax(id){confirmBox('ลบรายการภาษีซื้อนี้?','',()=>{DB.docs=DB.docs.filter(x=>x.id!==id);saveDB();closeModal();render();toast('ลบแล้ว','ok');});}
+function viewTaxSlip(id){const d=DB.docs.find(x=>x.id===id);if(!d||!d.slip)return;const w=window.open('','_blank');if(!w){toast('popup ถูกบล็อก','err');return}const isPdf=/^data:application\/pdf/.test(d.slip);w.document.write('<html><head><title>สลิป '+esc(d.invNo||'')+'</title></head><body style="margin:0;background:#222;text-align:center">'+(isPdf?'<embed src="'+d.slip+'" style="width:100%;height:100vh">':'<img src="'+d.slip+'" style="max-width:100%;max-height:100vh">')+'</body></html>');w.document.close();}
+function printTaxReport(){
+  ensureSettings();const co=DB.settings.company||{};const mon=window.__taxMon;
+  const rows=DB.docs.filter(d=>d.type==='TAX'&&(d.date||'').slice(0,7)===mon).sort((a,b)=>(a.date||'').localeCompare(b.date||'')||(a.invNo||'').localeCompare(b.invNo||''));
+  if(!rows.length){toast('ไม่มีรายการเดือนนี้','err');return;}
+  const mNames=['','มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+  const yp=mon.split('-');const monTh=mNames[+yp[1]]+' '+(+yp[0]+543);
+  let tVal=0,tVat=0;
+  const body=rows.map((r,i)=>{tVal+=Number(r.value)||0;tVat+=Number(r.vat)||0;return '<tr><td class="c">'+(i+1)+'</td><td class="c">'+esc(r.date||'')+'</td><td class="c">'+esc(r.invNo||'')+'</td><td>'+esc(r.supplier||'')+'</td><td class="c">'+esc(r.taxId||'')+'</td><td class="c">'+esc(r.branch||'สำนักงานใหญ่')+'</td><td>'+esc(r.category||'')+'</td><td class="r">'+fmt2(r.value)+'</td><td class="r">'+fmt2(r.vat)+'</td></tr>';}).join('');
+  const html='<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"><title>รายงานภาษีซื้อ '+esc(mon)+'</title><style>'
+   +"@page{size:A4 landscape;margin:8mm}*{font-family:'Tahoma',sans-serif;box-sizing:border-box}body{margin:0;font-size:11px;color:#111}"
+   +".hd{text-align:center}.hd h1{font-size:15px;margin:0;font-weight:700}.hd .t2{font-size:14px;font-weight:700;margin:2px 0}.hd div{font-size:11px}"
+   +".info{font-size:11px;margin:8px 0}.info b{}"
+   +"table{width:100%;border-collapse:collapse;font-size:10.5px;margin-top:6px}th,td{border:1px solid #555;padding:4px 6px}th{background:#e9eef7;text-align:center}td.c{text-align:center}td.r{text-align:right}"
+   +"tfoot td{background:#fff2cc;font-weight:700}@media print{.noprint{display:none}}</style></head><body>"
+   +'<div class="hd"><h1>'+esc(co.thName||co.name||'')+'</h1><div class="t2">รายงานภาษีซื้อ</div><div>เดือนภาษี '+esc(monTh)+'</div></div>'
+   +'<div class="info"><b>ชื่อผู้ประกอบการ:</b> '+esc(co.thName||co.name||'')+' &nbsp;&nbsp; <b>เลขประจำตัวผู้เสียภาษี:</b> '+esc(co.taxId||'')+' &nbsp;&nbsp; <b>สถานประกอบการ:</b> สำนักงานใหญ่<br><b>ที่อยู่:</b> '+esc(co.address||'')+'</div>'
+   +'<table><thead><tr><th style="width:34px">ลำดับ</th><th style="width:70px">วันที่ใบกำกับภาษี</th><th style="width:90px">เลขที่ใบกำกับภาษี</th><th>ชื่อผู้ขายสินค้า/ผู้ให้บริการ</th><th style="width:110px">เลขประจำตัวผู้เสียภาษี</th><th style="width:70px">สถานประกอบการ</th><th style="width:90px">ประเภทรายการ</th><th style="width:90px">มูลค่าสินค้า/บริการ</th><th style="width:80px">จำนวนภาษีมูลค่าเพิ่ม</th></tr></thead><tbody>'+body+'</tbody>'
+   +'<tfoot><tr><td colspan="7" class="r">รวมทั้งสิ้น</td><td class="r">'+fmt2(tVal)+'</td><td class="r">'+fmt2(tVat)+'</td></tr></tfoot></table>'
+   +'<div style="display:flex;justify-content:space-between;margin-top:40px;font-size:11px"><div>ผู้จัดทำ ........................................</div><div>ผู้ตรวจสอบ ........................................</div><div>ผู้มีอำนาจ ........................................</div></div>'
+   +'<div class="noprint" style="text-align:center;margin-top:14px"><button onclick="window.print()" style="padding:8px 22px;cursor:pointer">🖨️ พิมพ์ / PDF</button></div>'
+   +'<scr'+'ipt>setTimeout(function(){window.print()},400)</scr'+'ipt></body></html>';
+  const w=window.open('','_blank');if(!w){toast('popup ถูกบล็อก','err');return}w.document.write(html);w.document.close();
+}
 function viewMoves(el){
   setTitle('🔁 ความเคลื่อนไหวสินค้า','บันทึกการเข้า-ออกทุกบัญชี (Stock Ledger)');
   el.innerHTML=`<div class="panel"><div class="panel-h">
