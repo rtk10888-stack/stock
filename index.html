@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='PLATE-2026.06.18c';
+const APP_BUILD='WHT-2026.06.18a';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -434,6 +434,7 @@ const NAV=[
   {id:'moves',ico:'🔁',label:'ความเคลื่อนไหว'},
   {id:'tax',ico:'🧾',label:'ภาษีซื้อ'},
   {id:'taxsale',ico:'📈',label:'ภาษีขาย'},
+  {id:'wht',ico:'💸',label:'หัก ณ ที่จ่าย'},
   {g:'อื่นๆ'},
   {id:'settings',ico:'⚙️',label:'ตั้งค่า'},
 ];
@@ -458,7 +459,7 @@ function render(){
   const map={dashboard:viewDashboard,inventory:viewInventory,approvals:viewApprovals,monitor:viewMonitor,
     po:()=>viewDocs('PO'),ip:()=>viewDocs('IP'),sp:()=>viewDocs('SP'),gr:()=>viewDocs('GR'),prd:()=>viewDocs('PRD'),wd:()=>viewDocs('WD'),
     dp:()=>viewDocs('DP'),rw:()=>viewDocs('RW'),plate:()=>viewDocs('PL'),qc:()=>viewDocs('QC'),si:()=>viewDocs('SI'),rmc:viewRMC,sup:viewSUP,ws:viewWS,
-    inv:()=>viewDocs('INV'),iv2:()=>viewDocs('IV2'),adj:()=>viewDocs('ADJ'),moves:viewMoves,tax:viewTax,taxsale:viewTaxSale,settings:viewSettings,
+    inv:()=>viewDocs('INV'),iv2:()=>viewDocs('IV2'),adj:()=>viewDocs('ADJ'),moves:viewMoves,tax:viewTax,taxsale:viewTaxSale,wht:viewWHT,settings:viewSettings,
     demand:viewDemand,mrp:viewMRP};
   (map[route]||viewDashboard)(el);
   setBuild();
@@ -4495,6 +4496,150 @@ function printTaxSale(){
    +'<table><thead><tr><th style="width:34px">ลำดับ</th><th style="width:70px">วันที่ใบกำกับภาษี</th><th style="width:100px">เลขที่ใบกำกับภาษี</th><th>ชื่อผู้ซื้อสินค้า/ผู้รับบริการ</th><th style="width:110px">เลขประจำตัวผู้เสียภาษี</th><th style="width:70px">สถานประกอบการ</th><th style="width:100px">มูลค่าสินค้า/บริการ</th><th style="width:90px">จำนวนภาษีมูลค่าเพิ่ม</th></tr></thead><tbody>'+body+'</tbody>'
    +'<tfoot><tr><td colspan="6" class="r">รวมทั้งสิ้น</td><td class="r">'+fmt2(tVal)+'</td><td class="r">'+fmt2(tVat)+'</td></tr></tfoot></table>'
    +'<div style="display:flex;justify-content:space-between;margin-top:40px;font-size:11px"><div>ผู้จัดทำ ........................................</div><div>ผู้ตรวจสอบ ........................................</div><div>ผู้มีอำนาจ ........................................</div></div>'
+   +'<div class="noprint" style="text-align:center;margin-top:14px"><button onclick="window.print()" style="padding:8px 22px;cursor:pointer">🖨️ พิมพ์ / PDF</button></div>'
+   +'<scr'+'ipt>setTimeout(function(){window.print()},400)</scr'+'ipt></body></html>';
+  const w=window.open('','_blank');if(!w){toast('popup ถูกบล็อก','err');return}w.document.write(html);w.document.close();
+}
+/* ===== หัก ณ ที่จ่าย (Withholding Tax 50 ทวิ) — โครงสร้างเหมือนภาษีซื้อ ===== */
+function bahtText(num){
+  num=Number(num)||0;const txt=['','หนึ่ง','สอง','สาม','สี่','ห้า','หก','เจ็ด','แปด','เก้า'];const pos=['','สิบ','ร้อย','พัน','หมื่น','แสน'];
+  function conv(n){n=String(Math.floor(n));let s='';const len=n.length;for(let i=0;i<len;i++){const d=+n[i];const p=len-i-1;if(d===0)continue;if(p===0&&d===1&&len>1)s+='เอ็ด';else if(p===1&&d===2)s+='ยี่สิบ';else if(p===1&&d===1)s+='สิบ';else s+=txt[d]+pos[p];}return s;}
+  const n=Math.round(num*100)/100;let baht=Math.floor(n);const satang=Math.round((n-baht)*100);
+  let bt='';if(baht>=1000000){bt=conv(Math.floor(baht/1000000))+'ล้าน';const rem=baht%1000000;if(rem)bt+=conv(rem);}else bt=conv(baht);
+  let res=(bt||'ศูนย์')+'บาท';res+=satang?(conv(satang)+'สตางค์'):'ถ้วน';return res;
+}
+function whtMonths(){const set=new Set();DB.docs.filter(d=>d.type==='WHT'&&d.date).forEach(d=>set.add(d.date.slice(0,7)));const a=[...set].filter(Boolean).sort();return a.length?a:[todayISO().slice(0,7)];}
+var WHT_CATS=[{k:'1',t:'เงินเดือน ค่าจ้าง ฯลฯ 40(1)'},{k:'2',t:'ค่าธรรมเนียม ค่านายหน้า ฯลฯ 40(2)'},{k:'3',t:'ค่าแห่งลิขสิทธิ์ ฯลฯ 40(3)'},{k:'4',t:'ดอกเบี้ย/เงินปันผล ฯลฯ 40(4)'},{k:'5',t:'ค่าจ้างทำของ/บริการ/เช่า/รางวัล (ม.3 เตรส)'},{k:'6',t:'อื่นๆ'}];
+function viewWHT(el){
+  ensureSettings();
+  if(!window.__whtMon){const ms=whtMonths();window.__whtMon=ms[ms.length-1];}
+  const mon=window.__whtMon;const months=whtMonths();
+  setTitle('💸 หัก ณ ที่จ่าย','หนังสือรับรองการหักภาษี ณ ที่จ่าย (50 ทวิ) · ภ.ง.ด.3 / ภ.ง.ด.53');
+  const rows=DB.docs.filter(d=>d.type==='WHT'&&(d.date||'').slice(0,7)===mon).sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+  const tAmt=rows.reduce((s,r)=>s+(Number(r.amount)||0),0),tTax=rows.reduce((s,r)=>s+(Number(r.tax)||0),0);
+  el.innerHTML=`
+  <div class="hint"><span class="i">💡</span><div>บันทึกการหักภาษี ณ ที่จ่าย → กด <b>🖨️ พิมพ์</b> เพื่อออกหนังสือรับรอง 50 ทวิ มาตรฐานสรรพากร <b>4 ฉบับ</b> (A4 แนวนอน 2 ใบ ใบละ 2 ฉบับ) · ผู้หักภาษี = บริษัทของเรา (ตั้งค่าที่ตั้งค่าบริษัท)</div></div>
+  <div class="cards">
+    <div class="card"><div class="lbl"><span class="dot d-brand">💸</span>รายการ (${esc(mon)})</div><div class="val">${fmt(rows.length)}</div></div>
+    <div class="card"><div class="lbl"><span class="dot d-violet">💵</span>ยอดจ่ายรวม</div><div class="val">${fmt2(tAmt)}</div></div>
+    <div class="card"><div class="lbl"><span class="dot d-teal">🧮</span>ภาษีหักรวม</div><div class="val">${fmt2(tTax)}</div><div class="sub">บาท</div></div>
+  </div>
+  <div class="panel"><div class="panel-h" style="flex-wrap:wrap;gap:8px">
+    <div style="display:flex;gap:8px;align-items:center"><label style="font-size:12.5px;font-weight:600">เดือน</label><select onchange="window.__whtMon=this.value;render()" style="padding:6px 10px">${months.map(m=>`<option value="${m}" ${m===mon?'selected':''}>${esc(m)}</option>`).join('')}</select></div>
+    <div class="right" style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn sm" onclick="printWHTList()">🖨️ พิมพ์ใบปะหน้า</button><button class="btn pri" onclick="openWHTForm()">+ เพิ่มรายการ</button></div>
+  </div><div class="panel-b nopad">
+    ${rows.length?`<div class="tbl-wrap"><table style="white-space:nowrap;font-size:12px"><thead><tr>
+      <th>ลำดับ</th><th>วันที่จ่าย</th><th>ผู้ถูกหักภาษี</th><th>เลขผู้เสียภาษี</th><th>ประเภทเงินได้</th><th>แบบ</th><th class="num">จำนวนเงิน</th><th class="num">อัตรา%</th><th class="num">ภาษีหัก</th><th></th>
+    </tr></thead><tbody>${rows.map((r,i)=>whtRow(r,i)).join('')}</tbody>
+    <tfoot><tr style="background:#fff7a8;font-weight:700"><td colspan="6" style="text-align:right">รวม</td><td class="num">${fmt2(tAmt)}</td><td></td><td class="num">${fmt2(tTax)}</td><td></td></tr></tfoot></table></div>`:`<div class="empty"><div class="big">💸</div><div class="t">ยังไม่มีรายการหัก ณ ที่จ่าย เดือน ${esc(mon)}</div><div>กด "+ เพิ่มรายการ"</div></div>`}
+  </div></div>`;
+}
+function whtRow(r,i){
+  const cat=(WHT_CATS.find(c=>c.k===r.incomeCat)||{}).t||r.incomeDesc||'';
+  return `<tr>
+    <td class="c">${i+1}</td><td class="muted">${esc(r.payDate||r.date||'')}</td>
+    <td class="pn linkish" onclick="openWHTForm(DB.docs.find(x=>x.id==='${r.id}'))">${esc(r.payee||'')}</td>
+    <td class="muted">${esc(r.payeeTaxId||'')}</td><td class="muted" style="font-size:11px">${esc(cat)}</td>
+    <td class="c"><span class="tag gray">${esc(r.taxForm||'')}</span></td>
+    <td class="num">${fmt2(r.amount)}</td><td class="num">${esc(r.rate||3)}</td><td class="num"><b>${fmt2(r.tax)}</b></td>
+    <td style="white-space:nowrap"><button class="btn sm" onclick="printWHT('${r.id}')">🖨️</button> <button class="btn sm" onclick="openWHTForm(DB.docs.find(x=>x.id==='${r.id}'))">✏️</button> <button class="btn sm danger" onclick="delWHT('${r.id}')">ลบ</button></td>
+  </tr>`;
+}
+function openWHTForm(edit){
+  ensureSettings();const e=edit||{};const sups=(DB.settings.suppliers||[]);
+  modal({title:(edit?'✏️ แก้ไข':'+ ')+'รายการหัก ณ ที่จ่าย',size:'lg',body:`
+    <div class="row c3">
+      <div class="field"><label>วันที่จ่ายเงิน / หักภาษี</label><input type="date" id="w_paydate" value="${esc(e.payDate||e.date||todayISO())}"></div>
+      <div class="field"><label>วันที่ออกหนังสือ</label><input type="date" id="w_date" value="${esc(e.date||todayISO())}"></div>
+      <div class="field"><label>ลำดับที่ในแบบ</label><input id="w_seq" value="${esc(e.seqNo||'')}" placeholder="(ถ้ามี)"></div>
+    </div>
+    <div class="row c2">
+      <div class="field"><label>ชื่อผู้ถูกหักภาษี ณ ที่จ่าย <span class="req">*</span></label><input id="w_payee" list="dl_whtpayee" value="${esc(e.payee||'')}"><datalist id="dl_whtpayee">${sups.map(s=>`<option value="${esc(s)}">`).join('')}</datalist></div>
+      <div class="field"><label>เลขประจำตัวผู้เสียภาษีผู้ถูกหัก</label><input id="w_taxid" value="${esc(e.payeeTaxId||'')}"></div>
+    </div>
+    <div class="field"><label>ที่อยู่ผู้ถูกหักภาษี</label><input id="w_addr" value="${esc(e.payeeAddr||'')}"></div>
+    <div class="row c3">
+      <div class="field"><label>แบบ</label><select id="w_form">${['ภ.ง.ด.53','ภ.ง.ด.3','ภ.ง.ด.2','ภ.ง.ด.1ก'].map(f=>`<option ${e.taxForm===f?'selected':''}>${f}</option>`).join('')}</select></div>
+      <div class="field"><label>ประเภทเงินได้</label><select id="w_cat">${WHT_CATS.map(c=>`<option value="${c.k}" ${e.incomeCat===c.k?'selected':(!e.incomeCat&&c.k==='5'?'selected':'')}>${c.k}. ${esc(c.t)}</option>`).join('')}</select></div>
+      <div class="field"><label>รายละเอียดเงินได้</label><input id="w_desc" value="${esc(e.incomeDesc||'ค่าจ้างทำของ/ค่าบริการ')}"></div>
+    </div>
+    <div class="row c3">
+      <div class="field"><label>จำนวนเงินที่จ่าย <span class="req">*</span></label><input type="number" step="any" id="w_amt" value="${esc(e.amount||'')}" oninput="document.getElementById('w_tax').value=(Math.round((Number(this.value)||0)*(Number(document.getElementById('w_rate').value)||0)/100*100)/100)"></div>
+      <div class="field"><label>อัตรา %</label><input type="number" step="any" id="w_rate" value="${esc(e.rate!=null?e.rate:3)}" oninput="document.getElementById('w_tax').value=(Math.round((Number(document.getElementById('w_amt').value)||0)*(Number(this.value)||0)/100*100)/100)"></div>
+      <div class="field"><label>ภาษีที่หักและนำส่ง</label><input type="number" step="any" id="w_tax" value="${esc(e.tax||'')}"></div>
+    </div>
+    <div class="field"><label>เงื่อนไขการจ่าย</label><select id="w_mode">${['(1) หักภาษี ณ ที่จ่าย','(2) ออกภาษีให้ตลอดไป','(3) ออกภาษีให้ครั้งเดียว','(4) อื่นๆ'].map((m,idx)=>`<option value="${idx+1}" ${(e.payerMode||1)==idx+1?'selected':''}>${m}</option>`).join('')}</select></div>
+  `,footer:`<button class="btn" onclick="closeModal()">ยกเลิก</button><button class="btn pri" onclick="submitWHT('${edit?edit.id:''}')">บันทึก</button>`});
+}
+function submitWHT(editId){
+  const v=k=>((document.getElementById(k)||{}).value||'').trim();
+  const payee=v('w_payee');if(!payee){toast('กรุณาระบุผู้ถูกหักภาษี','err');return}
+  const amt=Number(v('w_amt'))||0;if(amt<=0){toast('กรุณาระบุจำนวนเงิน','err');return}
+  let d;if(editId){d=DB.docs.find(x=>x.id===editId);if(!d)return;}else{d={id:uid(),type:'WHT',ts:Date.now(),status:'active'};DB.docs.push(d);}
+  if(!d.no)d.no=nextNo('WHT');
+  d.date=v('w_date')||todayISO();d.payDate=v('w_paydate')||d.date;d.seqNo=v('w_seq');d.payee=payee;d.payeeTaxId=v('w_taxid');d.payeeAddr=v('w_addr');
+  d.taxForm=v('w_form')||'ภ.ง.ด.53';d.incomeCat=v('w_cat')||'5';d.incomeDesc=v('w_desc');d.amount=amt;d.rate=Number(v('w_rate'))||0;d.tax=Number(v('w_tax'))||Math.round(amt*(Number(v('w_rate'))||0)/100*100)/100;d.payerMode=Number(v('w_mode'))||1;
+  if(payee&&!(DB.settings.suppliers||[]).includes(payee)){ensureSettings();DB.settings.suppliers.push(payee);}
+  saveDB();closeModal();render();toast('บันทึกหัก ณ ที่จ่ายแล้ว','ok');
+}
+function delWHT(id){confirmBox('ลบรายการนี้?','',()=>{DB.docs=DB.docs.filter(x=>x.id!==id);saveDB();closeModal();render();toast('ลบแล้ว','ok');});}
+function whtCopyHtml(d,co,no,desc){
+  const forms=['ภ.ง.ด.1ก','ภ.ง.ด.1ก.พิเศษ','ภ.ง.ด.2','ภ.ง.ด.3','ภ.ง.ด.2ก','ภ.ง.ด.3ก','ภ.ง.ด.53'];
+  const ck=f=>d.taxForm===f?'☒':'☐';
+  const cat=d.incomeCat||'5';
+  const catRow=(k,label)=>{const on=cat===k;return '<tr><td class="cl">'+label+'</td><td class="cd">'+(on?esc(d.payDate||d.date||''):'')+'</td><td class="cm">'+(on?fmt2(d.amount):'')+'</td><td class="cm">'+(on?fmt2(d.tax):'')+'</td></tr>';};
+  const md=v=>(d.payerMode||1)==v?'☒':'☐';
+  return '<div class="wcopy">'
+   +'<div class="wtop"><b>ฉบับที่ '+no+'</b> <span class="ws">('+desc+')</span></div>'
+   +'<div class="wt">หนังสือรับรองการหักภาษี ณ ที่จ่าย</div><div class="wt2">ตามมาตรา 50 ทวิ แห่งประมวลรัษฎากร</div>'
+   +'<div class="wbox"><b>ผู้มีหน้าที่หักภาษี ณ ที่จ่าย</b><br>ชื่อ '+esc(co.thName||co.name||'')+' &nbsp; เลขประจำตัวผู้เสียภาษีอากร '+esc(co.taxId||'')+'<br>ที่อยู่ '+esc(co.address||'')+'</div>'
+   +'<div class="wbox"><b>ผู้ถูกหักภาษี ณ ที่จ่าย</b><br>ชื่อ '+esc(d.payee||'')+' &nbsp; เลขประจำตัวผู้เสียภาษีอากร '+esc(d.payeeTaxId||'')+'<br>ที่อยู่ '+esc(d.payeeAddr||'')+'</div>'
+   +'<div class="wform">ลำดับที่ '+esc(d.seqNo||'')+' &nbsp; ในแบบ: '+forms.map(f=>ck(f)+' '+f).join(' &nbsp;')+'</div>'
+   +'<table class="wtab"><thead><tr><th>ประเภทเงินได้พึงประเมินที่จ่าย</th><th>วัน เดือน ปีภาษีที่จ่าย</th><th>จำนวนเงินที่จ่าย</th><th>ภาษีที่หักและนำส่ง</th></tr></thead><tbody>'
+   +catRow('1','1. เงินเดือน ค่าจ้าง เบี้ยเลี้ยง โบนัส ฯลฯ ม.40(1)')
+   +catRow('2','2. ค่าธรรมเนียม ค่านายหน้า ฯลฯ ม.40(2)')
+   +catRow('3','3. ค่าแห่งลิขสิทธิ์ ฯลฯ ม.40(3)')
+   +catRow('4','4. ค่าดอกเบี้ย เงินปันผล ฯลฯ ม.40(4)')
+   +catRow('5','5. ค่าจ้างทำของ ค่าบริการ ค่าเช่า รางวัล ส่วนลด ฯลฯ (หัก ณ ที่จ่าย ตามมาตรา 3 เตรส) '+esc(d.incomeDesc||''))
+   +catRow('6','6. อื่นๆ '+(cat==='6'?esc(d.incomeDesc||''):'(ระบุ).................'))
+   +'<tr class="wsum"><td style="text-align:right">รวมเงินที่จ่ายและภาษีที่หักนำส่ง</td><td></td><td class="cm">'+fmt2(d.amount)+'</td><td class="cm">'+fmt2(d.tax)+'</td></tr>'
+   +'</tbody></table>'
+   +'<div class="wamt">รวมเงินภาษีที่หักนำส่ง (ตัวอักษร) <b>'+esc(bahtText(d.tax))+'</b></div>'
+   +'<div class="wpay">ผู้จ่ายเงิน: '+md(1)+' (1) หักภาษี ณ ที่จ่าย &nbsp; '+md(2)+' (2) ออกภาษีให้ตลอดไป &nbsp; '+md(3)+' (3) ออกให้ครั้งเดียว &nbsp; '+md(4)+' (4) อื่นๆ</div>'
+   +'<div class="wsign">ขอรับรองว่าข้อความและตัวเลขดังกล่าวข้างต้นถูกต้องตรงกับความจริงทุกประการ<br><br>(ลงชื่อ)..................................................ผู้จ่ายเงิน<br>วัน เดือน ปี ที่ออกหนังสือ '+esc(d.date||'')+'</div>'
+   +'</div>';
+}
+function printWHT(id){
+  const d=DB.docs.find(x=>x.id===id);if(!d)return;ensureSettings();const co=DB.settings.company||{};
+  const c1=whtCopyHtml(d,co,'1','สำหรับผู้ถูกหักภาษี ณ ที่จ่าย ใช้แนบพร้อมแบบแสดงรายการ');
+  const c2=whtCopyHtml(d,co,'2','สำหรับผู้ถูกหักภาษี ณ ที่จ่าย เก็บไว้เป็นหลักฐาน');
+  const c3=whtCopyHtml(d,co,'3','สำหรับผู้หักภาษี ณ ที่จ่าย ใช้เป็นหลักฐาน');
+  const c4=whtCopyHtml(d,co,'4','สำหรับผู้หักภาษี ณ ที่จ่าย เก็บไว้เป็นหลักฐาน');
+  const html='<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"><title>หัก ณ ที่จ่าย '+esc(d.payee||'')+'</title><style>'
+   +"@page{size:A4 landscape;margin:6mm}*{font-family:'Tahoma',sans-serif;box-sizing:border-box}body{margin:0;color:#111}"
+   +".sheet{display:flex;gap:6mm;height:192mm;page-break-after:always}.wcopy{width:50%;border:1px solid #111;padding:5px 8px;font-size:9px;line-height:1.35}"
+   +".wtop{font-size:9px}.ws{font-size:8px}.wt{text-align:center;font-weight:700;font-size:11px;margin-top:2px}.wt2{text-align:center;font-size:8.5px;margin-bottom:3px}"
+   +".wbox{border:1px solid #555;padding:3px 5px;margin-bottom:3px;font-size:8.5px}.wform{font-size:8px;margin-bottom:3px}"
+   +".wtab{width:100%;border-collapse:collapse;font-size:8px}.wtab th,.wtab td{border:1px solid #555;padding:2px 3px;vertical-align:top}.wtab th{background:#eef;text-align:center}.cl{width:55%}.cd{text-align:center;width:16%}.cm{text-align:right;width:14.5%}.wsum td{font-weight:700;background:#fafafa}"
+   +".wamt{font-size:8.5px;margin:3px 0}.wpay{font-size:8px;margin:2px 0}.wsign{font-size:8.5px;margin-top:4px;text-align:center}"
+   +"@media print{.noprint{display:none}}</style></head><body>"
+   +'<div class="sheet">'+c1+c3+'</div>'
+   +'<div class="sheet">'+c2+c4+'</div>'
+   +'<div class="noprint" style="text-align:center;margin-top:8px"><button onclick="window.print()" style="padding:8px 22px;cursor:pointer">🖨️ พิมพ์ / PDF</button></div>'
+   +'<scr'+'ipt>setTimeout(function(){window.print()},400)</scr'+'ipt></body></html>';
+  const w=window.open('','_blank');if(!w){toast('popup ถูกบล็อก','err');return}w.document.write(html);w.document.close();
+}
+function printWHTList(){
+  ensureSettings();const co=DB.settings.company||{};const mon=window.__whtMon;
+  const rows=DB.docs.filter(d=>d.type==='WHT'&&(d.date||'').slice(0,7)===mon).sort((a,b)=>(a.payDate||a.date||'').localeCompare(b.payDate||b.date||''));
+  if(!rows.length){toast('ไม่มีรายการเดือนนี้','err');return;}
+  let tA=0,tT=0;const body=rows.map((r,i)=>{tA+=Number(r.amount)||0;tT+=Number(r.tax)||0;return '<tr><td class="c">'+(i+1)+'</td><td class="c">'+esc(r.payDate||r.date||'')+'</td><td>'+esc(r.payee||'')+'</td><td class="c">'+esc(r.payeeTaxId||'')+'</td><td class="c">'+esc(r.taxForm||'')+'</td><td class="r">'+fmt2(r.amount)+'</td><td class="c">'+esc(r.rate||3)+'</td><td class="r">'+fmt2(r.tax)+'</td></tr>';}).join('');
+  const html='<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"><title>สรุปหัก ณ ที่จ่าย '+esc(mon)+'</title><style>'
+   +"@page{size:A4 portrait;margin:10mm}*{font-family:'Tahoma',sans-serif}body{margin:0;font-size:12px}.hd{text-align:center}.hd h1{font-size:15px;margin:0}.t2{text-align:center;font-weight:700;margin:4px 0}"
+   +"table{width:100%;border-collapse:collapse;font-size:11px;margin-top:8px}th,td{border:1px solid #555;padding:4px 6px}th{background:#eef;text-align:center}td.c{text-align:center}td.r{text-align:right}tfoot td{background:#fff2cc;font-weight:700}@media print{.noprint{display:none}}</style></head><body>"
+   +'<div class="hd"><h1>'+esc(co.thName||co.name||'')+'</h1></div><div class="t2">สรุปภาษีหัก ณ ที่จ่าย เดือน '+esc(mon)+'</div>'
+   +'<table><thead><tr><th>ลำดับ</th><th>วันที่จ่าย</th><th>ผู้ถูกหักภาษี</th><th>เลขผู้เสียภาษี</th><th>แบบ</th><th>จำนวนเงิน</th><th>อัตรา%</th><th>ภาษีหัก</th></tr></thead><tbody>'+body+'</tbody>'
+   +'<tfoot><tr><td colspan="5" class="r">รวม</td><td class="r">'+fmt2(tA)+'</td><td></td><td class="r">'+fmt2(tT)+'</td></tr></tfoot></table>'
    +'<div class="noprint" style="text-align:center;margin-top:14px"><button onclick="window.print()" style="padding:8px 22px;cursor:pointer">🖨️ พิมพ์ / PDF</button></div>'
    +'<scr'+'ipt>setTimeout(function(){window.print()},400)</scr'+'ipt></body></html>';
   const w=window.open('','_blank');if(!w){toast('popup ถูกบล็อก','err');return}w.document.write(html);w.document.close();
