@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='PLATE-2026.06.18b';
+const APP_BUILD='PLATE-2026.06.18c';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -2848,7 +2848,7 @@ function plRow(d){
     const pend=(l.pending!=null&&l.pending!=='')?Number(l.pending):(sent-recv);
     const sttxt=(l.pstatus||'').trim()||((sent>0&&pend<=0)?'Done':'Pending');
     const stc=/done|ครบ|เสร็จ/i.test(sttxt)?'teal':'amber';
-    const acts=`<button class="btn sm" onclick="viewPLDoc('${d.id}')">ดู</button> <button class="btn sm" onclick="printPLDoc('${d.id}')">🖨️</button> <button class="btn sm" onclick="editPLInline('${d.id}')">✏️</button> `+(d.status==='approved'?`<button class="btn sm danger" onclick="cancelDoc('${d.id}')">ยกเลิก</button>`:d.status==='cancelled'?`<button class="btn sm danger" onclick="delDocConfirm('${d.id}')">🗑️</button>`:`<button class="btn sm ok" onclick="approveDoc('${d.id}')">อนุมัติ</button>`);
+    const acts=`<button class="btn sm" onclick="viewPLDoc('${d.id}')">ดู</button> <button class="btn sm" onclick="printPLDoc('${d.id}')">🖨️</button> <button class="btn sm" onclick="editPLInline('${d.id}')">✏️</button> `+(d.status==='cancelled'?`<button class="btn sm danger" onclick="delDocConfirm('${d.id}')">🗑️ ลบ</button>`:d.status==='approved'?`<button class="btn sm danger" onclick="cancelDoc('${d.id}')">ยกเลิก</button>`:`<button class="btn sm danger" onclick="deleteDoc('${d.id}')">ลบ</button>`);
     return `<tr data-no="${esc(d.no)}" data-ts="${(d.ts||0)+idx}" data-sent="${sent}" data-recv="${recv}" data-pend="${pend}" data-amt="${recv}" data-mon="${(l.date||d.date||'').slice(0,7)}" data-mk="${esc((l.maker||d.maker||'').toLowerCase())}" data-item="${esc((pn+' '+pname).toLowerCase())}" data-po="${esc((l.poNo||'').toLowerCase())}">
       <td class="muted">${esc(l.date||d.date||'')}</td>
       <td><span class="tag violet">${esc(l.poNo||'-')}</span></td>
