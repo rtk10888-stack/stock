@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='GR-2026.06.18c';
+const APP_BUILD='SUP-2026.06.18a';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -3961,7 +3961,8 @@ function taxSourceEntries(mon){
     out.push({date:gr.date,invNo:gr.invNo||'',supplier:supRes.name,taxId:supRes.taxId||si.taxId||'',category:'วัตถุดิบ',value:val,vat:Math.round(val*0.07*100)/100,sourceType:'GR',sourceId:gr.id,note:'รับวัตถุดิบ '+(gr.no||'')+(poNos.length?' / PO '+poNos.join(','):'')});
   });
   DB.docs.filter(d=>d.type==='SUP'&&d.status!=='cancelled'&&(d.date||'').slice(0,7)===mon).forEach(d=>{const val=Number(d.subtotal)||0;if(val<=0)return;
-    out.push({date:d.date,invNo:d.refNo||d.no,supplier:d.supplier||'',taxId:'',category:'สิ้นเปลือง',value:val,vat:Math.round(val*0.07*100)/100,sourceType:'SUP',sourceId:d.id,note:'วัสดุสิ้นเปลือง'});});
+    const sr=resolveSupplier(d.supplier||'');
+    out.push({date:d.date,invNo:d.invNo||d.refNo||d.no,supplier:sr.name||d.supplier||'',taxId:d.taxId||sr.taxId||'',category:'สิ้นเปลือง',value:val,vat:Math.round(val*0.07*100)/100,sourceType:'SUP',sourceId:d.id,note:'วัสดุสิ้นเปลือง'+(d.refNo?(' / '+d.refNo):'')});});
   return out.sort((a,b)=>(a.date||'').localeCompare(b.date||''));
 }
 function viewTaxReport(el){
@@ -4785,6 +4786,10 @@ function openSUPForm(edit){
       <div class="field"><label>เลขที่ใบสั่ง</label><input id="sp_no" value="${esc(e.refNo||'')}" placeholder="เช่น 69099"></div>
       <div class="field"><label>Supplier</label><input id="sp_sup" list="dl_spsup" value="${esc(e.supplier||'')}"><datalist id="dl_spsup">${sups.map(s=>`<option value="${esc(s)}">`).join('')}</datalist></div>
     </div>
+    <div class="row c2">
+      <div class="field"><label>เลขที่ใบกำกับภาษี <span style="color:var(--teal);font-size:11px">(→ ภาษีซื้อ)</span></label><input id="sp_inv" value="${esc(e.invNo||'')}" placeholder="เลขที่ใบกำกับ"></div>
+      <div class="field"><label>เลขผู้เสียภาษีผู้ขาย <span class="muted" style="font-size:11px">(ไม่ใส่ก็ได้ ระบบหาให้)</span></label><input id="sp_taxid" value="${esc(e.taxId||'')}" placeholder="เลขประจำตัวผู้เสียภาษี"></div>
+    </div>
     <label style="font-size:12.5px;color:var(--ink2);font-weight:600;margin:6px 0 2px;display:block">รายการวัสดุสิ้นเปลือง</label>
     <div id="supRoot"></div>
     <button class="btn sm" style="margin-top:6px" onclick="supAddLine()">+ เพิ่มรายการ</button>
@@ -4820,8 +4825,8 @@ function submitSUP(editId){
   if(editId){d=DB.docs.find(x=>x.id===editId);if(!d)return;if(d.status==='approved')reverseDoc(d);}
   else{d={id:uid(),type:'SUP',ts:Date.now()};DB.docs.push(d);}
   if(!d.no)d.no=nextNo('SUP');
-  d.date=v('sp_date')||todayISO();d.refNo=v('sp_no');d.supplier=v('sp_sup');d.note=v('sp_note');d.lines=lines;
-  d.totalQty=lines.reduce((s,l)=>s+l.qty,0);d.subtotal=lines.reduce((s,l)=>s+l.qty*l.price,0);d.status='approved';
+  d.date=v('sp_date')||todayISO();d.refNo=v('sp_no');d.supplier=v('sp_sup');d.invNo=v('sp_inv');d.taxId=v('sp_taxid');d.note=v('sp_note');d.lines=lines;
+  d.totalQty=lines.reduce((s,l)=>s+l.qty,0);d.subtotal=lines.reduce((s,l)=>s+l.qty*l.price,0);d.amount=d.subtotal;d.status='approved';
   const r=doApprove(d);if(!r.ok){toast('ไม่สำเร็จ: '+r.err,'err');return;}
   closeModal();render();toast('บันทึกรับวัสดุ '+(d.refNo||d.no)+' เข้าคงเหลือแล้ว','ok');
 }
