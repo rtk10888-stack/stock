@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='GR-2026.06.18a';
+const APP_BUILD='GR-2026.06.18b';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -4151,10 +4151,18 @@ async function importTax(input){
   }catch(e){toast('นำเข้าไม่สำเร็จ: '+e.message,'err');}
 }
 function pullTax(){
-  ensureSettings();const mon=window.__taxMon;const src=taxSourceEntries(mon);let add=0,skip=0;
-  src.forEach(s=>{if(DB.docs.find(x=>x.type==='TAX'&&x.sourceType===s.sourceType&&x.sourceId===s.sourceId)){skip++;return;}
+  ensureSettings();const mon=window.__taxMon;const src=taxSourceEntries(mon);let add=0,upd=0,rm=0;
+  const AUTO=['GR','GR-PO','SUP'];
+  const valid={};src.forEach(s=>valid[s.sourceType+'|'+s.sourceId]=1);
+  // ลบรายการเก่าที่ดึงอัตโนมัติของเดือนนี้ ที่ไม่มีต้นทางแล้ว (เช่นรายการ GR-PO เดิมที่ใช้เลข PO)
+  const before=DB.docs.length;
+  DB.docs=DB.docs.filter(x=>!(x.type==='TAX'&&(x.date||'').slice(0,7)===mon&&AUTO.includes(x.sourceType)&&!valid[x.sourceType+'|'+x.sourceId]));
+  rm=before-DB.docs.length;
+  src.forEach(s=>{
+    const ex=DB.docs.find(x=>x.type==='TAX'&&x.sourceType===s.sourceType&&x.sourceId===s.sourceId);
+    if(ex){ex.date=s.date;ex.invNo=s.invNo;ex.supplier=s.supplier;ex.taxId=s.taxId;ex.category=s.category;ex.value=s.value;ex.vat=s.vat;ex.note=s.note;upd++;return;}
     DB.docs.push({id:uid(),type:'TAX',date:s.date,invNo:s.invNo,supplier:s.supplier,taxId:s.taxId,branch:'สำนักงานใหญ่',category:s.category,value:s.value,vat:s.vat,note:s.note,payDue:'',payMethod:'',payNo:'',payDate:'',payAmount:0,slip:'',sourceType:s.sourceType,sourceId:s.sourceId,status:'active'});add++;});
-  saveDB();render();toast(add?('ส่งเข้าภาษีซื้อ '+add+' รายการ'+(skip?(' (ข้ามซ้ำ '+skip+')'):'')):'ไม่มีรายการใหม่ (ส่งครบแล้ว)',add?'ok':'err');
+  saveDB();render();toast((add||upd||rm)?('อัปเดตภาษีซื้อ: เพิ่ม '+add+' · ปรับปรุง '+upd+(rm?(' · ลบเก่า '+rm):'')):'ไม่มีรายการรับวัตถุดิบ/วัสดุเดือนนี้','ok');
 }
 function openTaxForm(edit){
   ensureSettings();const sups=DB.settings.suppliers||[];const e=edit||{};window.__taxSlip=e.slip||'';
