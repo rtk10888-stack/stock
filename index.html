@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='TAX-2026.06.18g';
+const APP_BUILD='TAX-2026.06.18h';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -3933,7 +3933,7 @@ function viewTax(el){
   </div>
   <div class="panel"><div class="panel-h" style="flex-wrap:wrap;gap:8px">
     <div style="display:flex;gap:8px;align-items:center"><label style="font-size:12.5px;font-weight:600">เดือนภาษี</label><select onchange="window.__taxMon=this.value;render()" style="padding:6px 10px">${months.map(m=>`<option value="${m}" ${m===mon?'selected':''}>${esc(m)}</option>`).join('')}</select></div>
-    <div class="right" style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn sm" onclick="pullTax()">📥 ดึงรายการ (PO/วัสดุ)</button><button class="btn sm" onclick="printTaxReport()">🖨️ พิมพ์รายงาน</button><button class="btn pri" onclick="openTaxForm()">+ เพิ่มรายการ</button></div>
+    <div class="right" style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn sm" onclick="pullTax()">📥 ดึงรายการ (PO/วัสดุ)</button><input type="file" id="taxFile" accept=".xls,.xlsx,.csv" style="display:none" onchange="importTax(this)"><button class="btn sm" onclick="document.getElementById('taxFile').click()">📂 นำเข้าไฟล์</button><button class="btn sm" onclick="printTaxReport()">🖨️ พิมพ์รายงาน</button><button class="btn pri" onclick="openTaxForm()">+ เพิ่มรายการ</button></div>
   </div><div class="panel-b nopad">
     ${rows.length?`<div class="tbl-wrap"><table style="white-space:nowrap;font-size:12px"><thead><tr>
       <th>ลำดับ</th><th>วันที่ใบกำกับ</th><th>เลขที่ใบกำกับ</th><th>ผู้ขาย</th><th>เลขผู้เสียภาษี</th><th>สนญ./สาขา</th><th>ประเภท</th><th class="num">มูลค่า</th><th class="num">ภาษีซื้อ</th>
@@ -3954,6 +3954,32 @@ function taxRow(r,i){
     <td class="c">${r.slip?'<span class="linkish" onclick="viewTaxSlip(\''+r.id+'\')" style="cursor:pointer">🧾 ดู</span>':'<span class="muted">-</span>'}</td>
     <td style="white-space:nowrap"><button class="btn sm" onclick="openTaxForm(DB.docs.find(x=>x.id==='${r.id}'))">✏️</button> <button class="btn sm danger" onclick="delTax('${r.id}')">ลบ</button></td>
   </tr>`;
+}
+async function importTax(input){
+  const f=input.files[0];if(!f)return;input.value='';
+  try{
+    await loadScript('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js');
+    const buf=await f.arrayBuffer();const wb=window.XLSX.read(buf,{type:'array',cellDates:false});
+    let add=0,skip=0,sheets=0;const seen={};DB.docs.filter(d=>d.type==='TAX'&&d.importKey).forEach(d=>seen[d.importKey]=1);
+    wb.SheetNames.forEach(sn=>{
+      if(!/^\d{1,2}\s*-\s*\d{2}$/.test(sn.trim()))return;sheets++;
+      const ws=wb.Sheets[sn];const rows=window.XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:''});
+      for(let ri=8;ri<rows.length;ri++){const r=rows[ri]||[];
+        const value=Number(String(r[11]).replace(/,/g,''))||0;if(value<=0)continue;
+        const supplier=String(r[3]||'').trim();if(!supplier||/^รวม|total/i.test(supplier))continue;
+        const date=xlDate(r[1]);const invNo=String(r[2]||'').trim();
+        const cat=r[13]?'สินค้าสำเร็จรูป':r[14]?'วัตถุดิบ':(r[15]||r[16]||r[17])?'ค่าจ้างแรงงาน':r[18]?'สิ้นเปลือง':'อื่นๆ';
+        const vat=Number(String(r[12]).replace(/,/g,''))||Math.round(value*0.07*100)/100;
+        const key='TAXIMP:'+sn+'|'+invNo+'|'+date+'|'+value;
+        if(seen[key]){skip++;continue;}seen[key]=1;
+        DB.docs.push({id:uid(),type:'TAX',date:date||'',invNo:invNo,supplier:supplier,taxId:String(r[8]||'').trim(),branch:String(r[9]||'สำนักงานใหญ่').trim()||'สำนักงานใหญ่',category:cat,value:value,vat:vat,note:String(r[5]||'').trim(),payDue:'',payMethod:'',payNo:'',payDate:'',payAmount:0,slip:'',importKey:key,sourceType:'IMPORT',status:'active'});
+        add++;
+      }
+    });
+    saveDB();render();
+    if(!sheets){toast('ไม่พบชีตภาษีซื้อรายเดือน (เช่น 01-69)','err');return;}
+    modal({title:'📂 นำเข้าภาษีซื้อสำเร็จ',body:`<div class="kv"><span class="k">ชีตที่อ่าน</span><b>${fmt(sheets)} เดือน</b></div><div class="kv"><span class="k">เพิ่มรายการใหม่</span><b style="color:var(--teal)">${fmt(add)}</b></div><div class="kv"><span class="k">ข้ามซ้ำ</span><b>${fmt(skip)}</b></div><div class="hint" style="margin-top:8px"><span class="i">💡</span><div>เลือกเดือนภาษีด้านบนเพื่อดูแต่ละเดือน · ติดตามการจ่าย/แนบสลิปได้ที่ปุ่ม ✏️</div></div>`,footer:`<button class="btn pri" onclick="closeModal()">ตกลง</button>`});
+  }catch(e){toast('นำเข้าไม่สำเร็จ: '+e.message,'err');}
 }
 function pullTax(){
   ensureSettings();const mon=window.__taxMon;let add=0;
