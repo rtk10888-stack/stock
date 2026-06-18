@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='WHT-2026.06.18a';
+const APP_BUILD='IPPO-2026.06.18a';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -2125,7 +2125,7 @@ function printIP(id,mode){
    +'<div style="flex:1;border:1px solid #111;border-radius:4px;padding:6px 9px;font-size:11px;line-height:1.5;max-width:240px"><b>Document No. :</b> '+esc(d.no)+'<br><b>Date :</b> '+esc(d.date||'')+'<br><b>Payment terms :</b> '+esc(d.creditTerms||'')+'<br><b>Due delivery :</b> '+esc(d.deliveryDate||'')+'</div></div>'
    +'<table class="it" style="margin-top:8px"><thead><tr><th style="width:28px">No.</th><th style="width:92px">Product Code</th><th>Description</th><th style="width:72px">Due</th><th style="width:66px">Quantity</th><th style="width:40px">Unit</th><th style="width:70px">Price/Unit<br>'+_cl+'</th><th style="width:84px">Amount<br>'+_cl+'</th></tr></thead><tbody>'+rows+blanks+'</tbody></table>'
    +'<div style="display:flex">'
-   +'<div style="flex:1.6;border:1px solid #555;border-top:none;padding:6px 8px;font-size:9px;line-height:1.6"><b>REMARK</b> : &nbsp;1. If product does not meet the conditions, company can be able to cancle the purchasing.<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2. Provide all the quality certificates attached along the delivery.</div>'
+   +'<div style="flex:1.6;border:1px solid #555;border-top:none;padding:6px 8px;font-size:9px;line-height:1.7"><b>REMARK :</b><br>1. If product does not meet the conditions,company can be able to cancle the purchasing.<br>2. Provide all the quality certificates attached along the delivery.<br>3. Payment : T/T 30% Deposit , 70% payment after received 15 days.<br>4. Each lot of parts must undergo 100% inspection.<br>5. The documents that need to be provided include the Inspection Data and Mill Sheet.</div>'
    +'<table style="flex:1;border-collapse:collapse;font-size:11px;max-width:300px;width:300px"><tr><td style="border:1px solid #555;border-top:none;padding:3px 8px">Value Added Tax</td><td class="r" style="border:1px solid #555;border-top:none;padding:3px 8px">'+fmt2(d.amount||0)+'</td></tr>'
    +'<tr><td style="border:1px solid #555;padding:3px 8px">VAT 7 %</td><td class="r" style="border:1px solid #555;padding:3px 8px">'+(d.vat?fmt2(d.vat):'-')+'</td></tr>'
    +'<tr><td style="border:1px solid #555;padding:3px 8px">Net Amount</td><td class="r" style="border:1px solid #555;padding:3px 8px">'+(d.discount?fmt2(d.discount):'-')+'</td></tr>'
