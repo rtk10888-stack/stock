@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='TAXSALE-2026.06.18a';
+const APP_BUILD='TAXSALE-2026.06.18b';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -4250,7 +4250,59 @@ function printTaxReport(){
 function taxoMonths(){const set=new Set();DB.docs.filter(d=>d.type==='TAXO'&&d.date).forEach(d=>set.add(d.date.slice(0,7)));DB.docs.filter(d=>d.type==='INV'&&d.date&&d.status!=='cancelled').forEach(d=>set.add(d.date.slice(0,7)));const a=[...set].filter(Boolean).sort();return a.length?a:[todayISO().slice(0,7)];}
 function custDirectory(){const dir=[];const seen={};DB.docs.forEach(d=>{if(d.type==='TAXO'&&d.customer&&String(d.taxId||'').length>=10){const k=d.customer+'|'+d.taxId;if(!seen[k]){seen[k]=1;dir.push({name:d.customer,taxId:d.taxId});}}});return dir;}
 function resolveCustomer(name){name=(name||'').trim();if(!name)return {name:'',taxId:''};const nn=normSupName(name);if(!nn)return {name:name,taxId:''};const dir=custDirectory();let best=null;for(const e of dir){const ne=normSupName(e.name);if(ne===nn){best=e;break;}if(!best&&ne&&(ne.includes(nn)||nn.includes(ne)))best=e;}return best?{name:best.name,taxId:best.taxId}:{name:name,taxId:''};}
+function taxoYears(){const s=new Set();DB.docs.filter(d=>d.type==='TAXO'&&d.date).forEach(d=>s.add(d.date.slice(0,4)));const a=[...s].filter(Boolean).sort();return a.length?a:[todayISO().slice(0,4)];}
+function taxoAgg(yr){
+  const M={};for(let m=1;m<=12;m++)M[m]={val:0,vat:0,n:0};
+  DB.docs.filter(d=>d.type==='TAXO'&&(d.date||'').slice(0,4)===yr).forEach(d=>{const m=+((d.date||'').slice(5,7))||0;if(!M[m])return;M[m].val+=Number(d.value)||0;M[m].vat+=Number(d.vat)||0;M[m].n++;});
+  const active=Object.keys(M).map(Number).filter(m=>M[m].n>0).sort((a,b)=>a-b);
+  const T={val:0,vat:0,n:0};active.forEach(m=>{T.val+=M[m].val;T.vat+=M[m].vat;T.n+=M[m].n;});
+  return {M:M,active:active,T:T};
+}
 function viewTaxSale(el){
+  ensureSettings();
+  if(window.__taxoView==='month'){viewTaxSaleMonth(el);return;}
+  const years=taxoYears();
+  if(!window.__taxoYear||!years.includes(window.__taxoYear))window.__taxoYear=years[years.length-1];
+  const yr=window.__taxoYear;
+  const mNames=['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  const ag=taxoAgg(yr),M=ag.M,active=ag.active,T=ag.T;
+  setTitle('📈 ภาษีขาย — สรุปรายปี','สรุปยอดขาย + ภาษีขาย รายเดือน · คลิกที่เดือนเพื่อดูรายการ');
+  function rh(label,x,m){const oc=m?` style="cursor:pointer" onclick="window.__taxoView='month';window.__taxoMon='${yr}-${String(m).padStart(2,'0')}';render()"`:'';return '<tr'+oc+'><td class="c" style="font-weight:600">'+esc(label)+(m?' 🔎':'')+'</td><td class="num">'+fmt(x.n)+'</td><td class="num">'+fmt2(x.val)+'</td><td class="num"><b>'+fmt2(x.vat)+'</b></td></tr>';}
+  el.innerHTML=`
+  <div class="hint"><span class="i">💡</span><div>สรุปยอดขายและภาษีขายรายเดือนของปี ${(+yr)+543} · <b>คลิกแถวเดือน</b> เพื่อดูรายการใบกำกับในเดือนนั้น</div></div>
+  <div class="cards">
+    <div class="card"><div class="lbl"><span class="dot d-brand">📈</span>มูลค่าขายรวมปี ${(+yr)+543}</div><div class="val">${fmt2(T.val)}</div></div>
+    <div class="card"><div class="lbl"><span class="dot d-teal">🧮</span>ภาษีขายรวม</div><div class="val">${fmt2(T.vat)}</div><div class="sub">บาท</div></div>
+    <div class="card"><div class="lbl"><span class="dot d-violet">🧾</span>จำนวนใบกำกับ</div><div class="val">${fmt(T.n)}</div></div>
+  </div>
+  <div class="panel"><div class="panel-h" style="flex-wrap:wrap;gap:8px">
+    <div style="display:flex;gap:8px;align-items:center"><label style="font-size:12.5px;font-weight:600">ปี พ.ศ.</label><select onchange="window.__taxoYear=this.value;render()" style="padding:6px 10px">${years.map(y=>`<option value="${y}" ${y===yr?'selected':''}>${(+y)+543}</option>`).join('')}</select></div>
+    <div class="right" style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn sm" onclick="window.__taxoView='month';render()">📋 ดูรายเดือน</button><input type="file" id="taxoFileY" accept=".xls,.xlsx,.csv" style="display:none" onchange="importTaxSale(this)"><button class="btn sm" onclick="document.getElementById('taxoFileY').click()">📂 นำเข้าไฟล์</button><button class="btn sm" onclick="printTaxSaleSummary()">🖨️ พิมพ์สรุป</button></div>
+  </div><div class="panel-b nopad">
+  ${active.length?`<div class="tbl-wrap"><table style="font-size:12.5px;text-align:center"><thead><tr><th>เดือน</th><th class="num">จำนวนใบกำกับ</th><th class="num">มูลค่าขาย</th><th class="num">ภาษีขาย (VAT)</th></tr></thead><tbody>
+    ${active.map(m=>rh(mNames[m],M[m],m)).join('')}
+  </tbody><tfoot><tr style="background:#fff7a8;font-weight:700">${rh('รวมทั้งปี',T,0).replace(/^<tr>/,'').replace(/<\/tr>$/,'')}</tr></tfoot></table></div>`:`<div class="empty"><div class="big">📈</div><div class="t">ยังไม่มีข้อมูลภาษีขายปี ${(+yr)+543}</div><div>กด "📂 นำเข้าไฟล์" หรือ "📋 ดูรายเดือน" เพื่อเพิ่ม</div></div>`}
+  </div></div>`;
+}
+function printTaxSaleSummary(){
+  ensureSettings();const co=DB.settings.company||{};const yr=window.__taxoYear||todayISO().slice(0,4);
+  const mNames=['','มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+  const ag=taxoAgg(yr),M=ag.M,active=ag.active,T=ag.T;
+  if(!active.length){toast('ไม่มีข้อมูลปีนี้','err');return;}
+  const rr=(lbl,x)=>'<tr><td class="c b">'+esc(lbl)+'</td><td class="r">'+fmt(x.n)+'</td><td class="r">'+fmt2(x.val)+'</td><td class="r">'+fmt2(x.vat)+'</td></tr>';
+  const body=active.map(m=>rr(mNames[m],M[m])).join('');
+  const html='<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"><title>สรุปภาษีขาย '+esc(yr)+'</title><style>'
+   +"@page{size:A4 portrait;margin:10mm}*{font-family:'Tahoma',sans-serif;box-sizing:border-box}body{margin:0;font-size:12px;color:#111}"
+   +".hd{text-align:center}.hd h1{font-size:15px;margin:0;font-weight:700}.hd .t2{font-size:14px;font-weight:700;margin:2px 0}"
+   +"table{width:100%;border-collapse:collapse;font-size:12px;margin-top:10px}th,td{border:1px solid #555;padding:5px 8px}th{background:#e9eef7;text-align:center}td.c{text-align:center}td.r{text-align:right}.b{font-weight:700}tfoot td{background:#fff2cc;font-weight:700}"
+   +"@media print{.noprint{display:none}}</style></head><body>"
+   +'<div class="hd"><h1>'+esc(co.thName||co.name||'')+'</h1><div class="t2">สรุปภาษีขายรายปี</div><div>ปี '+((+yr)+543)+'</div></div>'
+   +'<table><thead><tr><th>เดือน</th><th>จำนวนใบกำกับ</th><th>มูลค่าขาย</th><th>ภาษีขาย (VAT)</th></tr></thead><tbody>'+body+'</tbody><tfoot>'+rr('รวมทั้งปี',T)+'</tfoot></table>'
+   +'<div class="noprint" style="text-align:center;margin-top:14px"><button onclick="window.print()" style="padding:8px 22px;cursor:pointer">🖨️ พิมพ์ / PDF</button></div>'
+   +'<scr'+'ipt>setTimeout(function(){window.print()},400)</scr'+'ipt></body></html>';
+  const w=window.open('','_blank');if(!w){toast('popup ถูกบล็อก','err');return}w.document.write(html);w.document.close();
+}
+function viewTaxSaleMonth(el){
   ensureSettings();
   if(!window.__taxoMon){const ms=taxoMonths();window.__taxoMon=ms[ms.length-1];}
   const mon=window.__taxoMon;const months=taxoMonths();
@@ -4266,7 +4318,7 @@ function viewTaxSale(el){
   </div>
   <div class="panel"><div class="panel-h" style="flex-wrap:wrap;gap:8px">
     <div style="display:flex;gap:8px;align-items:center"><label style="font-size:12.5px;font-weight:600">เดือนภาษี</label><select onchange="window.__taxoMon=this.value;render()" style="padding:6px 10px">${months.map(m=>`<option value="${m}" ${m===mon?'selected':''}>${esc(m)}</option>`).join('')}</select></div>
-    <div class="right" style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn sm" onclick="pullTaxSale()">📥 ดึงจาก Invoice</button><input type="file" id="taxoFile" accept=".xls,.xlsx,.csv" style="display:none" onchange="importTaxSale(this)"><button class="btn sm" onclick="document.getElementById('taxoFile').click()">📂 นำเข้าไฟล์</button><button class="btn sm" onclick="printTaxSale()">🖨️ พิมพ์รายงาน</button><button class="btn pri" onclick="openTaxoForm()">+ เพิ่มรายการ</button></div>
+    <div class="right" style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn sm" onclick="window.__taxoView='summary';render()">📊 สรุปรายปี</button><button class="btn sm" onclick="pullTaxSale()">📥 ดึงจาก Invoice</button><input type="file" id="taxoFile" accept=".xls,.xlsx,.csv" style="display:none" onchange="importTaxSale(this)"><button class="btn sm" onclick="document.getElementById('taxoFile').click()">📂 นำเข้าไฟล์</button><button class="btn sm" onclick="printTaxSale()">🖨️ พิมพ์รายงาน</button><button class="btn pri" onclick="openTaxoForm()">+ เพิ่มรายการ</button></div>
   </div><div class="panel-b nopad">
     ${rows.length?`<div class="tbl-wrap"><table style="white-space:nowrap;font-size:12px"><thead><tr>
       <th>ลำดับ</th><th>วันที่ใบกำกับ</th><th>เลขที่ใบกำกับ</th><th>ชื่อผู้ซื้อสินค้า/ผู้รับบริการ</th><th>เลขผู้เสียภาษี</th><th>สนญ./สาขา</th><th class="num">มูลค่าสินค้า</th><th class="num">ภาษีขาย</th><th></th>
