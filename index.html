@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SCRL-2026.06.18d';
+const APP_BUILD='SUP-2026.06.18e';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -268,7 +268,7 @@ function DEFAULT_MAKERS(){return [
 function ensureSettings(){const s=DB&&DB.settings;if(!s)return;if(!s.company)s.company=DEFAULT_COMPANY();if(s.company&&!s.company.poSign)s.company.poSign=DEFAULT_COMPANY().poSign;if(s.company&&s.company.poSign&&/[ก-๙]/.test(JSON.stringify(s.company.poSign)))s.company.poSign=DEFAULT_COMPANY().poSign;if(s.company&&!s.company.thName)s.company.thName=DEFAULT_COMPANY().thName;if(s.company&&s.company.address&&s.company.address.indexOf('ออนนุช')>=0)s.company.address=DEFAULT_COMPANY().address;if(s.company&&!s.company.addressEn)s.company.addressEn=DEFAULT_COMPANY().addressEn;if(!s.makers||!s.makers.length)s.makers=DEFAULT_MAKERS();if(s.passcode===undefined)s.passcode='';if(!s.suppliers)s.suppliers=[];if(!s.customers)s.customers=[];if(!s.platings)s.platings=[];if(!s.flows||!s.flows.length)s.flows=[{name:'ไม่ชุบ',direct:true},{name:'ไม่ชุบ-QC',direct:false},{name:'ชุบ-QC',direct:false}];if(!s.custList)s.custList=(s.customers||[]).map(n=>({name:n}));if(!s.supList)s.supList=(s.suppliers||[]).map(n=>({name:n}));(s.customers||[]).forEach(n=>{if(n&&!s.custList.find(c=>c.name===n))s.custList.push({name:n});});(s.suppliers||[]).forEach(n=>{if(n&&!s.supList.find(c=>c.name===n))s.supList.push({name:n});});s.customers=s.custList.map(c=>c.name).filter(Boolean);s.suppliers=s.supList.map(c=>c.name).filter(Boolean);}
 function makerByCode(code){return (DB.settings.makers||[]).find(m=>m.code===code)||null;}
 function fmt2(n){return (Number(n)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}
-function prodFlow(p){if(!p)return'';if(p.flow)return p.flow;if(p.type==='RM')return'ไม่ชุบ';const pl=(p.plating||'').trim();if(pl==='ไม่ชุบ'||pl==='ไม่ชุบ-QC'||pl==='ชุบ-QC')return pl;if(p.needPlating&&pl)return'ชุบ-QC';return'ไม่ชุบ-QC';}
+function prodFlow(p){if(!p)return'';if(p.flow)return p.flow;if(p.type==='RM'||p.type==='SUP')return'ไม่ชุบ';const pl=(p.plating||'').trim();if(pl==='ไม่ชุบ'||pl==='ไม่ชุบ-QC'||pl==='ชุบ-QC')return pl;if(p.needPlating&&pl)return'ชุบ-QC';return'ไม่ชุบ-QC';}
 function platingSpec(p){if(!p)return'';const pl=(p.plating||'').trim();if(pl==='ไม่ชุบ'||pl==='ไม่ชุบ-QC'||pl==='ชุบ-QC')return'';return pl;}
 function flowEnsure(){if(!DB.settings)return;if(!DB.settings.flows||!DB.settings.flows.length)DB.settings.flows=[{name:'ไม่ชุบ',direct:true},{name:'ไม่ชุบ-QC',direct:false},{name:'ชุบ-QC',direct:false}];}
 function flowList(){flowEnsure();return DB.settings.flows||[];}
@@ -384,6 +384,7 @@ function applyDoc(d){
     else if(t==='PR'){ const p=P(d.productId);p.atPlating-=d.qty;p.wip+=d.qty;move(p.id,'atPlating',-d.qty,'PR',d.no,'รับคืนชุบ');move(p.id,'wip',+d.qty,'PR',d.no,'รับคืนชุบ'); }
     else if(t==='QC'){ if(d.productId&&!d.lines){const p=P(d.productId);const tot=d.qtyOk+d.qtyNg;p.wip-=tot;p.passedQC+=d.qtyOk;p.ng+=d.qtyNg;move(p.id,'wip',-tot,'QC',d.no,'คัดแยก');if(d.qtyOk)move(p.id,'passedQC',+d.qtyOk,'QC',d.no,'OK');if(d.qtyNg)move(p.id,'ng',+d.qtyNg,'QC',d.no,'NG');} }
     else if(t==='SI'){ if(d.lines){ d.lines.forEach(l=>{const p=P(l.productId);if(p){const q=Number(l.weighed)||0;if(q){const wr=Math.min(q,p.wip||0);if(wr>0){p.wip-=wr;move(p.id,'wip',-wr,'SI',d.no,'รับเข้าสต๊อค');}p.onHand+=q;move(p.id,'onHand',+q,'SI',d.no,'รับเข้าสต๊อค');}}}); } else if(d.productId){const p=P(d.productId);p.passedQC-=d.qty;p.onHand+=d.qty;move(p.id,'passedQC',-d.qty,'SI',d.no,'รับเข้าสต๊อค');move(p.id,'onHand',+d.qty,'SI',d.no,'รับเข้าสต๊อค');} }
+    else if(t==='SUP'){ d.lines.forEach(l=>{const p=P(l.productId);if(p){p.onHand+=l.qty;move(p.id,'onHand',+l.qty,'SUP',d.no,'รับวัสดุสิ้นเปลือง '+(d.supplier||''));}}); }
     else if(t==='RMC'){ const p=P(d.productId);if(p){p.onHand+=d.qty;move(p.id,'onHand',+d.qty,'RMC',d.no,'รับแมทลูกค้า '+(d.customer||''));} }
     else if(t==='INV'){ d.lines.forEach(l=>{const p=P(l.productId);if(p){p.onHand-=l.qty;move(p.id,'onHand',-l.qty,'INV',d.no,'ขาย '+(d.customer||''));}}); }
     else if(t==='IV2'){ d.lines.forEach(l=>{const p=P(l.productId);if(p){p.onHand-=l.qty;move(p.id,'onHand',-l.qty,'IV2',d.no,'ขายพิเศษ '+(d.customer||''));}}); }
@@ -411,6 +412,7 @@ const NAV=[
   {id:'ip',ico:'🌐',label:'สั่งซื้อต่างประเทศ',dt:'IP'},
   {id:'sp',ico:'⭐',label:'สั่งซื้อพิเศษ',dt:'SP'},
   {id:'gr',ico:'📥',label:'รับวัตถุดิบ',dt:'GR'},
+  {id:'sup',ico:'🧰',label:'วัสดุสิ้นเปลือง'},
   {g:'การผลิต (สินค้าสำเร็จรูป)'},
   {id:'prd',ico:'📋',label:'ใบสั่งผลิต',dt:'PRD'},
   {id:'wd',ico:'📤',label:'เบิกวัตถุดิบ',dt:'WD'},
@@ -451,7 +453,7 @@ function render(){
   const el=document.getElementById('content');
   const map={dashboard:viewDashboard,inventory:viewInventory,approvals:viewApprovals,monitor:viewMonitor,
     po:()=>viewDocs('PO'),ip:()=>viewDocs('IP'),sp:()=>viewDocs('SP'),gr:()=>viewDocs('GR'),prd:()=>viewDocs('PRD'),wd:()=>viewDocs('WD'),
-    dp:()=>viewDocs('DP'),rw:()=>viewDocs('RW'),plate:()=>viewDocs('PL'),qc:()=>viewDocs('QC'),si:()=>viewDocs('SI'),rmc:viewRMC,
+    dp:()=>viewDocs('DP'),rw:()=>viewDocs('RW'),plate:()=>viewDocs('PL'),qc:()=>viewDocs('QC'),si:()=>viewDocs('SI'),rmc:viewRMC,sup:viewSUP,
     inv:()=>viewDocs('INV'),iv2:()=>viewDocs('IV2'),adj:()=>viewDocs('ADJ'),moves:viewMoves,settings:viewSettings,
     demand:viewDemand,mrp:viewMRP};
   (map[route]||viewDashboard)(el);
@@ -479,7 +481,7 @@ function setupDualScroll(){
 /* ---------- Helpers for rendering ---------- */
 function fmt(n){if(n===null||n===undefined||n==='')return '0';return Number(n).toLocaleString('en-US')}
 function statusTag(s){return s==='approved'?'<span class="tag green">✓ อนุมัติแล้ว</span>':s==='cancelled'?'<span class="tag gray">ยกเลิก</span>':'<span class="tag amber">⏳ รออนุมัติ</span>'}
-function typeTag(t){return t==='FG'?'<span class="tag fg">สำเร็จรูป</span>':'<span class="tag rm">วัตถุดิบ</span>'}
+function typeTag(t){return t==='FG'?'<span class="tag fg">สำเร็จรูป</span>':t==='SUP'?'<span class="tag amber">วัสดุสิ้นเปลือง</span>':t==='RMC'?'<span class="tag violet">แมทลูกค้า</span>':'<span class="tag rm">วัตถุดิบ</span>'}
 function prodOptions(filterType){
   return DB.products.filter(p=>!filterType||p.type===filterType)
     .map(p=>`<option value="${p.id}">${p.pn} — ${p.name} ${p.customer&&p.customer!=='ไม่ระบุ'?'('+p.customer+')':''}</option>`).join('');
@@ -658,6 +660,7 @@ function viewInventory(el){
         <button class="${invFilter.type==='FG'?'on':''}" onclick="invSet('FG')">สำเร็จรูป</button>
         <button class="${invFilter.type==='RM'?'on':''}" onclick="invSet('RM')">วัตถุดิบ</button>
         <button class="${invFilter.type==='RMC'?'on':''}" onclick="invSet('RMC')">รับแมทลูกค้า</button>
+        <button class="${invFilter.type==='SUP'?'on':''}" onclick="invSet('SUP')">วัสดุสิ้นเปลือง</button>
       </div>
       <div class="searchbox"><input id="invQ" placeholder="ค้นหา PN / ชื่อ / ลูกค้า..." value="${esc(invFilter.q)}" oninput="invFilter.q=this.value;renderInvTable()"></div>
       <input list="dl_invcust" placeholder="👥 ลูกค้า (พิมพ์ค้นหา)" value="${esc(invFilter.cust)}" oninput="invFilter.cust=this.value;renderInvTable()" style="max-width:170px;width:auto"><datalist id="dl_invcust">${custs.map(v=>'<option value="'+esc(v)+'">').join('')}</datalist>
@@ -674,7 +677,7 @@ function viewInventory(el){
   </div>`;
   renderInvTable();
 }
-function invSet(t){invFilter.type=t;document.querySelectorAll('#invSeg button').forEach((b,i)=>b.classList.toggle('on',['all','FG','RM','RMC'][i]===t));renderInvTable()}
+function invSet(t){invFilter.type=t;document.querySelectorAll('#invSeg button').forEach((b,i)=>b.classList.toggle('on',['all','FG','RM','RMC','SUP'][i]===t));renderInvTable()}
 function setProdPrice(id,val){const p=P(id);if(!p)return;p.prodPrice=Number(val)||0;saveDB();toast('บันทึกราคาผลิต '+p.pn+' = '+fmt2(p.prodPrice),'ok');}
 function invFilteredList(){
   const q=(invFilter.q||'').trim().toLowerCase();let list;
@@ -762,9 +765,9 @@ function renderInvTable(){
     const low=p.onHand<=(p.reorder||0)&&(p.reorder>0||p.onHand===0);
     const moq=p.moq||p.reorder||0;
     const fl=prodFlow(p);
-    const plt = p.type==='RM' ? '<span class="tag gray">ไม่ชุบ</span>' : ('<span class="tag '+(fl==='ชุบ-QC'?'cyan':fl==='ไม่ชุบ'?'gray':'amber')+'">'+esc(fl)+'</span>'+(fl==='ชุบ-QC'&&p.plating&&p.plating!=='ชุบ'?' <span class="muted">'+esc(p.plating)+'</span>':''));
+    const plt = (p.type==='RM'||p.type==='SUP') ? '<span class="tag gray">ไม่ชุบ</span>' : ('<span class="tag '+(fl==='ชุบ-QC'?'cyan':fl==='ไม่ชุบ'?'gray':'amber')+'">'+esc(fl)+'</span>'+(fl==='ชุบ-QC'&&p.plating&&p.plating!=='ชุบ'?' <span class="muted">'+esc(p.plating)+'</span>':''));
     const matTag = p.material?'<span class="tag gray">'+esc(p.material)+'</span> ':'';
-    const cond = p.type==='RM' ? (p.material?'<span class="tag gray">'+esc(p.material)+'</span>':'<span class="muted">—</span>')
+    const cond = (p.type==='RM'||p.type==='SUP') ? (p.material?'<span class="tag gray">'+esc(p.material)+'</span>':'<span class="muted">—</span>')
       : matTag+(p.custSupplyMat?'<span class="tag violet">ลูกค้าจ่ายแมท</span>':'<span class="tag gray">บริษัทซื้อแมท</span>');
     return `<tr>
       <td>${typeTag(p.type)}</td>
@@ -4287,6 +4290,120 @@ function applyBalanceUpdate(input){
 let planLines=[]; let planTab='FC'; let mrpOnlyShort=false; let planMrpMode='all';
 const PLAN={FC:{label:'Forecast ลูกค้า',icon:'📈'},CPO:{label:'Customer PO',icon:'📑'},PL:{label:'แผนจัดส่ง (PL)',icon:'🚛'}};
 function monthLabels(){const d=new Date();const th=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];return [0,1,2,3].map(i=>{const m=new Date(d.getFullYear(),d.getMonth()+i,1);return th[m.getMonth()]+' '+String(m.getFullYear()+543).slice(2)})}
+/* ===== วัสดุสิ้นเปลือง (Supplies / SUP) ===== */
+var supLines=[];
+function supEnsureProduct(name){name=(name||'').trim();if(!name)return null;let p=DB.products.find(x=>x.type==='SUP'&&x.pn===name);if(!p){p={id:uid(),type:'SUP',pn:name,name:'',customer:'',moq:0,material:'',plating:'',needPlating:false,custSupplyMat:false,flow:'ไม่ชุบ',prodPrice:0,salePrice:0,buyPrice:0,supplier:'',remark:'',onHand:0,wip:0,atPlating:0,passedQC:0,ng:0,reorder:0};DB.products.push(p);}return p;}
+function supDistinct(field){const set=new Set();DB.docs.filter(d=>d.type==='SUP').forEach(d=>{(d.lines||[]).forEach(l=>{let v=field==='mon'?((d.date||'')+'').slice(0,7):field==='no'?(d.refNo||d.no):field==='sup'?d.supplier:field==='item'?(l.name||''):'';if(v)set.add(String(v));});});return [...set].sort();}
+function viewSUP(el){
+  setTitle('🧰 วัสดุสิ้นเปลือง','รับวัสดุสิ้นเปลือง (ดอกสว่าน/สายพาน/อื่นๆ) → เข้าคงเหลือทันที');
+  const mk=(id,ph,field)=>`<input id="${id}" class="fchip" list="dl_${id}" placeholder="${ph}" oninput="filterSupRows()" style="max-width:150px"><datalist id="dl_${id}">${supDistinct(field).map(v=>`<option value="${esc(v)}">`).join('')}</datalist>`;
+  el.innerHTML=`
+  <div class="hint"><span class="i">💡</span><div>บันทึกการรับวัสดุสิ้นเปลือง → เข้าคงเหลือทันที · ดูคงเหลือได้ที่ <b>สินค้าคงคลัง → วัสดุสิ้นเปลือง</b></div></div>
+  <div class="panel"><div class="panel-h" style="flex-wrap:wrap;gap:8px">
+    <div class="searchbox"><input id="supSearch" placeholder="ค้นหา เลขที่ / วัสดุ / Supplier" oninput="filterSupRows()"></div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">${mk('sf_no','🔢 เลขที่','no')}${mk('sf_mon','📆 เดือน','mon')}${mk('sf_sup','🏪 Supplier','sup')}${mk('sf_item','🧰 วัสดุ','item')}</div>
+    <div class="right" style="display:flex;gap:6px"><button class="btn sm" onclick="printSUPMonth()">🖨️ พิมพ์เดือน</button><button class="btn pri" onclick="openSUPForm()">+ รับวัสดุสิ้นเปลือง</button></div>
+  </div><div class="panel-b nopad" id="supList"></div></div>`;
+  renderSUPList();
+}
+function renderSUPList(){
+  const wrap=document.getElementById('supList');if(!wrap)return;
+  const docs=DB.docs.filter(d=>d.type==='SUP').sort((a,b)=>(b.date||'').localeCompare(a.date||'')||b.ts-a.ts);
+  if(!docs.length){wrap.innerHTML=`<div class="empty"><div class="big">🧰</div><div class="t">ยังไม่มีรายการวัสดุสิ้นเปลือง</div><div>กด "+ รับวัสดุสิ้นเปลือง" เพื่อเริ่ม</div></div>`;return;}
+  let tQ=0,tAmt=0;
+  const rows=docs.map(d=>{const items=(d.lines||[]).map(l=>l.name).filter(Boolean);const head=items.slice(0,1).join(', ')+(items.length>1?` +${items.length-1}`:'');const q=(d.lines||[]).reduce((s,l)=>s+(Number(l.qty)||0),0);const amt=(d.lines||[]).reduce((s,l)=>s+(Number(l.qty)||0)*(Number(l.price)||0),0);tQ+=q;tAmt+=amt;
+    return `<tr data-no="${esc(d.refNo||d.no)}" data-mon="${esc((d.date||'').slice(0,7))}" data-sup="${esc(d.supplier||'')}" data-item="${esc(items.join(' ').toLowerCase())}">
+      <td class="muted">${esc(d.date||'')}</td><td class="pn linkish" onclick="printSUP('${d.id}')">${esc(d.refNo||d.no||'')}</td>
+      <td><span class="tag violet">${esc(d.supplier||'-')}</span></td><td>${esc(head)}</td>
+      <td class="num"><b>${fmt(q)}</b></td><td class="num">${amt?fmt2(amt):'-'}</td><td>${statusTag(d.status)}</td>
+      <td style="text-align:right;white-space:nowrap"><button class="btn sm" onclick="printSUP('${d.id}')">ดู</button> <button class="btn sm" onclick="printSUP('${d.id}')" title="พิมพ์">🖨️</button> <button class="btn sm" onclick="openSUPForm(DB.docs.find(x=>x.id==='${d.id}'))">✏️</button> <button class="btn sm danger" onclick="delSUP('${d.id}')">ยกเลิก</button></td>
+    </tr>`;}).join('');
+  wrap.innerHTML=`<div class="tbl-wrap"><table style="white-space:nowrap"><thead><tr>
+    <th>วันที่</th><th>เลขที่ใบสั่ง</th><th>Supplier</th><th>รายละเอียด (วัสดุ)</th><th class="num">จำนวน</th><th class="num">รวมเงิน</th><th>สถานะ</th><th></th>
+  </tr></thead><tbody id="supFilterBody">${rows}</tbody>
+  <tfoot><tr style="background:#f3f6fb;font-weight:700"><td colspan="4" style="text-align:right">รวม</td><td class="num">${fmt(tQ)}</td><td class="num">${fmt2(tAmt)}</td><td colspan="2"></td></tr></tfoot></table></div>`;
+}
+function filterSupRows(){const g=id=>((document.getElementById(id)||{}).value||'').trim().toLowerCase();const q=g('supSearch'),fn=g('sf_no'),fm=g('sf_mon'),fs=g('sf_sup'),fi=g('sf_item');document.querySelectorAll('#supFilterBody tr').forEach(tr=>{const ds=tr.dataset||{};const t=tr.textContent.toLowerCase();const show=(!q||t.includes(q))&&(!fn||(ds.no||'').toLowerCase().includes(fn))&&(!fm||(ds.mon||'').includes(fm))&&(!fs||(ds.sup||'').toLowerCase().includes(fs))&&(!fi||(ds.item||'').includes(fi));tr.style.display=show?'':'none';});}
+function openSUPForm(edit){
+  ensureSettings();const sups=[...new Set(DB.docs.filter(x=>x.type==='SUP').map(x=>x.supplier).filter(Boolean))].sort();
+  const e=edit||{};window.__supEdit=edit?edit.id:'';
+  supLines=edit&&edit.lines?edit.lines.map(l=>({name:l.name||'',qty:l.qty||'',unit:l.unit||'',price:l.price||''})):[{name:'',qty:'',unit:'',price:''}];
+  modal({title:(edit?'✏️ แก้ไข':'📥 รับ')+'วัสดุสิ้นเปลือง',size:'lg',body:`
+    <div class="row c3">
+      <div class="field"><label>วันที่</label><input type="date" id="sp_date" value="${esc(e.date||todayISO())}"></div>
+      <div class="field"><label>เลขที่ใบสั่ง</label><input id="sp_no" value="${esc(e.refNo||'')}" placeholder="เช่น 69099"></div>
+      <div class="field"><label>Supplier</label><input id="sp_sup" list="dl_spsup" value="${esc(e.supplier||'')}"><datalist id="dl_spsup">${sups.map(s=>`<option value="${esc(s)}">`).join('')}</datalist></div>
+    </div>
+    <label style="font-size:12.5px;color:var(--ink2);font-weight:600;margin:6px 0 2px;display:block">รายการวัสดุสิ้นเปลือง</label>
+    <div id="supRoot"></div>
+    <button class="btn sm" style="margin-top:6px" onclick="supAddLine()">+ เพิ่มรายการ</button>
+    <div id="supTotals" style="margin-top:8px"></div>
+    <div class="field" style="margin-top:8px"><label>หมายเหตุ</label><input id="sp_note" value="${esc(e.note||'')}"></div>
+  `,footer:`<button class="btn" onclick="closeModal()">ยกเลิก</button><button class="btn pri" onclick="submitSUP('${edit?edit.id:''}')">บันทึก + เข้าคงเหลือ</button>`});
+  setTimeout(renderSupLines,15);
+}
+function supAddLine(){supLines.push({name:'',qty:'',unit:'',price:''});renderSupLines();}
+function rmSupLine(i){supLines.splice(i,1);if(!supLines.length)supLines.push({name:'',qty:'',unit:'',price:''});renderSupLines();}
+function supLineCalc(i){const e=document.getElementById('supamt_'+i);if(e){const l=supLines[i];e.textContent=fmt2((Number(l.price)||0)*(Number(l.qty)||0));}supTotals();}
+function supTotals(){let q=0,amt=0;supLines.forEach(l=>{q+=Number(l.qty)||0;amt+=(Number(l.price)||0)*(Number(l.qty)||0);});const el=document.getElementById('supTotals');if(el)el.innerHTML=`<div style="display:flex;gap:24px;justify-content:flex-end;font-weight:700"><div>รวมจำนวน: ${fmt(q)}</div><div>รวมเงิน: <span style="color:var(--teal)">${fmt2(amt)}</span> บาท</div></div>`;}
+function renderSupLines(){
+  const root=document.getElementById('supRoot');if(!root)return;
+  root.innerHTML=`<div style="overflow-x:auto"><table style="font-size:12.5px"><thead><tr><th style="min-width:220px">วัสดุสิ้นเปลือง</th><th style="width:84px">จำนวน</th><th style="width:64px">หน่วย</th><th style="width:90px">ราคา/หน่วย</th><th style="width:96px">รวมเงิน</th><th></th></tr></thead><tbody>
+  ${supLines.map((l,i)=>`<tr>
+    <td><input list="dl_supitem" value="${esc(l.name||'')}" placeholder="พิมพ์/เลือกวัสดุ" oninput="supLines[${i}].name=this.value" style="padding:6px 8px"></td>
+    <td><input type="number" step="any" value="${l.qty}" oninput="supLines[${i}].qty=this.value;supLineCalc(${i})" style="padding:6px 8px;text-align:right"></td>
+    <td><input value="${esc(l.unit||'')}" placeholder="อัน/ชิ้น" oninput="supLines[${i}].unit=this.value" style="padding:6px 8px"></td>
+    <td><input type="number" step="any" value="${l.price}" oninput="supLines[${i}].price=this.value;supLineCalc(${i})" style="padding:6px 8px;text-align:right"></td>
+    <td class="num" id="supamt_${i}" style="font-weight:600">${fmt2((Number(l.qty)||0)*(Number(l.price)||0))}</td>
+    <td><div class="rm-x" style="height:32px" onclick="rmSupLine(${i})">✕</div></td>
+  </tr>`).join('')}
+  </tbody></table></div>
+  <datalist id="dl_supitem">${DB.products.filter(p=>p.type==='SUP').slice(0,1000).map(p=>`<option value="${esc(p.pn)}">`).join('')}</datalist>`;
+  supTotals();
+}
+function submitSUP(editId){
+  const v=k=>((document.getElementById(k)||{}).value||'').trim();
+  const lines=supLines.filter(l=>(l.name||'').trim()&&Number(l.qty)>0).map(l=>{const p=supEnsureProduct(l.name);return {productId:p?p.id:'',name:(l.name||'').trim(),qty:Number(l.qty)||0,unit:l.unit||'',price:Number(l.price)||0};});
+  if(!lines.length){toast('กรุณาเพิ่มรายการวัสดุ (มีชื่อและจำนวน > 0)','err');return;}
+  let d;
+  if(editId){d=DB.docs.find(x=>x.id===editId);if(!d)return;if(d.status==='approved')reverseDoc(d);}
+  else{d={id:uid(),type:'SUP',ts:Date.now()};DB.docs.push(d);}
+  if(!d.no)d.no=nextNo('SUP');
+  d.date=v('sp_date')||todayISO();d.refNo=v('sp_no');d.supplier=v('sp_sup');d.note=v('sp_note');d.lines=lines;
+  d.totalQty=lines.reduce((s,l)=>s+l.qty,0);d.subtotal=lines.reduce((s,l)=>s+l.qty*l.price,0);d.status='approved';
+  const r=doApprove(d);if(!r.ok){toast('ไม่สำเร็จ: '+r.err,'err');return;}
+  closeModal();render();toast('บันทึกรับวัสดุ '+(d.refNo||d.no)+' เข้าคงเหลือแล้ว','ok');
+}
+function delSUP(id){const d=DB.docs.find(x=>x.id===id);if(!d)return;confirmBox('ยกเลิก/ลบรายการนี้?','คืนยอดคงเหลือที่รับเข้า',()=>{if(d.status==='approved')reverseDoc(d);DB.docs=DB.docs.filter(x=>x.id!==id);saveDB();closeModal();render();toast('ลบแล้ว','ok');});}
+function printSUP(id){
+  const d=DB.docs.find(x=>x.id===id);if(!d)return;ensureSettings();const co=DB.settings.company||{};
+  const rows=(d.lines||[]).map((l,i)=>'<tr><td class="c">'+(i+1)+'</td><td>'+esc(l.name||'')+'</td><td class="r">'+fmt(l.qty)+'</td><td class="c">'+esc(l.unit||'')+'</td><td class="r">'+fmt2(l.price)+'</td><td class="r">'+fmt2((l.qty||0)*(l.price||0))+'</td></tr>').join('');
+  const blanks=Array.from({length:Math.max(0,6-(d.lines||[]).length)}).map(()=>'<tr><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td></tr>').join('');
+  const html='<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"><title>'+esc(d.refNo||d.no)+'</title><style>'
+   +"*{font-family:'Tahoma',sans-serif;box-sizing:border-box}body{margin:0;padding:14mm 12mm;font-size:12px;color:#111}.hd{text-align:center;border-bottom:2px solid #111;padding-bottom:5px}.hd h1{font-size:15px;margin:0}.hd div{font-size:10.5px;color:#333}.ttl{text-align:center;font-size:17px;font-weight:700;margin:8px 0}.meta{font-size:11.5px;margin-bottom:6px}table{width:100%;border-collapse:collapse;font-size:11px}th,td{border:1px solid #888;padding:5px 7px}th{background:#eee;text-align:center}td.c{text-align:center}td.r{text-align:right}.sign{display:flex;justify-content:space-between;margin-top:34px;text-align:center;font-size:11px}.sign div{width:30%}.sign .line{border-top:1px dotted #555;margin-top:28px;padding-top:3px}@media print{.noprint{display:none}}</style></head><body>"
+   +'<div class="hd"><h1>'+esc(co.name||'')+'</h1><div>'+esc(co.address||'')+'</div></div>'
+   +'<div class="ttl">ใบรับวัสดุสิ้นเปลือง</div>'
+   +'<div class="meta"><b>เลขที่ใบสั่ง:</b> '+esc(d.refNo||d.no)+' &nbsp; <b>วันที่:</b> '+esc(d.date||'')+' &nbsp; <b>Supplier:</b> '+esc(d.supplier||'')+'</div>'
+   +'<table><thead><tr><th style="width:30px">#</th><th>รายการวัสดุ</th><th style="width:70px">จำนวน</th><th style="width:50px">หน่วย</th><th style="width:70px">ราคา/หน่วย</th><th style="width:80px">รวมเงิน</th></tr></thead><tbody>'+rows+blanks+'</tbody></table>'
+   +'<div style="display:flex;justify-content:flex-end;gap:20px;margin-top:6px;font-weight:700"><div>รวมจำนวน: '+fmt(d.totalQty||0)+'</div><div>รวมเงิน: '+fmt2(d.subtotal||0)+' บาท</div></div>'
+   +'<div class="sign"><div><div class="line">ผู้รับวัสดุ</div></div><div><div class="line">ผู้ตรวจสอบ</div></div><div><div class="line">ผู้อนุมัติ</div></div></div>'
+   +'<div class="noprint" style="text-align:center;margin-top:16px"><button onclick="window.print()" style="padding:8px 22px;cursor:pointer">🖨️ พิมพ์ / PDF</button></div>'
+   +'<scr'+'ipt>setTimeout(function(){window.print()},400)</scr'+'ipt></body></html>';
+  const w=window.open('','_blank');if(!w){toast('เบราว์เซอร์บล็อก popup','err');return}w.document.write(html);w.document.close();
+}
+function printSUPMonth(){
+  ensureSettings();const co=DB.settings.company||{};const docs=DB.docs.filter(d=>d.type==='SUP').sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+  if(!docs.length){toast('ไม่มีรายการ','err');return;}
+  let tQ=0,tAmt=0,n=0;let body='';
+  docs.forEach(d=>(d.lines||[]).forEach(l=>{n++;const amt=(l.qty||0)*(l.price||0);tQ+=l.qty||0;tAmt+=amt;body+='<tr><td class="c">'+n+'</td><td class="c">'+esc(d.date||'')+'</td><td class="c">'+esc(d.refNo||d.no||'')+'</td><td class="c">'+esc(d.supplier||'')+'</td><td>'+esc(l.name||'')+'</td><td class="r">'+fmt(l.qty)+'</td><td class="c">'+esc(l.unit||'')+'</td><td class="r">'+fmt2(l.price)+'</td><td class="r">'+fmt2(amt)+'</td></tr>';}));
+  const html='<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"><title>วัสดุสิ้นเปลือง</title><style>@page{size:A4 landscape;margin:8mm}*{font-family:Tahoma,sans-serif}body{margin:0;font-size:11px}.hd{text-align:center;border-bottom:2px solid #111;padding-bottom:5px}.hd h1{font-size:14px;margin:0}.ttl{text-align:center;font-size:15px;font-weight:700;margin:7px 0}table{width:100%;border-collapse:collapse;font-size:10px}th,td{border:1px solid #888;padding:3px 5px}th{background:#dfeaf6;text-align:center}td.c{text-align:center}td.r{text-align:right}tfoot td{background:#fff7a8;font-weight:700}@media print{.noprint{display:none}}</style></head><body>'
+   +'<div class="hd"><h1>'+esc(co.name||'')+'</h1><div>'+esc(co.address||'')+'</div></div><div class="ttl">รายงานรับวัสดุสิ้นเปลือง</div>'
+   +'<table><thead><tr><th>#</th><th>วันที่</th><th>เลขที่ใบสั่ง</th><th>Supplier</th><th>วัสดุ</th><th>จำนวน</th><th>หน่วย</th><th>ราคา/หน่วย</th><th>รวมเงิน</th></tr></thead><tbody>'+body+'</tbody>'
+   +'<tfoot><tr><td colspan="5" class="r">รวม</td><td class="r">'+fmt(tQ)+'</td><td></td><td></td><td class="r">'+fmt2(tAmt)+'</td></tr></tfoot></table>'
+   +'<div class="noprint" style="text-align:center;margin-top:12px"><button onclick="window.print()" style="padding:8px 22px;cursor:pointer">🖨️ พิมพ์ / PDF</button></div>'
+   +'<scr'+'ipt>setTimeout(function(){window.print()},400)</scr'+'ipt></body></html>';
+  const w=window.open('','_blank');if(!w){toast('popup ถูกบล็อก','err');return}w.document.write(html);w.document.close();
+}
 function rmcOutMap(){const m={};DB.docs.filter(x=>(x.type==='INV'||x.type==='IV2')&&x.status==='approved').forEach(x=>(x.lines||[]).forEach(l=>{if(l.productId)m[l.productId]=(m[l.productId]||0)+(l.qty||0);}));return m;}
 function rmcDistinct(field){const set=new Set();DB.docs.filter(d=>d.type==='RMC').forEach(d=>{let v=field==='mon'?((d.date||'')+'').slice(0,7):field==='order'?d.orderNo:field==='maker'?d.maker:field==='cust'?d.customer:field==='part'?(d.productId&&P(d.productId)?P(d.productId).pn:(d.partNo||'')):'';if(v)set.add(String(v));});return [...set].sort();}
 function viewRMC(el){
