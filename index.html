@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='TAX-2026.06.18h';
+const APP_BUILD='TAX-2026.06.18i';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -432,6 +432,7 @@ const NAV=[
   {id:'iv2',ico:'🧾',label:'Invoice ส่งพิเศษ',dt:'IV2'},
   {id:'adj',ico:'⚖️',label:'ปรับยอด/ตรวจนับ',dt:'ADJ'},
   {id:'moves',ico:'🔁',label:'ความเคลื่อนไหว'},
+  {id:'taxrep',ico:'📑',label:'รายงานภาษีซื้อ'},
   {id:'tax',ico:'🧾',label:'ภาษีซื้อ'},
   {g:'อื่นๆ'},
   {id:'settings',ico:'⚙️',label:'ตั้งค่า'},
@@ -457,7 +458,7 @@ function render(){
   const map={dashboard:viewDashboard,inventory:viewInventory,approvals:viewApprovals,monitor:viewMonitor,
     po:()=>viewDocs('PO'),ip:()=>viewDocs('IP'),sp:()=>viewDocs('SP'),gr:()=>viewDocs('GR'),prd:()=>viewDocs('PRD'),wd:()=>viewDocs('WD'),
     dp:()=>viewDocs('DP'),rw:()=>viewDocs('RW'),plate:()=>viewDocs('PL'),qc:()=>viewDocs('QC'),si:()=>viewDocs('SI'),rmc:viewRMC,sup:viewSUP,ws:viewWS,
-    inv:()=>viewDocs('INV'),iv2:()=>viewDocs('IV2'),adj:()=>viewDocs('ADJ'),moves:viewMoves,tax:viewTax,settings:viewSettings,
+    inv:()=>viewDocs('INV'),iv2:()=>viewDocs('IV2'),adj:()=>viewDocs('ADJ'),moves:viewMoves,tax:viewTax,taxrep:viewTaxReport,settings:viewSettings,
     demand:viewDemand,mrp:viewMRP};
   (map[route]||viewDashboard)(el);
   setBuild();
@@ -3912,6 +3913,49 @@ function approveAll(){const pend=DB.docs.filter(d=>d.status==='pending');let ok=
    MOVEMENTS
    ============================================================ */
 let moveFilter={q:'',bucket:'all'};
+/* ===== รายงานภาษีซื้อ (Monthly Generator from GR+SUP) ===== */
+function taxSourceEntries(mon){
+  const out=[];const poSeen={};
+  DB.docs.filter(d=>d.type==='GR'&&d.status!=='cancelled'&&(d.date||'').slice(0,7)===mon).forEach(gr=>{
+    const pos=[...new Set((gr.lines||[]).map(l=>(l.poNo||'').trim()).filter(Boolean))];
+    pos.forEach(no=>{const po=DB.docs.find(x=>x.type==='PO'&&x.no===no);if(!po||poSeen[po.id])return;poSeen[po.id]=1;const si=po.supplierInfo||{};
+      out.push({date:gr.date||po.date,invNo:po.no,supplier:po.supplier||'',taxId:si.taxId||'',category:'วัตถุดิบ',value:Number(po.amount)||0,vat:Number(po.vat)||0,sourceType:'GR-PO',sourceId:po.id,note:'รับวัตถุดิบ '+(gr.no||'')});});
+  });
+  DB.docs.filter(d=>d.type==='SUP'&&d.status!=='cancelled'&&(d.date||'').slice(0,7)===mon).forEach(d=>{const val=Number(d.subtotal)||0;if(val<=0)return;
+    out.push({date:d.date,invNo:d.refNo||d.no,supplier:d.supplier||'',taxId:'',category:'สิ้นเปลือง',value:val,vat:Math.round(val*0.07*100)/100,sourceType:'SUP',sourceId:d.id,note:'วัสดุสิ้นเปลือง'});});
+  return out.sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+}
+function viewTaxReport(el){
+  ensureSettings();
+  if(!window.__taxMon){const ms=taxMonths();window.__taxMon=ms[ms.length-1];}
+  const mon=window.__taxMon;const months=taxMonths();
+  setTitle('📑 รายงานภาษีซื้อ','รายงานประจำเดือน — ดึงจากรับวัตถุดิบ + วัสดุสิ้นเปลือง → ส่งเข้า "ภาษีซื้อ"');
+  const src=taxSourceEntries(mon);
+  const inLedger=id=>DB.docs.find(x=>x.type==='TAX'&&x.sourceId===id);
+  const tVal=src.reduce((s,r)=>s+r.value,0),tVat=src.reduce((s,r)=>s+r.vat,0);
+  const cats={};src.forEach(r=>{cats[r.category]=cats[r.category]||{val:0,vat:0,n:0};cats[r.category].val+=r.value;cats[r.category].vat+=r.vat;cats[r.category].n++;});
+  const pending=src.filter(r=>!inLedger(r.sourceId)).length;
+  el.innerHTML=`
+  <div class="hint"><span class="i">💡</span><div>รายงานนี้ดึงรายการที่<b>รับวัตถุดิบแล้ว</b> (อิงใบสั่งซื้อ) + <b>วัสดุสิ้นเปลือง</b> ของเดือนที่เลือก → กด <b>ส่งเข้าภาษีซื้อ</b> เพื่อบันทึกลงทะเบียนภาษีซื้อ (ติดตามการจ่าย/แนบสลิป/พิมพ์ยื่นสรรพากร)</div></div>
+  <div class="cards">
+    <div class="card"><div class="lbl"><span class="dot d-brand">📑</span>รายการเดือน ${esc(mon)}</div><div class="val">${fmt(src.length)}</div></div>
+    <div class="card"><div class="lbl"><span class="dot d-violet">💵</span>มูลค่าซื้อรวม</div><div class="val">${fmt2(tVal)}</div></div>
+    <div class="card"><div class="lbl"><span class="dot d-teal">🧮</span>ภาษีซื้อรวม</div><div class="val">${fmt2(tVat)}</div><div class="sub">บาท</div></div>
+    <div class="card"><div class="lbl"><span class="dot d-amber">📤</span>ยังไม่ส่งเข้าภาษีซื้อ</div><div class="val">${fmt(pending)}</div></div>
+  </div>
+  <div class="panel" style="margin-bottom:12px"><div class="panel-h"><h2>สรุปตามประเภท</h2></div><div class="panel-b"><div style="display:flex;gap:10px;flex-wrap:wrap">
+    ${Object.keys(cats).map(c=>`<div style="border:1px solid var(--line);border-radius:8px;padding:8px 14px;min-width:150px"><div style="font-weight:700">${esc(c)}</div><div class="muted" style="font-size:12px">${fmt(cats[c].n)} รายการ · มูลค่า ${fmt2(cats[c].val)}</div><div style="font-size:12px">ภาษีซื้อ <b style="color:var(--teal)">${fmt2(cats[c].vat)}</b></div></div>`).join('')||'<span class="muted">ไม่มีข้อมูล</span>'}
+  </div></div></div>
+  <div class="panel"><div class="panel-h" style="flex-wrap:wrap;gap:8px">
+    <div style="display:flex;gap:8px;align-items:center"><label style="font-size:12.5px;font-weight:600">เดือนภาษี</label><select onchange="window.__taxMon=this.value;render()" style="padding:6px 10px">${months.map(m=>`<option value="${m}" ${m===mon?'selected':''}>${esc(m)}</option>`).join('')}</select></div>
+    <div class="right" style="display:flex;gap:6px;flex-wrap:wrap"><input type="file" id="taxRepFile" accept=".xls,.xlsx,.csv" style="display:none" onchange="importTax(this)"><button class="btn sm" onclick="document.getElementById('taxRepFile').click()">📂 นำเข้าไฟล์</button><button class="btn sm" onclick="printTaxReport()">🖨️ พิมพ์รายงาน</button><button class="btn pri" onclick="pullTax()">📤 ส่งเข้าภาษีซื้อ</button></div>
+  </div><div class="panel-b nopad">
+    ${src.length?`<div class="tbl-wrap"><table style="white-space:nowrap;font-size:12px"><thead><tr>
+      <th>ลำดับ</th><th>วันที่</th><th>เลขที่ใบกำกับ</th><th>ผู้ขาย</th><th>เลขผู้เสียภาษี</th><th>ประเภท</th><th>ที่มา</th><th class="num">มูลค่า</th><th class="num">ภาษีซื้อ</th><th>สถานะ</th>
+    </tr></thead><tbody>${src.map((r,i)=>`<tr><td class="c">${i+1}</td><td class="muted">${esc(r.date||'')}</td><td>${esc(r.invNo||'')}</td><td>${esc(r.supplier||'')}</td><td class="muted">${esc(r.taxId||'')}</td><td><span class="tag gray">${esc(r.category)}</span></td><td class="muted">${r.sourceType==='SUP'?'วัสดุสิ้นเปลือง':'รับวัตถุดิบ'}</td><td class="num">${fmt2(r.value)}</td><td class="num"><b>${fmt2(r.vat)}</b></td><td>${inLedger(r.sourceId)?'<span class="tag green">✓ ส่งแล้ว</span>':'<span class="tag amber">รอส่ง</span>'}</td></tr>`).join('')}</tbody>
+    <tfoot><tr style="background:#fff7a8;font-weight:700"><td colspan="7" style="text-align:right">รวม</td><td class="num">${fmt2(tVal)}</td><td class="num">${fmt2(tVat)}</td><td></td></tr></tfoot></table></div>`:`<div class="empty"><div class="big">📑</div><div class="t">ไม่มีรายการรับวัตถุดิบ/วัสดุ เดือน ${esc(mon)}</div><div>บันทึกรับวัตถุดิบ (อิงใบสั่งซื้อ) หรือวัสดุสิ้นเปลือง แล้วกลับมาดู</div></div>`}
+  </div></div>`;
+}
 /* ===== ภาษีซื้อ (Input VAT Report) ===== */
 var TAX_CATS=['สินค้าสำเร็จรูป','วัตถุดิบ','ค่าจ้างแรงงาน','สิ้นเปลือง','ทรัพย์สิน','อื่นๆ'];
 function taxMonths(){const set=new Set();DB.docs.filter(d=>d.type==='TAX'&&d.date).forEach(d=>set.add(d.date.slice(0,7)));DB.docs.filter(d=>(d.type==='PO'||d.type==='SUP')&&d.date&&d.status!=='cancelled').forEach(d=>set.add(d.date.slice(0,7)));const a=[...set].filter(Boolean).sort();return a.length?a:[todayISO().slice(0,7)];}
@@ -3933,7 +3977,7 @@ function viewTax(el){
   </div>
   <div class="panel"><div class="panel-h" style="flex-wrap:wrap;gap:8px">
     <div style="display:flex;gap:8px;align-items:center"><label style="font-size:12.5px;font-weight:600">เดือนภาษี</label><select onchange="window.__taxMon=this.value;render()" style="padding:6px 10px">${months.map(m=>`<option value="${m}" ${m===mon?'selected':''}>${esc(m)}</option>`).join('')}</select></div>
-    <div class="right" style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn sm" onclick="pullTax()">📥 ดึงรายการ (PO/วัสดุ)</button><input type="file" id="taxFile" accept=".xls,.xlsx,.csv" style="display:none" onchange="importTax(this)"><button class="btn sm" onclick="document.getElementById('taxFile').click()">📂 นำเข้าไฟล์</button><button class="btn sm" onclick="printTaxReport()">🖨️ พิมพ์รายงาน</button><button class="btn pri" onclick="openTaxForm()">+ เพิ่มรายการ</button></div>
+    <div class="right" style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn sm" onclick="pullTax()">📥 ดึงจากรับวัตถุดิบ/วัสดุ</button><input type="file" id="taxFile" accept=".xls,.xlsx,.csv" style="display:none" onchange="importTax(this)"><button class="btn sm" onclick="document.getElementById('taxFile').click()">📂 นำเข้าไฟล์</button><button class="btn sm" onclick="printTaxReport()">🖨️ พิมพ์รายงาน</button><button class="btn pri" onclick="openTaxForm()">+ เพิ่มรายการ</button></div>
   </div><div class="panel-b nopad">
     ${rows.length?`<div class="tbl-wrap"><table style="white-space:nowrap;font-size:12px"><thead><tr>
       <th>ลำดับ</th><th>วันที่ใบกำกับ</th><th>เลขที่ใบกำกับ</th><th>ผู้ขาย</th><th>เลขผู้เสียภาษี</th><th>สนญ./สาขา</th><th>ประเภท</th><th class="num">มูลค่า</th><th class="num">ภาษีซื้อ</th>
@@ -3982,17 +4026,10 @@ async function importTax(input){
   }catch(e){toast('นำเข้าไม่สำเร็จ: '+e.message,'err');}
 }
 function pullTax(){
-  ensureSettings();const mon=window.__taxMon;let add=0;
-  DB.docs.filter(d=>d.type==='PO'&&d.status!=='cancelled'&&(d.date||'').slice(0,7)===mon).forEach(d=>{
-    const val=Number(d.amount)||0,vat=Number(d.vat)||0;if(val<=0)return;
-    if(DB.docs.find(x=>x.type==='TAX'&&x.sourceType==='PO'&&x.sourceId===d.id))return;
-    const si=d.supplierInfo||{};
-    DB.docs.push({id:uid(),type:'TAX',date:d.date,invNo:d.no,supplier:d.supplier||'',taxId:si.taxId||'',branch:'สำนักงานใหญ่',category:'วัตถุดิบ',value:val,vat:vat,note:'',payDue:d.deliveryDate||'',payMethod:'',payNo:'',payDate:'',payAmount:0,slip:'',sourceType:'PO',sourceId:d.id,status:'active'});add++;});
-  DB.docs.filter(d=>d.type==='SUP'&&d.status!=='cancelled'&&(d.date||'').slice(0,7)===mon).forEach(d=>{
-    const val=Number(d.subtotal)||0;if(val<=0)return;
-    if(DB.docs.find(x=>x.type==='TAX'&&x.sourceType==='SUP'&&x.sourceId===d.id))return;
-    DB.docs.push({id:uid(),type:'TAX',date:d.date,invNo:d.refNo||d.no,supplier:d.supplier||'',taxId:'',branch:'สำนักงานใหญ่',category:'สิ้นเปลือง',value:val,vat:Math.round(val*0.07*100)/100,note:'',payDue:'',payMethod:'',payNo:'',payDate:'',payAmount:0,slip:'',sourceType:'SUP',sourceId:d.id,status:'active'});add++;});
-  saveDB();render();toast(add?('ดึง '+add+' รายการเข้าภาษีซื้อแล้ว'):'ไม่มีรายการใหม่ (ดึงครบแล้ว)',add?'ok':'err');
+  ensureSettings();const mon=window.__taxMon;const src=taxSourceEntries(mon);let add=0,skip=0;
+  src.forEach(s=>{if(DB.docs.find(x=>x.type==='TAX'&&x.sourceType===s.sourceType&&x.sourceId===s.sourceId)){skip++;return;}
+    DB.docs.push({id:uid(),type:'TAX',date:s.date,invNo:s.invNo,supplier:s.supplier,taxId:s.taxId,branch:'สำนักงานใหญ่',category:s.category,value:s.value,vat:s.vat,note:s.note,payDue:'',payMethod:'',payNo:'',payDate:'',payAmount:0,slip:'',sourceType:s.sourceType,sourceId:s.sourceId,status:'active'});add++;});
+  saveDB();render();toast(add?('ส่งเข้าภาษีซื้อ '+add+' รายการ'+(skip?(' (ข้ามซ้ำ '+skip+')'):'')):'ไม่มีรายการใหม่ (ส่งครบแล้ว)',add?'ok':'err');
 }
 function openTaxForm(edit){
   ensureSettings();const sups=DB.settings.suppliers||[];const e=edit||{};window.__taxSlip=e.slip||'';
