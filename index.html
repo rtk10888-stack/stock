@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='PLATE-2026.06.18a';
+const APP_BUILD='PLATE-2026.06.18b';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -2848,7 +2848,7 @@ function plRow(d){
     const pend=(l.pending!=null&&l.pending!=='')?Number(l.pending):(sent-recv);
     const sttxt=(l.pstatus||'').trim()||((sent>0&&pend<=0)?'Done':'Pending');
     const stc=/done|ครบ|เสร็จ/i.test(sttxt)?'teal':'amber';
-    const acts=`<button class="btn sm" onclick="editPLInline('${d.id}')">✏️</button> `+(d.status==='approved'?`<button class="btn sm danger" onclick="cancelDoc('${d.id}')">ยกเลิก</button>`:d.status==='cancelled'?`<button class="btn sm danger" onclick="delDocConfirm('${d.id}')">🗑️</button>`:`<button class="btn sm ok" onclick="approveDoc('${d.id}')">อนุมัติ</button>`);
+    const acts=`<button class="btn sm" onclick="viewPLDoc('${d.id}')">ดู</button> <button class="btn sm" onclick="printPLDoc('${d.id}')">🖨️</button> <button class="btn sm" onclick="editPLInline('${d.id}')">✏️</button> `+(d.status==='approved'?`<button class="btn sm danger" onclick="cancelDoc('${d.id}')">ยกเลิก</button>`:d.status==='cancelled'?`<button class="btn sm danger" onclick="delDocConfirm('${d.id}')">🗑️</button>`:`<button class="btn sm ok" onclick="approveDoc('${d.id}')">อนุมัติ</button>`);
     return `<tr data-no="${esc(d.no)}" data-ts="${(d.ts||0)+idx}" data-sent="${sent}" data-recv="${recv}" data-pend="${pend}" data-amt="${recv}" data-mon="${(l.date||d.date||'').slice(0,7)}" data-mk="${esc((l.maker||d.maker||'').toLowerCase())}" data-item="${esc((pn+' '+pname).toLowerCase())}" data-po="${esc((l.poNo||'').toLowerCase())}">
       <td class="muted">${esc(l.date||d.date||'')}</td>
       <td><span class="tag violet">${esc(l.poNo||'-')}</span></td>
@@ -2926,6 +2926,41 @@ async function importPLXlsx(input){
     if(!sheetsRead){toast('ไม่พบชีตที่มีหัวตาราง ส่งชุบ/Part Number (เช่นชีต "ชุบ")','err');return;}
     modal({title:'✨ นำเข้าส่งชุบ/รับชุบ (Excel) สำเร็จ',body:`<div class="kv"><span class="k">เพิ่มใหม่</span><b style="color:var(--teal)">${fmt(add)} รายการ</b></div><div class="kv"><span class="k">ข้ามซ้ำ</span><b>${fmt(skip)}</b></div>`,footer:`<button class="btn pri" onclick="closeModal()">ตกลง</button>`});
   }catch(e){toast('นำเข้าไม่สำเร็จ: '+e.message,'err');}
+}
+function plDocLineRows(d){
+  return (d.lines||[]).map(l=>{
+    const p=l.productId?P(l.productId):null;
+    const pn=l.pn||(p?p.pn:((l.name||'').split(' ')[0]||''));
+    const pname=l.pname||(p?(p.name&&p.name!=='-'?p.name:''):((l.name||'').split(' ').slice(1).join(' ')));
+    const sent=Number(l.sentQty)||0,recv=Number(l.recvQty)||0;const pend=(l.pending!=null&&l.pending!=='')?Number(l.pending):(sent-recv);
+    const st=(l.pstatus||'').trim()||((sent>0&&pend<=0)?'Done':'Pending');
+    return '<tr><td style="text-align:center">'+esc(l.date||d.date||'')+'</td><td style="text-align:center">'+esc(l.poNo||'')+'</td><td style="text-align:center">'+esc(l.maker||d.maker||'')+'</td><td><b>'+esc(pn)+'</b></td><td>'+esc(pname)+'</td><td style="text-align:right">'+(sent?fmt(sent):'-')+'</td><td style="text-align:center">'+esc(l.recvDate||'')+'</td><td style="text-align:right">'+(recv?fmt(recv):'-')+'</td><td style="text-align:right">'+(pend?fmt(pend):'-')+'</td><td style="text-align:center">'+esc(l.dueDate||'')+'</td><td style="text-align:center">'+esc(st)+'</td><td style="text-align:center">'+esc(l.vendor||'')+'</td></tr>';
+  }).join('');
+}
+function viewPLDoc(id){
+  const d=DB.docs.find(x=>x.id===id);if(!d)return;
+  modal({title:'✨ '+esc(d.no)+' — ส่งชุบ / รับชุบ',size:'xl',body:`
+    <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">${statusTag(d.status)}<span class="tag gray">วันที่ ${esc(d.date||'')}</span>${d.note?`<span class="tag gray">${esc(d.note)}</span>`:''}</div>
+    <div class="tbl-wrap"><table style="font-size:12px;white-space:nowrap"><thead><tr><th>วันที่</th><th>เลขที่ใบสั่ง</th><th>Maker</th><th>Part Number</th><th>Part Name</th><th class="num">ส่งชุบ</th><th>วันที่รับ</th><th class="num">รับชุบ</th><th class="num">คงค้าง</th><th>ครบกำหนด</th><th>สถานะ</th><th>โรงชุบ</th></tr></thead><tbody>${plDocLineRows(d)}</tbody></table></div>
+  `,footer:`<button class="btn" onclick="closeModal()">ปิด</button><button class="btn" onclick="closeModal();editPLInline('${d.id}')">✏️ แก้ไข</button><button class="btn pri" onclick="printPLDoc('${d.id}')">🖨️ พิมพ์</button>`});
+}
+function printPLDoc(id){
+  const d=DB.docs.find(x=>x.id===id);if(!d)return;ensureSettings();const co=DB.settings.company||{};
+  let tS=0,tR=0,tP=0;(d.lines||[]).forEach(l=>{const s=Number(l.sentQty)||0,r=Number(l.recvQty)||0;tS+=s;tR+=r;tP+=(l.pending!=null&&l.pending!=='')?Number(l.pending):(s-r);});
+  const html='<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"><title>ส่งชุบ-รับชุบ '+esc(d.no)+'</title><style>'
+   +"@page{size:A4 landscape;margin:8mm}*{font-family:'Tahoma',sans-serif;box-sizing:border-box}body{margin:0;font-size:11px;color:#111}"
+   +".hd{text-align:center;border-bottom:2px solid #111;padding-bottom:5px}.hd h1{font-size:15px;margin:0}.hd div{font-size:10px;color:#333}.ttl{text-align:center;font-size:16px;font-weight:700;margin:7px 0}.meta{font-size:11px;margin-bottom:6px}"
+   +"table{width:100%;border-collapse:collapse;font-size:10px;margin-top:4px}th,td{border:1px solid #555;padding:3px 5px}th{background:#e9eef7;text-align:center}tfoot td{background:#fff2cc;font-weight:700}@media print{.noprint{display:none}}</style></head><body>"
+   +'<div class="hd"><h1>'+esc(co.thName||co.name||'')+'</h1><div>'+esc(co.address||'')+'</div></div>'
+   +'<div class="ttl">รายงานส่งชุบ / รับชุบ</div>'
+   +'<div class="meta"><b>เลขที่ :</b> '+esc(d.no)+' &nbsp; <b>วันที่ :</b> '+esc(d.date||'')+'</div>'
+   +'<table><thead><tr><th>วันที่</th><th>เลขที่ใบสั่ง</th><th>Maker</th><th>Part Number</th><th>Part Name</th><th>ส่งชุบ</th><th>วันที่รับ</th><th>รับชุบ</th><th>คงค้าง</th><th>ครบกำหนด</th><th>สถานะ</th><th>โรงชุบ</th></tr></thead>'
+   +'<tbody>'+plDocLineRows(d)+'</tbody>'
+   +'<tfoot><tr><td colspan="5" style="text-align:right">รวม</td><td style="text-align:right">'+fmt(tS)+'</td><td></td><td style="text-align:right">'+fmt(tR)+'</td><td style="text-align:right">'+fmt(tP)+'</td><td colspan="3"></td></tr></tfoot></table>'
+   +'<div style="display:flex;justify-content:space-between;margin-top:34px;font-size:11px"><div>ผู้ส่งชุบ ........................</div><div>ผู้รับชุบ ........................</div><div>ผู้ตรวจสอบ ........................</div></div>'
+   +'<div class="noprint" style="text-align:center;margin-top:14px"><button onclick="window.print()" style="padding:8px 22px;cursor:pointer">🖨️ พิมพ์ / PDF</button></div>'
+   +'<scr'+'ipt>setTimeout(function(){window.print()},400)</scr'+'ipt></body></html>';
+  const w=window.open('','_blank');if(!w){toast('popup ถูกบล็อก','err');return}w.document.write(html);w.document.close();
 }
 var plPrintRows=[];
 function printPLMonth(){
