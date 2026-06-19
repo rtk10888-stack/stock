@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='KPISAT-2026.06.18a';
+const APP_BUILD='KPISALE-2026.06.18a';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -592,7 +592,7 @@ function ratioByMonth(months,numTypes,numFn,denTypes,denFn){const num={},den={};
   DB.docs.filter(d=>numTypes.includes(d.type)&&d.status!=='cancelled'&&d.date).forEach(d=>{const k=d.date.slice(0,7);num[k]=(num[k]||0)+(numFn(d)||0);});
   DB.docs.filter(d=>denTypes.includes(d.type)&&d.status!=='cancelled'&&d.date).forEach(d=>{const k=d.date.slice(0,7);den[k]=(den[k]||0)+(denFn(d)||0);});
   return months.map(k=>{const dn=den[k]||0;return dn?Math.round((num[k]||0)/dn*1000)/10:0;});}
-var MON_KPI=[{k:'deliver',label:'ส่งมอบลูกค้า',def:95,dir:'>'},{k:'maker',label:'ผู้ผลิตส่งมอบ',def:95,dir:'>'},{k:'claim',label:'เคลมผู้ผลิต',def:5,dir:'<'},{k:'custclaim',label:'เคลมจากลูกค้า (PPM)',def:15,dir:'<'},{k:'ng',label:'ของเสียในกระบวนการผลิต',def:5,dir:'<'},{k:'rm',label:'วัตถุดิบส่งมอบ',def:95,dir:'>'},{k:'emp',label:'ประเมินสมรรถนะพนักงาน',def:2,dir:'>'},{k:'satis',label:'ความพึงพอใจของลูกค้า',def:95,dir:'>'}];
+var MON_KPI=[{k:'deliver',label:'ส่งมอบลูกค้า',def:95,dir:'>'},{k:'maker',label:'ผู้ผลิตส่งมอบ',def:95,dir:'>'},{k:'claim',label:'เคลมผู้ผลิต',def:5,dir:'<'},{k:'custclaim',label:'เคลมจากลูกค้า (PPM)',def:15,dir:'<'},{k:'ng',label:'ของเสียในกระบวนการผลิต',def:5,dir:'<'},{k:'rm',label:'วัตถุดิบส่งมอบ',def:95,dir:'>'},{k:'emp',label:'ประเมินสมรรถนะพนักงาน',def:2,dir:'>'},{k:'satis',label:'ความพึงพอใจของลูกค้า',def:95,dir:'>'},{k:'sales',label:'เพิ่มยอดขาย',def:2,dir:'>'}];
 function isCustClaim(d){return /เคลม|claim|ลูกค้า/i.test((d.method||'')+' '+(d.loc||'')+' '+(d.defect||''));}
 function ppmByMonth(months,numFn,denTypes,denFn){const num={},den={};
   DB.docs.filter(d=>d.type==='NC'&&d.date).forEach(d=>{const k=(d.date||'').slice(0,7);if(k)num[k]=(num[k]||0)+(numFn(d)||0);});
@@ -650,6 +650,10 @@ function viewMonitor(el){
   const ppm=v=>fmt(Math.round(v))+' PPM';
   const sSatis=months.map((m,i)=>Math.max(0,Math.round((sDeliver[i]-(sCustClaim[i]/10000))*10)/10));
   const satisAvg=sSatis.length?Math.round(sSatis.reduce((a,b)=>a+b,0)/sSatis.length*10)/10:0;
+  const salesByMon={};DB.docs.filter(d=>d.type==='INV'&&d.status!=='cancelled'&&d.date).forEach(d=>{const k=(d.date||'').slice(0,7);if(k)salesByMon[k]=(salesByMon[k]||0)+(Number(d.total)||Number(d.subtotal)||0);});
+  const prevMonKey=m=>{let y=+m.slice(0,4),mo=+m.slice(5,7)-1;if(mo<1){mo=12;y--;}return y+'-'+String(mo).padStart(2,'0');};
+  const sGrowth=months.map((m,i)=>{const cur=salesByMon[m]||0;const pk=i>0?months[i-1]:prevMonKey(m);const prev=salesByMon[pk]||0;return prev>0?Math.round((cur-prev)/prev*1000)/10:0;});
+  const lmS=months[months.length-1]||'';const ykS=lmS?((Number(lmS.slice(0,4))-1)+lmS.slice(4)):'';const yoySales=(salesByMon[ykS]>0)?Math.round((salesByMon[lmS]-salesByMon[ykS])/salesByMon[ykS]*1000)/10:null;
   el.innerHTML=`
   <div style="display:flex;justify-content:flex-end;margin-bottom:8px"><button class="btn sm pri" onclick="openMonTargets()">⚙️ ตั้งค่าเป้าหมาย</button></div>
   <div class="hint"><span class="i">📈</span><div>KPI 6 ตัว เทียบ<b>เส้นเป้าหมาย</b> (เส้นประ) · เขียว=ถึงเป้า แดง=ยังไม่ถึง · ตัวเลขมุมขวา = ค่าเดือนล่าสุด · แตะจุดดูค่ารายเดือน<br><span class="muted" style="font-size:11px">สูตร: %ส่งมอบ=ส่งจริง÷สั่ง · %ของเสีย=NG÷ตรวจทั้งหมด · %เคลม=NG÷รับจากผู้ผลิต</span></div></div>
@@ -662,6 +666,7 @@ function viewMonitor(el){
     ${monPanel('📥','วัตถุดิบส่งมอบ','รับวัตถุดิบ(GR) ÷ สั่งซื้อ(PO)',lab,[{name:'%รับ',color:'#06b6d4',data:sRM}],{fy:pct,target:monTarget('rm'),tdir:'>',key:'rm'})}
     ${monPanel('👷','ประเมินสมรรถนะพนักงาน','อัตราตรวจพบของเสีย NG ÷ รวมตรวจ',lab,[{name:'%ตรวจพบ',color:'#8b5cf6',data:sEmp}],{fy:pct,target:monTarget('emp'),tdir:'>',key:'emp'})}
     ${monPanel('😊','ความพึงพอใจของลูกค้า','ส่งครบจำนวน(INV÷CPO) − %งานเสียที่ลูกค้า · เฉลี่ยทั้งปี '+satisAvg+'%',lab,[{name:'%พึงพอใจ',color:'#0ea5e9',data:sSatis}],{fy:pct,target:monTarget('satis'),tdir:'>',key:'satis'})}
+    ${monPanel('📈','เพิ่มยอดขาย','ยอดขาย(INV) เทียบเดือนก่อน (MoM%) · YoY '+(yoySales!=null?yoySales+'%':'ยังไม่มีข้อมูลปีก่อน'),lab,[{name:'%เติบโต',color:'#16a34a',data:sGrowth}],{fy:pct,target:monTarget('sales'),tdir:'>',key:'sales'})}
   </div>`;
 }
 function viewInventory(el){
