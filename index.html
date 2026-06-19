@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='NC-2026.06.18b';
+const APP_BUILD='NCTAG-2026.06.18a';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -4536,7 +4536,7 @@ function ncRowHtml(r){
     <td style="color:var(--red);max-width:200px;overflow:hidden;text-overflow:ellipsis">${esc(r.defect||'')}</td>
     <td class="muted" style="max-width:220px;overflow:hidden;text-overflow:ellipsis">${esc(r.method||'')}</td>
     <td class="num"><b style="color:var(--red)">${r.ng?fmt(r.ng):'-'}</b></td>
-    <td style="white-space:nowrap"><button class="btn sm" onclick="viewNCDoc('${r.id}')">ดู</button> <button class="btn sm" onclick="printNCOne('${r.id}')">🖨️</button> <button class="btn sm" onclick="openNCForm(DB.docs.find(x=>x.id==='${r.id}'))">✏️</button> <button class="btn sm danger" onclick="delNC('${r.id}')">ลบ</button></td>
+    <td style="white-space:nowrap"><button class="btn sm" onclick="viewNCDoc('${r.id}')">ดู</button> <button class="btn sm" onclick="openNCTag('${r.id}')" title="พิมพ์ NG TAG">🏷️</button> <button class="btn sm" onclick="printNCOne('${r.id}')">🖨️</button> <button class="btn sm" onclick="openNCForm(DB.docs.find(x=>x.id==='${r.id}'))">✏️</button> <button class="btn sm danger" onclick="delNC('${r.id}')">ลบ</button></td>
   </tr>`;
 }
 function ncDistinct(field){const set=new Set();DB.docs.filter(d=>d.type==='NC').forEach(d=>{let v=field==='po'?d.po:field==='part'?d.part:field==='cust'?d.customer:field==='maker'?d.maker:'';if(v)set.add(String(v));});return [...set].sort();}
@@ -4562,7 +4562,7 @@ function viewNCDoc(id){
     <div class="kv"><span class="k">ปัญหา/ข้อบกพร่อง</span><b style="color:var(--red)">${esc(d.defect||'-')}</b></div>
     <div class="kv"><span class="k">วิธีการแก้ไข</span>${esc(d.method||'-')}</div>
     <div class="row c2">${kv('ค่าใช้จ่าย (บาท)',d.cost?fmt2(d.cost):'-')}${kv('ผู้รับผิดชอบ',d.resp)}</div>
-  `,footer:`<button class="btn" onclick="closeModal()">ปิด</button><button class="btn" onclick="closeModal();openNCForm(DB.docs.find(x=>x.id==='${d.id}'))">✏️ แก้ไข</button><button class="btn pri" onclick="printNCOne('${d.id}')">🖨️ พิมพ์</button>`});
+  `,footer:`<button class="btn" onclick="closeModal()">ปิด</button><button class="btn" onclick="closeModal();openNCTag('${d.id}')">🏷️ NG TAG</button><button class="btn" onclick="closeModal();openNCForm(DB.docs.find(x=>x.id==='${d.id}'))">✏️ แก้ไข</button><button class="btn pri" onclick="printNCOne('${d.id}')">🖨️ พิมพ์</button>`});
 }
 function printNCOne(id){
   const d=DB.docs.find(x=>x.id===id);if(!d)return;ensureSettings();const co=DB.settings.company||{};
@@ -4668,6 +4668,36 @@ function printNC(){
    +'<div class="noprint" style="text-align:center;margin-top:12px"><button onclick="window.print()" style="padding:8px 22px;cursor:pointer">🖨️ พิมพ์ / PDF</button></div>'
    +'<scr'+'ipt>setTimeout(function(){window.print()},400)</scr'+'ipt></body></html>';
   const w=window.open('','_blank');if(!w){toast('popup ถูกบล็อก','err');return}w.document.write(html);w.document.close();
+}
+function openNCTag(id){
+  const d=DB.docs.find(x=>x.id===id);if(!d)return;const ng=Number(d.ng)||0;
+  window.__ngDefs=[{type:d.defect||'',qty:ng||1}];
+  modal({title:'🏷️ พิมพ์ NG TAG',size:'lg',body:`
+    <div class="hint" style="margin-bottom:8px"><span class="i">💡</span><div>ดึงข้อมูลจากรายการ NC · <b>แต่ละปัญหา NG แยกชุด TAG</b> ตามจำนวน (ปัญหา ÷ ชิ้น/ถุง) · A4 = 12 ดวง</div></div>
+    <div class="row c3">
+      <div class="field"><label>PO.</label><input id="ng_po" value="${esc(d.po||'')}"></div>
+      <div class="field"><label>P/NO. (ชิ้นงาน)</label><input id="ng_pno" value="${esc(d.part||'')}"></div>
+      <div class="field"><label>LOT/DATE</label><input id="ng_lot" value="${esc(d.lot||d.date||'')}"></div>
+    </div>
+    <div class="row c3">
+      <div class="field"><label>CUSTOMER</label><input id="ng_cust" value="${esc(d.customer||'')}"></div>
+      <div class="field"><label>ผู้ผลิต</label><input id="ng_maker" value="${esc(d.maker||'')}"></div>
+      <div class="field"><label>ขั้นตอน</label><input id="ng_step" value="QC คัดแยก 100%"></div>
+    </div>
+    <div class="row c2">
+      <div class="field"><label>ผู้ตรวจสอบ</label><input id="ng_insp" value="${esc(d.reporter||'')}"></div>
+      <div class="field"><label>วันที่ตรวจสอบ</label><input id="ng_date" value="${esc(d.date||todayISO())}"></div>
+    </div>
+    <label style="font-size:12.5px;color:var(--ink2);font-weight:600;margin:8px 0 4px;display:block">รายการปัญหา NG (แต่ละรายการแยก TAG)</label>
+    <div id="ng_deflist"></div>
+    <button class="btn sm" style="margin-top:6px" onclick="ngDefAdd()">+ เพิ่มปัญหา</button>
+    <div class="row c2" style="margin-top:8px">
+      <div class="field"><label>จำนวนชิ้น/ถุง <span class="req">*</span></label><input id="ng_per" type="number" value="${ng||1}" oninput="ngTagCalc()"></div>
+      <div class="field"><label>รวม NG</label><input value="${ng} ชิ้น" disabled style="background:#f5f5f5"></div>
+    </div>
+    <div class="kv" style="margin-top:4px;font-size:14px"><span class="k">จำนวน TAG ที่จะพิมพ์</span><b id="ng_count" style="color:var(--red);font-size:18px">1</b></div>
+  `,footer:`<button class="btn" onclick="closeModal()">ปิด</button><button class="btn" onclick="printNgTags(true)">👁️ ดูตัวอย่าง</button><button class="btn pri" onclick="printNgTags(false)">🖨️ พิมพ์ NG TAG</button>`});
+  setTimeout(()=>{renderNgDefs();ngTagCalc();},20);
 }
 /* ===== หัก ณ ที่จ่าย (Withholding Tax 50 ทวิ) — โครงสร้างเหมือนภาษีซื้อ ===== */
 function bahtText(num){
