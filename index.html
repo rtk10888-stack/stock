@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='NCTAGSZ-2026.06.18a';
+const APP_BUILD='DASH-2026.06.18a';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -505,6 +505,14 @@ function viewDashboard(el){
   const lowFG=fg.filter(p=>p.onHand<=(p.reorder||0)&&(p.reorder>0||p.onHand===0));
   const wipTot=fg.reduce((s,p)=>s+p.wip,0),platTot=fg.reduce((s,p)=>s+p.atPlating,0),qcTot=fg.reduce((s,p)=>s+p.passedQC,0);
   const pend=DB.docs.filter(d=>d.status==='pending');
+  const yr=todayISO().slice(0,4);const yrBE=(+yr)+543;const inYr=d=>(d.date||'').slice(0,4)===yr;
+  const taxBuy=DB.docs.filter(d=>d.type==='TAX'&&inYr(d));const taxBuyVal=taxBuy.reduce((s,d)=>s+(Number(d.value)||0),0),taxBuyVat=taxBuy.reduce((s,d)=>s+(Number(d.vat)||0),0);
+  const taxSell=DB.docs.filter(d=>d.type==='TAXO'&&inYr(d));const taxSellVal=taxSell.reduce((s,d)=>s+(Number(d.value)||0),0),taxSellVat=taxSell.reduce((s,d)=>s+(Number(d.vat)||0),0);
+  const vatNet=taxSellVat-taxBuyVat;
+  const whtYr=DB.docs.filter(d=>d.type==='WHT'&&inYr(d));const whtTax=whtYr.reduce((s,d)=>s+(Number(d.tax)||0),0);
+  const ncYr=DB.docs.filter(d=>d.type==='NC'&&(typeof ncMonthOf==='function'?ncMonthOf(d.date).slice(0,4):(d.date||'').slice(0,4))===yr);const ncNg=ncYr.reduce((s,d)=>s+(Number(d.ng)||0),0);
+  const plPending=DB.docs.filter(d=>d.type==='PL').reduce((s,d)=>s+(d.lines||[]).reduce((a,l)=>{const sn=Number(l.sentQty)||0,rc=Number(l.recvQty)||0;return a+((l.pending!=null&&l.pending!=='')?Number(l.pending):(sn-rc));},0),0);
+  const salesYr=DB.docs.filter(d=>d.type==='INV'&&d.status!=='cancelled'&&inYr(d)).reduce((s,d)=>s+(Number(d.total)||Number(d.subtotal)||0),0);
   el.innerHTML=`
   <div class="cards">
     <div class="card"><div class="lbl"><span class="dot d-brand">📦</span>สินค้าสำเร็จรูป</div><div class="val">${fmt(fg.length)}</div><div class="sub">${fmt(fg.reduce((s,p)=>s+p.onHand,0))} ชิ้น คงเหลือรวม</div></div>
@@ -523,6 +531,20 @@ function viewDashboard(el){
         <div class="step"><div class="n">ขั้นที่ 4</div><div class="nm">✅ คงเหลือพร้อมขาย</div><div class="v">${fmt(fg.reduce((s,p)=>s+p.onHand,0))}</div></div>
       </div>
     </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-h"><h2>📊 สรุปภาพรวมปี ${yrBE}</h2><div class="desc">ภาษีซื้อ/ขาย · หัก ณ ที่จ่าย · คุณภาพ · ยอดขาย (คลิกการ์ดเพื่อไปยังเมนู)</div></div>
+    <div class="panel-b"><div class="cards" style="margin:0">
+      <div class="card" style="cursor:pointer" onclick="go('tax')"><div class="lbl"><span class="dot d-violet">🧾</span>ภาษีซื้อ (VAT)</div><div class="val">${fmt2(taxBuyVat)}</div><div class="sub">มูลค่า ${fmt2(taxBuyVal)}</div></div>
+      <div class="card" style="cursor:pointer" onclick="go('taxsale')"><div class="lbl"><span class="dot d-teal">📈</span>ภาษีขาย (VAT)</div><div class="val">${fmt2(taxSellVat)}</div><div class="sub">มูลค่า ${fmt2(taxSellVal)}</div></div>
+      <div class="card"><div class="lbl"><span class="dot ${vatNet>=0?'d-red':'d-teal'}">⚖️</span>VAT สุทธิ</div><div class="val" style="color:${vatNet>=0?'var(--red)':'var(--teal)'}">${fmt2(Math.abs(vatNet))}</div><div class="sub">${vatNet>=0?'ต้องชำระเพิ่ม':'ขอคืน/ยกไป'}</div></div>
+      <div class="card" style="cursor:pointer" onclick="go('wht')"><div class="lbl"><span class="dot d-amber">💸</span>หัก ณ ที่จ่าย</div><div class="val">${fmt2(whtTax)}</div><div class="sub">${fmt(whtYr.length)} รายการ</div></div>
+      <div class="card" style="cursor:pointer" onclick="go('nc')"><div class="lbl"><span class="dot d-red">🚫</span>งานเสีย NC</div><div class="val" style="color:var(--red)">${fmt(ncNg)}</div><div class="sub">${fmt(ncYr.length)} รายการ</div></div>
+      <div class="card" style="cursor:pointer" onclick="go('plate')"><div class="lbl"><span class="dot d-cyan">✨</span>ส่งชุบคงค้าง</div><div class="val">${fmt(plPending)}</div><div class="sub">รอรับคืนจากโรงชุบ</div></div>
+      <div class="card" style="cursor:pointer" onclick="go('inv')"><div class="lbl"><span class="dot d-brand">💵</span>ยอดขายปีนี้</div><div class="val">${fmt2(salesYr)}</div><div class="sub">จาก Invoice ส่งลูกค้า</div></div>
+      <div class="card" style="cursor:pointer" onclick="go('monitor')"><div class="lbl"><span class="dot d-violet">📡</span>KPI เฝ้าติดตาม</div><div class="val">8</div><div class="sub">ตัวชี้วัด · ดูแนวโน้ม</div></div>
+    </div></div>
   </div>
 
   <div class="row c2" style="align-items:start">
