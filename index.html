@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='DASH-2026.06.18a';
+const APP_BUILD='NCPARETO-2026.06.18a';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -4542,6 +4542,26 @@ function printTaxSale(){
 /* ===== ผลิตภัณฑ์ไม่เป็นไปตามข้อกำหนด (Non-Conforming / NC) ===== */
 function ncMonthOf(dt){dt=String(dt||'').trim();if(!dt)return '';let m=dt.match(/^(\d{4})-(\d{1,2})/);if(m)return m[1]+'-'+String(m[2]).padStart(2,'0');m=dt.match(/^(\d{1,2})[\/.](\d{1,2})[\/.](\d{2,4})/);if(m){let y=m[3];if(y.length<=2)y='20'+y.padStart(2,'0');return y+'-'+String(m[2]).padStart(2,'0');}return '';}
 function ncMonths(){const set=new Set();DB.docs.filter(d=>d.type==='NC').forEach(d=>{const m=ncMonthOf(d.date);if(m)set.add(m);});const a=[...set].filter(Boolean).sort();return ['ALL',...a];}
+function ncParetoSVG(entries,barColor){
+  barColor=barColor||'#3b82f6';
+  if(!entries.length)return '<div class="empty" style="padding:18px"><div class="t">ยังไม่มีข้อมูล</div></div>';
+  const W=640,H=250,pl=30,pr=30,pt=16,pb=66,iw=W-pl-pr,ih=H-pt-pb;
+  const total=entries.reduce((s,e)=>s+e[1],0)||1;const max=entries[0][1]||1;
+  const n=entries.length,step=iw/n,bw=Math.min(38,step*0.6);
+  let bars='',labels='',cum=0;const pts=[];
+  entries.forEach((e,i)=>{const x=pl+step*i+step/2;const bh=(e[1]/max)*ih;const y=pt+ih-bh;
+    bars+='<rect x="'+(x-bw/2).toFixed(1)+'" y="'+y.toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+bh.toFixed(1)+'" rx="2" fill="'+barColor+'"><title>'+esc(e[0])+': '+e[1]+'</title></rect>';
+    bars+='<text x="'+x.toFixed(1)+'" y="'+(y-3).toFixed(1)+'" text-anchor="middle" font-size="9" font-weight="700" fill="#334155">'+e[1]+'</text>';
+    cum+=e[1];const cy=pt+ih-(cum/total)*ih;pts.push([x,cy]);
+    labels+='<text x="'+x.toFixed(1)+'" y="'+(pt+ih+10).toFixed(1)+'" text-anchor="end" font-size="8.5" fill="#64748b" transform="rotate(-42 '+x.toFixed(1)+' '+(pt+ih+10).toFixed(1)+')">'+esc(e[0])+'</text>';
+  });
+  let line='';pts.forEach((p,i)=>{line+=(i?' L':'M')+p[0].toFixed(1)+' '+p[1].toFixed(1);});
+  let dots='',cc=0;dots=pts.map((p,i)=>{cc+=entries[i][1];const pct=Math.round(cc/total*100);return '<circle cx="'+p[0].toFixed(1)+'" cy="'+p[1].toFixed(1)+'" r="2.7" fill="#fff" stroke="#ef4444" stroke-width="1.6"><title>'+pct+'%</title></circle>';}).join('');
+  const y80=pt+ih-0.8*ih;const ref='<line x1="'+pl+'" y1="'+y80.toFixed(1)+'" x2="'+(W-pr)+'" y2="'+y80.toFixed(1)+'" stroke="#94a3b8" stroke-dasharray="4 3" stroke-width="1"/><text x="'+(W-pr+2)+'" y="'+(y80+3).toFixed(1)+'" font-size="8" fill="#94a3b8">80%</text>';
+  const axisR=[0,.5,1].map(f=>{const y=pt+ih-f*ih;return '<text x="'+(W-pr+2)+'" y="'+(y+3).toFixed(1)+'" font-size="8" fill="#cbd5e1">'+(f*100)+'%</text>';}).join('');
+  const base='<line x1="'+pl+'" y1="'+(pt+ih)+'" x2="'+(W-pr)+'" y2="'+(pt+ih)+'" stroke="#e2e8f0" stroke-width="1"/>';
+  return '<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto;display:block">'+ref+base+bars+'<path d="'+line+'" fill="none" stroke="#ef4444" stroke-width="2"/>'+dots+labels+axisR+'</svg>';
+}
 function viewNC(el){
   ensureSettings();
   const months=ncMonths();
@@ -4557,9 +4577,11 @@ function viewNC(el){
   <div class="hint"><span class="i">💡</span><div>บันทึกงานเสีย/ไม่ตรงข้อกำหนด · <b>เคาะเลขที่ PO</b> หรือ <b>ชื่องาน(Part)</b> → ระบบดึง ชื่อชิ้นงาน/ลูกค้า/Lot/ผู้ผลิต/จำนวน อัตโนมัติจากใบสั่งผลิต</div></div>
   <div class="cards">
     <div class="card"><div class="lbl"><span class="dot d-brand">🚫</span>รายการ (${esc(mon==='ALL'?'ทั้งหมด':mon)})</div><div class="val">${fmt(rows.length)}</div></div>
-    <div class="card"><div class="lbl"><span class="dot d-violet">🏢</span>เกิดปัญหาที่ลูกค้า</div><div style="display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:8px;font-size:13px">${chip(byCust)}</div></div>
-    <div class="card"><div class="lbl"><span class="dot d-amber">🏭</span>ผู้ผลิตงานเสีย</div><div style="display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:8px;font-size:13px">${chip(byMk)}</div></div>
     <div class="card"><div class="lbl"><span class="dot d-red">⚠️</span>จำนวน NG รวม</div><div class="val" style="color:var(--red)">${fmt(tNg)}</div></div>
+  </div>
+  <div class="row c2" style="align-items:start">
+    <div class="panel"><div class="panel-h"><h2>🏢 เกิดปัญหาที่ลูกค้า (Pareto)</h2><div class="desc">จำนวนครั้งที่พบปัญหา · เส้นแดง = % สะสม</div></div><div class="panel-b">${ncParetoSVG(Object.entries(byCust).sort((a,b)=>b[1]-a[1]),'#7c5cff')}</div></div>
+    <div class="panel"><div class="panel-h"><h2>🏭 ผู้ผลิตงานเสีย (Pareto)</h2><div class="desc">จำนวนครั้งที่ทำงานเสีย · เส้นแดง = % สะสม</div></div><div class="panel-b">${ncParetoSVG(Object.entries(byMk).sort((a,b)=>b[1]-a[1]),'#f59e0b')}</div></div>
   </div>
   <div class="panel"><div class="panel-h" style="flex-wrap:wrap;gap:8px">
     <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><select onchange="window.__ncMon=this.value;render()" style="padding:6px 10px">${months.map(m=>`<option value="${m}" ${m===mon?'selected':''}>${m==='ALL'?'ทั้งหมด':esc(m)}</option>`).join('')}</select><div class="searchbox"><input id="ncSearch" placeholder="ค้นหา PO/Part/ปัญหา" oninput="filterNCRows()"></div>${ncChip('ncfPo','🔢 PO','po')}${ncChip('ncfPart','🔩 Part','part')}${ncChip('ncfCust','👤 ลูกค้า','cust')}${ncChip('ncfMk','🏭 ผู้ผลิต','maker')}<select id="ncSort" onchange="filterNCRows()" style="max-width:150px;width:auto"><option value="date_desc">⬇ ใหม่ → เก่า</option><option value="date_asc">⬆ เก่า → ใหม่</option></select><button class="btn sm" onclick="['ncSearch','ncfPo','ncfPart','ncfCust','ncfMk'].forEach(i=>{var e=document.getElementById(i);if(e)e.value=''});var s=document.getElementById('ncSort');if(s)s.value='date_desc';filterNCRows()">ล้าง</button></div>
