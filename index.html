@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='QCIPSP-2026.06.18a';
+const APP_BUILD='STKIPSP-2026.06.18a';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -358,6 +358,8 @@ const DT={
   GS:{label:'รับเข้าพิเศษ',icon:'⭐',color:'cyan',prefix:'GS',multi:true},
   QI:{label:'คัดแยกต่างประเทศ',icon:'🌐',color:'amber',prefix:'QI',multi:true},
   QS:{label:'คัดแยกพิเศษ',icon:'⭐',color:'amber',prefix:'QS',multi:true},
+  SII:{label:'รับเข้าสต๊อคต่างประเทศ',icon:'🌐',color:'teal',prefix:'SII',multi:true},
+  SIS:{label:'รับเข้าสต๊อคพิเศษ',icon:'⭐',color:'teal',prefix:'SIS',multi:true},
   PRD:{label:'ใบสั่งผลิต',icon:'📋',color:'violet',prefix:'PO',multi:false}, // production order, PO NO format
   WD:{label:'ใบเบิกวัตถุดิบ',icon:'📤',color:'amber',prefix:'WD',multi:true},
   DP:{label:'รายงานผลิตประจำวัน',icon:'🏭',color:'brand',prefix:'DP',multi:false},
@@ -384,6 +386,7 @@ function applyDoc(d){
     else if(t==='RW'){ d.lines.forEach(l=>{const p=P(l.productId);if(p){const fl=prodFlow(p);if(isDirectFlow(fl)){p.onHand+=l.qty;move(p.id,'onHand',+l.qty,'RW',d.no,'รับชิ้นงาน(ไม่ชุบ) '+(l.maker||''));}else{p.wip+=l.qty;move(p.id,'wip',+l.qty,'RW',d.no,'รับชิ้นงาน '+(l.maker||''));}}}); }
     else if(t==='GI'||t==='GS'){ const lbl=(t==='GI'?'ต่างประเทศ':'พิเศษ'); d.lines.forEach(l=>{const p=P(l.productId);if(p){const fl=prodFlow(p);if(isDirectFlow(fl)){p.onHand+=l.qty;move(p.id,'onHand',+l.qty,t,d.no,'รับเข้า('+lbl+') '+(d.supplier||''));}else{p.wip+=l.qty;move(p.id,'wip',+l.qty,t,d.no,'รับเข้า('+lbl+'-รอ QC) '+(d.supplier||''));}}}); }
     else if(t==='QI'||t==='QS'){ d.lines.forEach(l=>{const p=P(l.productId);if(p){const ok=Number(l.ok)||0,ng=Number(l.ng)||0,tot=ok+ng;if(tot){p.wip-=tot;move(p.id,'wip',-tot,t,d.no,'คัดแยก');}if(ok){p.passedQC+=ok;move(p.id,'passedQC',+ok,t,d.no,'OK');}if(ng){p.ng+=ng;move(p.id,'ng',+ng,t,d.no,'NG');}}}); }
+    else if(t==='SII'||t==='SIS'){ const lbl=(t==='SII'?'ต่างประเทศ':'พิเศษ'); d.lines.forEach(l=>{const p=P(l.productId);if(p){const q=Number(l.weighed||l.qty)||0;if(q){const wr=Math.min(q,p.passedQC||0);if(wr>0){p.passedQC-=wr;move(p.id,'passedQC',-wr,t,d.no,'รับเข้าสต๊อค('+lbl+')');}p.onHand+=q;move(p.id,'onHand',+q,t,d.no,'รับเข้าสต๊อค('+lbl+')');}}}); }
     else if(t==='WD'){ d.lines.forEach(l=>{const p=P(l.productId);if(p){p.onHand-=l.qty;move(p.id,'onHand',-l.qty,'WD',d.no,'เบิกผลิต '+(l.poNo||d.refPRD||''));if(Number(l.bars)){p.barsOnHand=(p.barsOnHand||0)-Number(l.bars);move(p.id,'barsOnHand',-Number(l.bars),'WD',d.no,'เบิก(เส้น)');}}}); }
     else if(t==='DP'){ if(d.productId&&!d.lines){const p=P(d.productId);if(p){p.wip+=d.qty;move(p.id,'wip',+d.qty,'DP',d.no,'ผลิตเสร็จ');}} }
     else if(t==='PS'){ const p=P(d.productId);p.wip-=d.qty;p.atPlating+=d.qty;move(p.id,'wip',-d.qty,'PS',d.no,'ส่งชุบ '+(d.vendor||''));move(p.id,'atPlating',+d.qty,'PS',d.no,'ส่งชุบ'); }
@@ -433,6 +436,8 @@ const NAV=[
   {id:'qcip',ico:'🌐',label:'คัดแยกต่างประเทศ'},
   {id:'qcsp',ico:'⭐',label:'คัดแยกพิเศษ'},
   {id:'si',ico:'📦',label:'รับเข้าสต๊อค',dt:'SI'},
+  {id:'stkip',ico:'🌐',label:'รับเข้าสต๊อคต่างประเทศ'},
+  {id:'stksp',ico:'⭐',label:'รับเข้าสต๊อคพิเศษ'},
   {id:'rmc',ico:'📥',label:'รับแมทลูกค้า'},
   {g:'วางแผนจัดส่ง'},
   {id:'demand',ico:'📈',label:'Forecast / PO / PL'},
@@ -451,7 +456,7 @@ const NAV=[
 ];
 let route='dashboard';
 function pendingCount(){return DB.docs.filter(d=>d.status==='pending').length}
-const ABBR={dashboard:'HOME',monitor:'KPI',inventory:'STOCK',approvals:'APPR',po:'PO',ip:'IMPORT',sp:'SPECIAL',gr:'RECV',recvip:'RECV-IMP',recvsp:'RECV-SP',sup:'SUPPLY',prd:'PROD',wd:'ISSUE',ws:'SUP-ISS',dp:'DAILY',rw:'RECV-W',plate:'PLATE',qc:'QC',qcip:'QC-IMP',qcsp:'QC-SP',si:'STK-IN',rmc:'CUST-MAT',inv:'INV',iv2:'INV-SP',adj:'ADJ',moves:'MOVE',tax:'VAT-IN',taxsale:'VAT-OUT',wht:'WHT',nc:'NC',demand:'PLAN',mrp:'MRP',settings:'SET'};
+const ABBR={dashboard:'HOME',monitor:'KPI',inventory:'STOCK',approvals:'APPR',po:'PO',ip:'IMPORT',sp:'SPECIAL',gr:'RECV',recvip:'RECV-IMP',recvsp:'RECV-SP',sup:'SUPPLY',prd:'PROD',wd:'ISSUE',ws:'SUP-ISS',dp:'DAILY',rw:'RECV-W',plate:'PLATE',qc:'QC',qcip:'QC-IMP',qcsp:'QC-SP',si:'STK-IN',stkip:'STK-IMP',stksp:'STK-SP',rmc:'CUST-MAT',inv:'INV',iv2:'INV-SP',adj:'ADJ',moves:'MOVE',tax:'VAT-IN',taxsale:'VAT-OUT',wht:'WHT',nc:'NC',demand:'PLAN',mrp:'MRP',settings:'SET'};
 function renderNav(){
   const nav=document.getElementById('nav');let h='';
   NAV.forEach(n=>{
@@ -469,7 +474,7 @@ function render(){
   const el=document.getElementById('content');
   const map={dashboard:viewDashboard,inventory:viewInventory,approvals:viewApprovals,monitor:viewMonitor,
     po:()=>viewDocs('PO'),ip:()=>viewDocs('IP'),sp:()=>viewDocs('SP'),gr:()=>viewDocs('GR'),prd:()=>viewDocs('PRD'),wd:()=>viewDocs('WD'),
-    dp:()=>viewDocs('DP'),rw:()=>viewDocs('RW'),plate:()=>viewDocs('PL'),qc:()=>viewDocs('QC'),si:()=>viewDocs('SI'),rmc:viewRMC,sup:viewSUP,ws:viewWS,recvip:()=>viewRcv('GI'),recvsp:()=>viewRcv('GS'),qcip:()=>viewQck('QI'),qcsp:()=>viewQck('QS'),
+    dp:()=>viewDocs('DP'),rw:()=>viewDocs('RW'),plate:()=>viewDocs('PL'),qc:()=>viewDocs('QC'),si:()=>viewDocs('SI'),rmc:viewRMC,sup:viewSUP,ws:viewWS,recvip:()=>viewRcv('GI'),recvsp:()=>viewRcv('GS'),qcip:()=>viewQck('QI'),qcsp:()=>viewQck('QS'),stkip:()=>viewStk('SII'),stksp:()=>viewStk('SIS'),
     inv:()=>viewDocs('INV'),iv2:()=>viewDocs('IV2'),adj:()=>viewDocs('ADJ'),moves:viewMoves,tax:viewTax,taxsale:viewTaxSale,wht:viewWHT,nc:viewNC,settings:viewSettings,
     demand:viewDemand,mrp:viewMRP};
   (map[route]||viewDashboard)(el);
@@ -4632,6 +4637,75 @@ function submitRcv(kind,editId,status){
   if(status==='approved'){const r=doApprove(d);if(!r.ok){toast('อนุมัติไม่สำเร็จ: '+r.err,'err');return;}toast('รับเข้าสต๊อคแล้ว: '+d.no,'ok');}
   else{d.status='pending';toast((editId?'บันทึกการแก้ไข ':'สร้าง ')+d.no+' (รออนุมัติ)','ok');}
   rcvL=[];closeModal();render();
+}
+/* ===== รับเข้าสต๊อคต่างประเทศ (SII←QI) / พิเศษ (SIS←QS) — flow เหมือน รับเข้าสต๊อค (passedQC→onHand) ===== */
+var STK={SII:{type:'SII',src:'QI',srcLabel:'คัดแยกต่างประเทศ',label:'รับเข้าสต๊อคต่างประเทศ',ico:'🌐'},SIS:{type:'SIS',src:'QS',srcLabel:'คัดแยกพิเศษ',label:'รับเข้าสต๊อคพิเศษ',ico:'⭐'}};
+function viewStk(kind){
+  const cf=STK[kind];ensureSettings();
+  setTitle(cf.ico+' '+cf.label,'รับเข้าสต๊อคสำเร็จรูป — ขาเข้าจาก'+cf.srcLabel+' → ออกที่ สินค้าคงคลัง (คงเหลือ)');
+  const docs=DB.docs.filter(d=>d.type===cf.type).sort((a,b)=>(b.ts||0)-(a.ts||0));
+  const tIn=docs.reduce((s,d)=>s+(Number(d.totalQty)||0),0);
+  const el=document.getElementById('content');
+  el.innerHTML=`
+  <div class="hint"><span class="i">💡</span><div>เคาะ <b>เลขที่ ${esc(cf.srcLabel)}</b> → ดึง Part/จำนวน OK ที่คัดผ่าน · กรอกจำนวนรับเข้า → กด <b>บันทึก+อนุมัติ</b> ตัดจาก <b>คัดผ่าน(passedQC)</b> เข้า <b>คงเหลือ(onHand)</b></div></div>
+  <div class="cards">
+    <div class="card"><div class="lbl"><span class="dot d-brand">📦</span>รายการ</div><div class="val">${fmt(docs.length)}</div></div>
+    <div class="card"><div class="lbl"><span class="dot d-teal">✅</span>รับเข้ารวม</div><div class="val" style="color:var(--teal)">${fmt(tIn)}</div></div>
+  </div>
+  <div class="panel"><div class="panel-h" style="flex-wrap:wrap;gap:8px"><h2>${cf.label}</h2><div class="desc">${docs.length} เอกสาร</div>
+    <div class="right" style="display:flex;gap:6px;flex-wrap:wrap"><div class="searchbox"><input id="stkQ" placeholder="ค้นหา เลขที่/อ้างอิง/Part" oninput="filterStkList()"></div><button class="btn pri" onclick="openStkForm('${kind}')">+ รายการใหม่</button></div>
+  </div><div class="panel-b nopad">
+    ${docs.length?`<div class="tbl-wrap"><table style="white-space:nowrap;font-size:12px"><thead><tr><th>เลขที่</th><th>วันที่</th><th>อ้างอิงคัดแยก</th><th>Part</th><th>ผู้ผลิต</th><th>ลูกค้า</th><th class="num">รับเข้า</th><th>สถานะ</th><th></th></tr></thead><tbody id="stkRows">${docs.map(d=>stkRow(d,kind)).join('')}</tbody></table></div>`:`<div class="empty"><div class="big">${cf.ico}</div><div class="t">ยังไม่มีรายการ</div><div>กด "+ รายการใหม่"</div></div>`}
+  </div></div>`;
+}
+function filterStkList(){const q=((document.getElementById('stkQ')||{}).value||'').trim().toLowerCase();document.querySelectorAll('#stkRows tr').forEach(tr=>{tr.style.display=(!q||tr.textContent.toLowerCase().includes(q))?'':'none';});}
+function stkRow(d,kind){
+  const l=(d.lines&&d.lines[0])||{};const p=l.productId?P(l.productId):null;const pn=p?p.pn:((l.name||'').split(' ')[0]||l.name||'');
+  return `<tr><td class="pn linkish" onclick="openStkForm('${kind}',DB.docs.find(x=>x.id==='${d.id}'))">${esc(d.no)}</td><td class="muted">${esc(d.date||'')}</td><td><span class="tag violet">${esc(l.poNo||'-')}</span></td><td><b>${esc(pn)}</b></td><td><span class="tag amber">${esc(l.maker||'-')}</span></td><td>${esc(l.cust||'')}</td><td class="num"><b style="color:var(--teal)">${fmt(Number(l.weighed)||0)}</b></td><td>${statusTag(d.status)}</td>
+   <td style="white-space:nowrap"><button class="btn sm" onclick="openStkForm('${kind}',DB.docs.find(x=>x.id==='${d.id}'))">✏️</button> ${d.status==='approved'?`<button class="btn sm danger" onclick="cancelDoc('${d.id}')">ยกเลิก</button>`:d.status==='cancelled'?`<button class="btn sm danger" onclick="delDocConfirm('${d.id}')">🗑️</button>`:`<button class="btn sm ok" onclick="approveDoc('${d.id}')">อนุมัติ</button> <button class="btn sm danger" onclick="deleteDoc('${d.id}')">ลบ</button>`}</td></tr>`;
+}
+function openStkForm(kind,edit){
+  const cf=STK[kind];ensureSettings();const e=edit||{};const l0=(e.lines&&e.lines[0])||{};window.__stkKind=kind;
+  const srcNos=DB.docs.filter(x=>x.type===cf.src).sort((a,b)=>(b.ts||0)-(a.ts||0));
+  modal({title:(edit?'✏️ แก้ไข ':cf.ico+' รับเข้า — ')+cf.label,size:'lg',body:`
+    <div class="row c3">
+      <div class="field"><label>วันที่</label><input type="date" id="stk_date" value="${esc(e.date||todayISO())}"></div>
+      <div class="field"><label>เลขที่ ${esc(cf.srcLabel)}</label><input id="stk_ref" list="dl_stkref" value="${esc(l0.poNo||'')}" onchange="stkRefFill('${kind}')" placeholder="เคาะเลขเอกสารคัดแยก"><datalist id="dl_stkref">${srcNos.map(x=>{const ll=(x.lines&&x.lines[0])||{};const pp=ll.productId?P(ll.productId):null;return `<option value="${esc(x.no)}">${esc((pp?pp.pn:(ll.name||''))+' · OK '+(ll.ok||0))}</option>`}).join('')}</datalist></div>
+      <div class="field"><label>Part Number / ชื่องาน</label><input id="stk_prod" list="dl_stkfg" value="${esc(l0.name||'')}"><datalist id="dl_stkfg">${DB.products.slice(0,1500).map(p=>`<option value="${esc(p.pn+(p.name&&p.name!=='-'?' '+p.name:''))}">`).join('')}</datalist></div>
+    </div>
+    <div class="row c3">
+      <div class="field"><label>ผู้ผลิต</label><input id="stk_maker" value="${esc(l0.maker||'')}"></div>
+      <div class="field"><label>ลูกค้า</label><input id="stk_cust" value="${esc(l0.cust||'')}"></div>
+      <div class="field"><label>OK ที่คัดผ่าน <span class="muted" style="font-size:11px" id="stk_okhint"></span></label><input type="number" id="stk_ok" value="${esc(l0.ok||'')}" readonly style="background:var(--panel2)"></div>
+    </div>
+    <div class="row c2">
+      <div class="field"><label>จำนวนรับเข้าสต๊อค <span class="req">*</span></label><input type="number" id="stk_qty" value="${esc(l0.weighed||'')}"></div>
+      <div class="field"><label>หมายเหตุ</label><input id="stk_note" value="${esc(e.note||'')}"></div>
+    </div>
+  `,footer:`<button class="btn" onclick="closeModal()">ยกเลิก</button><button class="btn" onclick="submitStk('${kind}','${edit?edit.id:''}','pending')">บันทึก (รออนุมัติ)</button><button class="btn pri" onclick="submitStk('${kind}','${edit?edit.id:''}','approved')">บันทึก + อนุมัติ (รับเข้าสต๊อค)</button>`});
+}
+function stkRefFill(kind){
+  const cf=STK[kind];const no=((document.getElementById('stk_ref')||{}).value||'').trim();if(!no)return;
+  const src=DB.docs.find(d=>d.type===cf.src&&d.no===no);if(!src){toast('ไม่พบเลขที่ '+no,'err');return;}
+  const l=(src.lines&&src.lines[0])||{};const p=l.productId?P(l.productId):null;const ok=Number(l.ok)||0;
+  const setF=(k,v)=>{const x=document.getElementById(k);if(x)x.value=v;};const setIf=(k,v)=>{const x=document.getElementById(k);if(x&&!x.value)x.value=v;};
+  setIf('stk_prod',p?(p.pn+(p.name&&p.name!=='-'?' '+p.name:'')):(l.name||''));setIf('stk_maker',l.maker||'');setIf('stk_cust',l.cust||'');
+  setF('stk_ok',ok);const q=document.getElementById('stk_qty');if(q&&!q.value)q.value=ok;
+  const h=document.getElementById('stk_okhint');if(h&&p)h.textContent='(คัดผ่านคงเหลือ '+fmt(p.passedQC||0)+')';
+  toast('ดึงข้อมูลจาก '+no+' (OK '+fmt(ok)+')','ok');
+}
+function submitStk(kind,editId,status){
+  const cf=STK[kind];const v=k=>((document.getElementById(k)||{}).value||'').trim();
+  const name=v('stk_prod');const p=DB.products.find(x=>x.pn===name.split(' ')[0]||x.pn===name)||findProdByName(name,'');
+  const qty=Number(v('stk_qty'))||0;
+  if(!name){toast('กรุณาระบุ Part','err');return;}if(qty<=0){toast('กรุณาระบุจำนวนรับเข้า','err');return;}
+  const line={productId:p?p.id:'',name:name,poNo:v('stk_ref'),maker:v('stk_maker'),cust:v('stk_cust'),ok:Number(v('stk_ok'))||0,weighed:qty,qty:qty};
+  let d;if(editId){d=DB.docs.find(x=>x.id===editId);if(!d)return;if(d.status==='approved')reverseDoc(d);}else{d={id:uid(),type:cf.type,ts:Date.now(),status:'pending'};DB.docs.push(d);}
+  if(!d.no)d.no=nextNo(cf.type);
+  d.date=v('stk_date')||todayISO();d.note=v('stk_note');d.lines=[line];d.totalQty=qty;
+  if(status==='approved'){const r=doApprove(d);if(!r.ok){toast('อนุมัติไม่สำเร็จ: '+r.err,'err');return;}toast('รับเข้าสต๊อคแล้ว: '+d.no,'ok');}
+  else{d.status='pending';toast((editId?'บันทึกแก้ไข ':'สร้าง ')+d.no+' (รออนุมัติ)','ok');}
+  closeModal();render();
 }
 /* ===== คัดแยกต่างประเทศ (QI←GI) / คัดแยกพิเศษ (QS←GS) — เงื่อนไขเดียวกับ คัดแยก OK/NG ===== */
 var QCK={QI:{type:'QI',src:'GI',srcLabel:'รับเข้าต่างประเทศ',label:'คัดแยกต่างประเทศ',ico:'🌐'},QS:{type:'QS',src:'GS',srcLabel:'รับเข้าพิเศษ',label:'คัดแยกพิเศษ',ico:'⭐'}};
