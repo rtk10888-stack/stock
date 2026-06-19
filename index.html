@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='NCTAG2-2026.06.18a';
+const APP_BUILD='KPIPPM-2026.06.18a';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -592,7 +592,12 @@ function ratioByMonth(months,numTypes,numFn,denTypes,denFn){const num={},den={};
   DB.docs.filter(d=>numTypes.includes(d.type)&&d.status!=='cancelled'&&d.date).forEach(d=>{const k=d.date.slice(0,7);num[k]=(num[k]||0)+(numFn(d)||0);});
   DB.docs.filter(d=>denTypes.includes(d.type)&&d.status!=='cancelled'&&d.date).forEach(d=>{const k=d.date.slice(0,7);den[k]=(den[k]||0)+(denFn(d)||0);});
   return months.map(k=>{const dn=den[k]||0;return dn?Math.round((num[k]||0)/dn*1000)/10:0;});}
-var MON_KPI=[{k:'deliver',label:'ส่งมอบลูกค้า',def:95,dir:'>'},{k:'maker',label:'ผู้ผลิตส่งมอบ',def:95,dir:'>'},{k:'claim',label:'เคลมผู้ผลิต',def:5,dir:'<'},{k:'ng',label:'ของเสียในกระบวนการผลิต',def:5,dir:'<'},{k:'rm',label:'วัตถุดิบส่งมอบ',def:95,dir:'>'},{k:'emp',label:'ประเมินสมรรถนะพนักงาน',def:2,dir:'>'}];
+var MON_KPI=[{k:'deliver',label:'ส่งมอบลูกค้า',def:95,dir:'>'},{k:'maker',label:'ผู้ผลิตส่งมอบ',def:95,dir:'>'},{k:'claim',label:'เคลมผู้ผลิต',def:5,dir:'<'},{k:'custclaim',label:'เคลมจากลูกค้า (PPM)',def:15,dir:'<'},{k:'ng',label:'ของเสียในกระบวนการผลิต',def:5,dir:'<'},{k:'rm',label:'วัตถุดิบส่งมอบ',def:95,dir:'>'},{k:'emp',label:'ประเมินสมรรถนะพนักงาน',def:2,dir:'>'}];
+function isCustClaim(d){return /เคลม|claim|ลูกค้า/i.test((d.method||'')+' '+(d.loc||'')+' '+(d.defect||''));}
+function ppmByMonth(months,numFn,denTypes,denFn){const num={},den={};
+  DB.docs.filter(d=>d.type==='NC'&&d.date).forEach(d=>{const k=(d.date||'').slice(0,7);if(k)num[k]=(num[k]||0)+(numFn(d)||0);});
+  DB.docs.filter(d=>denTypes.includes(d.type)&&d.status!=='cancelled'&&d.date).forEach(d=>{const k=d.date.slice(0,7);den[k]=(den[k]||0)+(denFn(d)||0);});
+  return months.map(k=>{const dn=den[k]||0;return dn?Math.round((num[k]||0)/dn*1000000):0;});}
 function monTarget(k){const t=(DB.settings&&DB.settings.monTargets)||{};const d=MON_KPI.find(x=>x.k===k);return t[k]!=null?Number(t[k]):(d?d.def:0);}
 function monBumpTarget(k,delta){ensureSettings();DB.settings.monTargets=DB.settings.monTargets||{};DB.settings.monTargets[k]=Math.max(0,Math.round((monTarget(k)+delta)*10)/10);saveDB();render();}
 function openMonTargets(){ensureSettings();modal({title:'⚙️ ตั้งค่าเป้าหมาย KPI',size:'lg',body:'<div class="hint" style="margin-bottom:8px"><span class="i">💡</span><div>ปรับเป้าหมายแต่ละตัวให้เหมาะกับสถานการณ์ · ▲▼ ในการ์ดก็ปรับได้</div></div>'+MON_KPI.map(x=>`<div class="row c2" style="align-items:center;margin-bottom:4px"><div class="field" style="margin:0"><label>${esc(x.label)} (${x.dir==='<'?'ไม่เกิน ≤':'อย่างน้อย ≥'})</label></div><div class="field" style="margin:0"><input type="number" step="any" id="mt_${x.k}" value="${monTarget(x.k)}"></div></div>`).join('')+'<div style="margin-top:8px;text-align:right"><button class="btn sm" onclick="MON_KPI.forEach(x=>{var e=document.getElementById(\'mt_\'+x.k);if(e)e.value=x.def;})">คืนค่าเริ่มต้น</button></div>',footer:'<button class="btn" onclick="closeModal()">ยกเลิก</button><button class="btn pri" onclick="saveMonTargets()">บันทึก</button>'});}
@@ -641,6 +646,8 @@ function viewMonitor(el){
   const sNG=ratioByMonth(months,['QC'],sumNG,['QC'],sumQCtot);
   const sRM=ratioByMonth(months,['GR'],sumQ,['PO'],sumQ);
   const sEmp=ratioByMonth(months,['QC'],sumNG,['QC'],sumQCtot);
+  const sCustClaim=ppmByMonth(months,d=>isCustClaim(d)?(Number(d.ng)||0):0,['INV','IV2'],sumQ);
+  const ppm=v=>fmt(Math.round(v))+' PPM';
   el.innerHTML=`
   <div style="display:flex;justify-content:flex-end;margin-bottom:8px"><button class="btn sm pri" onclick="openMonTargets()">⚙️ ตั้งค่าเป้าหมาย</button></div>
   <div class="hint"><span class="i">📈</span><div>KPI 6 ตัว เทียบ<b>เส้นเป้าหมาย</b> (เส้นประ) · เขียว=ถึงเป้า แดง=ยังไม่ถึง · ตัวเลขมุมขวา = ค่าเดือนล่าสุด · แตะจุดดูค่ารายเดือน<br><span class="muted" style="font-size:11px">สูตร: %ส่งมอบ=ส่งจริง÷สั่ง · %ของเสีย=NG÷ตรวจทั้งหมด · %เคลม=NG÷รับจากผู้ผลิต</span></div></div>
@@ -648,6 +655,7 @@ function viewMonitor(el){
     ${monPanel('🚚','ส่งมอบลูกค้า','ส่งมอบจริง(INV) ÷ คำสั่งซื้อลูกค้า(CPO)',lab,[{name:'%ส่งมอบ',color:'#14b8a6',data:sDeliver}],{fy:pct,target:monTarget('deliver'),tdir:'>',key:'deliver'})}
     ${monPanel('🏭','ผู้ผลิตส่งมอบ','รับชิ้นงาน(RW) ÷ สั่งผลิต(PRD)',lab,[{name:'%รับ',color:'#3b82f6',data:sMaker}],{fy:pct,target:monTarget('maker'),tdir:'>',key:'maker'})}
     ${monPanel('🧾','เคลมผู้ผลิต','NG ÷ จำนวนรับจากผู้ผลิต(RW)',lab,[{name:'%เคลม',color:'#ef4444',data:sClaim}],{fy:pct,target:monTarget('claim'),tdir:'<',key:'claim'})}
+    ${monPanel('📣','เคลมจากลูกค้า','เคลมลูกค้า(NC) ÷ ยอดส่งมอบ(INV) × 1,000,000',lab,[{name:'PPM',color:'#e11d48',data:sCustClaim}],{fy:ppm,target:monTarget('custclaim'),tdir:'<',key:'custclaim'})}
     ${monPanel('⚠️','ของเสียในกระบวนการผลิต','NG ÷ รวมตรวจคัด(QC)',lab,[{name:'%NG',color:'#f59e0b',data:sNG}],{fy:pct,target:monTarget('ng'),tdir:'<',key:'ng'})}
     ${monPanel('📥','วัตถุดิบส่งมอบ','รับวัตถุดิบ(GR) ÷ สั่งซื้อ(PO)',lab,[{name:'%รับ',color:'#06b6d4',data:sRM}],{fy:pct,target:monTarget('rm'),tdir:'>',key:'rm'})}
     ${monPanel('👷','ประเมินสมรรถนะพนักงาน','อัตราตรวจพบของเสีย NG ÷ รวมตรวจ',lab,[{name:'%ตรวจพบ',color:'#8b5cf6',data:sEmp}],{fy:pct,target:monTarget('emp'),tdir:'>',key:'emp'})}
