@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='MOBABBR-2026.06.18a';
+const APP_BUILD='RECVIPSP-2026.06.18a';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -354,6 +354,8 @@ const DT={
   IP:{label:'สั่งซื้อวัตถุดิบต่างประเทศ',icon:'🌐',color:'cyan',prefix:'IP',multi:true,apply:null},
   SP:{label:'สั่งซื้อพิเศษ',icon:'⭐',color:'cyan',prefix:'SP',multi:true,apply:null},
   GR:{label:'รับวัตถุดิบเข้าสต๊อค',icon:'📥',color:'teal',prefix:'GR',multi:true},
+  GI:{label:'รับเข้าต่างประเทศ',icon:'🌐',color:'teal',prefix:'GI',multi:true},
+  GS:{label:'รับเข้าพิเศษ',icon:'⭐',color:'cyan',prefix:'GS',multi:true},
   PRD:{label:'ใบสั่งผลิต',icon:'📋',color:'violet',prefix:'PO',multi:false}, // production order, PO NO format
   WD:{label:'ใบเบิกวัตถุดิบ',icon:'📤',color:'amber',prefix:'WD',multi:true},
   DP:{label:'รายงานผลิตประจำวัน',icon:'🏭',color:'brand',prefix:'DP',multi:false},
@@ -378,6 +380,7 @@ function applyDoc(d){
   try{
     if(t==='GR'){ d.lines.forEach(l=>{const p=P(l.productId);if(p){const fl=prodFlow(p);if(isDirectFlow(fl)){p.onHand+=l.qty;move(p.id,'onHand',+l.qty,'GR',d.no,'รับเข้า(ไม่ชุบ) '+(d.supplier||''));}else{p.wip+=l.qty;move(p.id,'wip',+l.qty,'GR',d.no,'รับเข้า(รอ QC) '+(d.supplier||''));}if(Number(l.bars)){p.barsOnHand=(p.barsOnHand||0)+Number(l.bars);move(p.id,'barsOnHand',+Number(l.bars),'GR',d.no,'รับเข้า(เส้น)');}}}); }
     else if(t==='RW'){ d.lines.forEach(l=>{const p=P(l.productId);if(p){const fl=prodFlow(p);if(isDirectFlow(fl)){p.onHand+=l.qty;move(p.id,'onHand',+l.qty,'RW',d.no,'รับชิ้นงาน(ไม่ชุบ) '+(l.maker||''));}else{p.wip+=l.qty;move(p.id,'wip',+l.qty,'RW',d.no,'รับชิ้นงาน '+(l.maker||''));}}}); }
+    else if(t==='GI'||t==='GS'){ const lbl=(t==='GI'?'ต่างประเทศ':'พิเศษ'); d.lines.forEach(l=>{const p=P(l.productId);if(p){const fl=prodFlow(p);if(isDirectFlow(fl)){p.onHand+=l.qty;move(p.id,'onHand',+l.qty,t,d.no,'รับเข้า('+lbl+') '+(d.supplier||''));}else{p.wip+=l.qty;move(p.id,'wip',+l.qty,t,d.no,'รับเข้า('+lbl+'-รอ QC) '+(d.supplier||''));}}}); }
     else if(t==='WD'){ d.lines.forEach(l=>{const p=P(l.productId);if(p){p.onHand-=l.qty;move(p.id,'onHand',-l.qty,'WD',d.no,'เบิกผลิต '+(l.poNo||d.refPRD||''));if(Number(l.bars)){p.barsOnHand=(p.barsOnHand||0)-Number(l.bars);move(p.id,'barsOnHand',-Number(l.bars),'WD',d.no,'เบิก(เส้น)');}}}); }
     else if(t==='DP'){ if(d.productId&&!d.lines){const p=P(d.productId);if(p){p.wip+=d.qty;move(p.id,'wip',+d.qty,'DP',d.no,'ผลิตเสร็จ');}} }
     else if(t==='PS'){ const p=P(d.productId);p.wip-=d.qty;p.atPlating+=d.qty;move(p.id,'wip',-d.qty,'PS',d.no,'ส่งชุบ '+(d.vendor||''));move(p.id,'atPlating',+d.qty,'PS',d.no,'ส่งชุบ'); }
@@ -413,6 +416,8 @@ const NAV=[
   {id:'ip',ico:'🌐',label:'สั่งซื้อต่างประเทศ',dt:'IP'},
   {id:'sp',ico:'⭐',label:'สั่งซื้อพิเศษ',dt:'SP'},
   {id:'gr',ico:'📥',label:'รับวัตถุดิบ',dt:'GR'},
+  {id:'recvip',ico:'🌐',label:'รับเข้าต่างประเทศ'},
+  {id:'recvsp',ico:'⭐',label:'รับเข้าพิเศษ'},
   {id:'sup',ico:'🧰',label:'วัสดุสิ้นเปลือง'},
   {g:'การผลิต (สินค้าสำเร็จรูป)'},
   {id:'prd',ico:'📋',label:'ใบสั่งผลิต',dt:'PRD'},
@@ -441,14 +446,14 @@ const NAV=[
 ];
 let route='dashboard';
 function pendingCount(){return DB.docs.filter(d=>d.status==='pending').length}
-const ABBR={dashboard:'HOME',inventory:'STOCK',approvals:'APPR',po:'PO',ip:'IMPORT',sp:'SPECIAL',gr:'RECV',sup:'SUPPLY',prd:'PROD',wd:'ISSUE',ws:'SUP-ISS',dp:'DAILY',rw:'RECV-W',plate:'PLATE',qc:'QC',si:'STK-IN',rmc:'CUST-MAT',inv:'INV',iv2:'INV-SP',adj:'ADJ',moves:'MOVE',tax:'VAT-IN',taxsale:'VAT-OUT',wht:'WHT',nc:'NC',demand:'PLAN',mrp:'MRP',settings:'SET'};
+const ABBR={dashboard:'HOME',monitor:'KPI',inventory:'STOCK',approvals:'APPR',po:'PO',ip:'IMPORT',sp:'SPECIAL',gr:'RECV',recvip:'RECV-IMP',recvsp:'RECV-SP',sup:'SUPPLY',prd:'PROD',wd:'ISSUE',ws:'SUP-ISS',dp:'DAILY',rw:'RECV-W',plate:'PLATE',qc:'QC',si:'STK-IN',rmc:'CUST-MAT',inv:'INV',iv2:'INV-SP',adj:'ADJ',moves:'MOVE',tax:'VAT-IN',taxsale:'VAT-OUT',wht:'WHT',nc:'NC',demand:'PLAN',mrp:'MRP',settings:'SET'};
 function renderNav(){
   const nav=document.getElementById('nav');let h='';
   NAV.forEach(n=>{
     if(n.g){h+=`<div class="nav-group">${n.g}</div>`;return}
     let badge='';
     if(n.id==='approvals'){const c=pendingCount();if(c)badge=`<span class="badge">${c}</span>`}
-    h+=`<a class="${route===n.id?'active':''}" onclick="go('${n.id}')"><span class="ico">${n.ico}</span><span class="lbl">${n.label}</span><span class="ab">${ABBR[n.id]||''}</span>${badge}</a>`;
+    h+=`<a class="${route===n.id?'active':''}" onclick="go('${n.id}')"><span class="ico">${n.ico}</span><span class="lbl">${n.label}</span><span class="ab">${ABBR[n.id]||n.label}</span>${badge}</a>`;
   });
   nav.innerHTML=h;
 }
@@ -459,7 +464,7 @@ function render(){
   const el=document.getElementById('content');
   const map={dashboard:viewDashboard,inventory:viewInventory,approvals:viewApprovals,monitor:viewMonitor,
     po:()=>viewDocs('PO'),ip:()=>viewDocs('IP'),sp:()=>viewDocs('SP'),gr:()=>viewDocs('GR'),prd:()=>viewDocs('PRD'),wd:()=>viewDocs('WD'),
-    dp:()=>viewDocs('DP'),rw:()=>viewDocs('RW'),plate:()=>viewDocs('PL'),qc:()=>viewDocs('QC'),si:()=>viewDocs('SI'),rmc:viewRMC,sup:viewSUP,ws:viewWS,
+    dp:()=>viewDocs('DP'),rw:()=>viewDocs('RW'),plate:()=>viewDocs('PL'),qc:()=>viewDocs('QC'),si:()=>viewDocs('SI'),rmc:viewRMC,sup:viewSUP,ws:viewWS,recvip:()=>viewRcv('GI'),recvsp:()=>viewRcv('GS'),
     inv:()=>viewDocs('INV'),iv2:()=>viewDocs('IV2'),adj:()=>viewDocs('ADJ'),moves:viewMoves,tax:viewTax,taxsale:viewTaxSale,wht:viewWHT,nc:viewNC,settings:viewSettings,
     demand:viewDemand,mrp:viewMRP};
   (map[route]||viewDashboard)(el);
@@ -4538,6 +4543,90 @@ function printTaxSale(){
    +'<div class="noprint" style="text-align:center;margin-top:14px"><button onclick="window.print()" style="padding:8px 22px;cursor:pointer">🖨️ พิมพ์ / PDF</button></div>'
    +'<scr'+'ipt>setTimeout(function(){window.print()},400)</scr'+'ipt></body></html>';
   const w=window.open('','_blank');if(!w){toast('popup ถูกบล็อก','err');return}w.document.write(html);w.document.close();
+}
+/* ===== รับเข้าต่างประเทศ (GI←IP) / รับเข้าพิเศษ (GS←SP) — เงื่อนไขเดียวกับรับวัตถุดิบ ===== */
+var RCV={GI:{type:'GI',src:'IP',label:'รับเข้าต่างประเทศ',srcLabel:'สั่งซื้อต่างประเทศ',ico:'🌐'},GS:{type:'GS',src:'SP',label:'รับเข้าพิเศษ',srcLabel:'สั่งซื้อพิเศษ',ico:'⭐'}};
+var rcvL=[];
+function viewRcv(kind){
+  const cf=RCV[kind];ensureSettings();
+  setTitle(cf.ico+' '+cf.label,'รับสินค้าเข้าสต๊อค — เชื่อมจาก'+cf.srcLabel+' · อนุมัติแล้วเพิ่มยอดคงเหลืออัตโนมัติ (การไหลมาตรฐานเดิม)');
+  const docs=DB.docs.filter(d=>d.type===cf.type).sort((a,b)=>(b.ts||0)-(a.ts||0));
+  const el=document.getElementById('content');
+  el.innerHTML=`
+  <div class="hint"><span class="i">💡</span><div>เคาะ <b>เลขที่ ${esc(cf.srcLabel)}</b> → ดึงรายการ/จำนวน/ราคา/ผู้ขายอัตโนมัติ · กรอกจำนวนรับ + เลขที่ใบกำกับ → กด <b>บันทึก+อนุมัติ</b> เพิ่มสต๊อคอัตโนมัติ (ไม่ชุบ→คงเหลือ, ชุบ-QC→WIP)</div></div>
+  <div class="panel"><div class="panel-h" style="flex-wrap:wrap;gap:8px"><h2>${cf.label}</h2><div class="desc">${docs.length} เอกสาร</div>
+    <div class="right" style="display:flex;gap:6px;flex-wrap:wrap"><div class="searchbox"><input id="rcvQ" placeholder="ค้นหา เลขที่/ใบกำกับ/PO/ผู้ขาย/รายการ" oninput="filterRcvList()"></div><button class="btn pri" onclick="openRcvForm('${kind}')">+ รายการใหม่</button></div>
+  </div><div class="panel-b nopad">
+    ${docs.length?`<div class="tbl-wrap"><table style="white-space:nowrap;font-size:12px"><thead><tr><th>เลขที่</th><th>วันที่</th><th>เลขที่ใบกำกับ</th><th>PO เลขที่</th><th>ผู้ขาย</th><th>รายการ</th><th class="num">จำนวนรับ</th><th class="num">จำนวนเงิน</th><th>สถานะ</th><th></th></tr></thead><tbody id="rcvRows">${docs.map(d=>rcvRow(d,kind)).join('')}</tbody>
+    <tfoot><tr style="background:#fff7a8;font-weight:700"><td colspan="6" style="text-align:right">รวม</td><td class="num">${fmt(docs.reduce((s,d)=>s+(d.totalQty||0),0))}</td><td class="num">${fmt2(docs.reduce((s,d)=>s+(Number(d.amount)||0),0))}</td><td colspan="2"></td></tr></tfoot></table></div>`:`<div class="empty"><div class="big">${cf.ico}</div><div class="t">ยังไม่มีรายการ${esc(cf.label)}</div><div>กด "+ รายการใหม่" แล้วเคาะเลข ${esc(cf.srcLabel)}</div></div>`}
+  </div></div>`;
+}
+function filterRcvList(){const q=((document.getElementById('rcvQ')||{}).value||'').trim().toLowerCase();document.querySelectorAll('#rcvRows tr').forEach(tr=>{tr.style.display=(!q||tr.textContent.toLowerCase().includes(q))?'':'none';});}
+function rcvRow(d,kind){
+  const items=(d.lines||[]).map(l=>l.productId&&P(l.productId)?P(l.productId).pn:(l.name||'')).filter(Boolean);
+  const head=items.slice(0,1).join(', ')+(items.length>1?` +${items.length-1}`:'');
+  const tq=(d.lines||[]).reduce((s,l)=>s+(Number(l.qty)||0),0);
+  return `<tr><td class="pn linkish" onclick="openRcvForm('${kind}',DB.docs.find(x=>x.id==='${d.id}'))">${esc(d.no)}</td><td class="muted">${esc(d.date||'')}</td><td>${d.invNo?'<span class="tag amber">'+esc(d.invNo)+'</span>':'<span class="muted">-</span>'}</td><td><span class="tag violet">${esc(d.poNo||'-')}</span></td><td><span class="tag cyan">${esc(d.supplier||'-')}</span></td><td class="muted">${esc(head)}</td><td class="num">${fmt(tq)}</td><td class="num"><b>${fmt2(d.amount||0)}</b></td><td>${statusTag(d.status)}</td>
+   <td style="white-space:nowrap"><button class="btn sm" onclick="openRcvForm('${kind}',DB.docs.find(x=>x.id==='${d.id}'))">✏️</button> ${d.status==='approved'?`<button class="btn sm danger" onclick="cancelDoc('${d.id}')">ยกเลิก</button>`:d.status==='cancelled'?`<button class="btn sm danger" onclick="delDocConfirm('${d.id}')">🗑️</button>`:`<button class="btn sm ok" onclick="approveDoc('${d.id}')">อนุมัติ</button> <button class="btn sm danger" onclick="deleteDoc('${d.id}')">ลบ</button>`}</td></tr>`;
+}
+function openRcvForm(kind,edit){
+  const cf=RCV[kind];ensureSettings();const e=edit||{};window.__rcvKind=kind;
+  const srcNos=DB.docs.filter(x=>x.type===cf.src).sort((a,b)=>(b.ts||0)-(a.ts||0));
+  rcvL=edit&&edit.lines?edit.lines.map(l=>({productId:l.productId||'',name:l.name||'',qty:l.qty||'',unit:l.unit||'',price:l.price||''})):[{productId:'',name:'',qty:'',unit:'',price:''}];
+  modal({title:(edit?'✏️ แก้ไข ':cf.ico+' รับเข้า — ')+cf.label,size:'lg',body:`
+    <div class="row c3">
+      <div class="field"><label>วันที่รับ</label><input type="date" id="rcv_date" value="${esc(e.date||todayISO())}"></div>
+      <div class="field"><label>เลขที่ ${esc(cf.srcLabel)}</label><input id="rcv_po" list="dl_rcvpo" value="${esc(e.poNo||'')}" onchange="rcvPoFill('${kind}')" placeholder="เคาะเลข PO"><datalist id="dl_rcvpo">${srcNos.map(x=>`<option value="${esc(x.no)}">${esc(x.supplier||'')}</option>`).join('')}</datalist></div>
+      <div class="field"><label>เลขที่ใบกำกับ</label><input id="rcv_inv" value="${esc(e.invNo||'')}"></div>
+    </div>
+    <div class="field"><label>ผู้ขาย (Supplier)</label><input id="rcv_sup" value="${esc(e.supplier||'')}"></div>
+    <label style="font-size:12.5px;color:var(--ink2);font-weight:600;margin:6px 0 2px;display:block">รายการรับเข้า</label>
+    <div id="rcvRoot"></div>
+    <button class="btn sm" style="margin-top:6px" onclick="rcvAddLine()">+ เพิ่มรายการ</button>
+    <div id="rcvTot" style="margin-top:8px"></div>
+    <div class="field" style="margin-top:8px"><label>หมายเหตุ</label><input id="rcv_note" value="${esc(e.note||'')}"></div>
+  `,footer:`<button class="btn" onclick="closeModal()">ยกเลิก</button><button class="btn" onclick="submitRcv('${kind}','${edit?edit.id:''}','pending')">บันทึก (รออนุมัติ)</button><button class="btn pri" onclick="submitRcv('${kind}','${edit?edit.id:''}','approved')">บันทึก + อนุมัติ (รับเข้าสต๊อค)</button>`});
+  setTimeout(renderRcvLines,15);
+}
+function rcvAddLine(){rcvL.push({productId:'',name:'',qty:'',unit:'',price:''});renderRcvLines();}
+function rcvRmLine(i){rcvL.splice(i,1);if(!rcvL.length)rcvL.push({productId:'',name:'',qty:'',unit:'',price:''});renderRcvLines();}
+function rcvLineCalc(i){const e=document.getElementById('rcvamt_'+i);if(e){const l=rcvL[i];e.textContent=fmt2((Number(l.qty)||0)*(Number(l.price)||0));}rcvTotals();}
+function rcvTotals(){let q=0,amt=0;rcvL.forEach(l=>{q+=Number(l.qty)||0;amt+=(Number(l.qty)||0)*(Number(l.price)||0);});const el=document.getElementById('rcvTot');if(el)el.innerHTML=`<div style="display:flex;gap:24px;justify-content:flex-end;font-weight:700"><div>รวมจำนวน: ${fmt(q)}</div><div>จำนวนเงิน: <span style="color:var(--teal)">${fmt2(amt)}</span></div></div>`;}
+function rcvPick(i,val){rcvL[i].name=val;const pn=(val||'').split(' ')[0];const p=DB.products.find(x=>x.pn===pn||x.pn===val);rcvL[i].productId=p?p.id:'';}
+function renderRcvLines(){
+  const root=document.getElementById('rcvRoot');if(!root)return;
+  root.innerHTML=`<div style="overflow-x:auto"><table style="font-size:12.5px"><thead><tr><th style="min-width:220px">รายการ</th><th style="width:84px">จำนวนรับ</th><th style="width:60px">หน่วย</th><th style="width:90px">ราคา/หน่วย</th><th style="width:96px">จำนวนเงิน</th><th></th></tr></thead><tbody>
+  ${rcvL.map((l,i)=>`<tr>
+    <td><input list="dl_rcvprod" value="${esc(l.name||'')}" placeholder="พิมพ์/เลือกสินค้า" oninput="rcvPick(${i},this.value)" style="padding:6px 8px"></td>
+    <td><input type="number" step="any" value="${l.qty}" oninput="rcvL[${i}].qty=this.value;rcvLineCalc(${i})" style="padding:6px 8px;text-align:right"></td>
+    <td><input value="${esc(l.unit||'')}" placeholder="Pcs." oninput="rcvL[${i}].unit=this.value" style="padding:6px 8px"></td>
+    <td><input type="number" step="any" value="${l.price}" oninput="rcvL[${i}].price=this.value;rcvLineCalc(${i})" style="padding:6px 8px;text-align:right"></td>
+    <td class="num" id="rcvamt_${i}" style="font-weight:600">${fmt2((Number(l.qty)||0)*(Number(l.price)||0))}</td>
+    <td><div class="rm-x" style="height:32px" onclick="rcvRmLine(${i})">✕</div></td>
+  </tr>`).join('')}
+  </tbody></table></div>
+  <datalist id="dl_rcvprod">${DB.products.slice(0,1500).map(p=>`<option value="${esc(p.pn+(p.name&&p.name!=='-'?' '+p.name:''))}">`).join('')}</datalist>`;
+  rcvTotals();
+}
+function rcvPoFill(kind){
+  const cf=RCV[kind];const no=((document.getElementById('rcv_po')||{}).value||'').trim();if(!no)return;
+  const po=DB.docs.find(d=>d.type===cf.src&&d.no===no);if(!po){toast('ไม่พบเลขที่ '+no+' ใน'+cf.srcLabel,'err');return;}
+  const sup=document.getElementById('rcv_sup');if(sup&&!sup.value)sup.value=po.supplier||'';
+  rcvL=(po.lines||[]).map(l=>{const nm=l.name||l.code||'';const p=l.productId?P(l.productId):(DB.products.find(x=>x.pn===(nm.split(' ')[0])||x.pn===nm)||findProdByName(nm,''));return {productId:l.productId||(p?p.id:''),name:p?(p.pn+(p.name&&p.name!=='-'?' '+p.name:'')):nm,qty:l.qty||'',unit:l.unit||'',price:l.price||''};});
+  if(!rcvL.length)rcvL=[{productId:'',name:'',qty:'',unit:'',price:''}];
+  renderRcvLines();toast('ดึง '+rcvL.length+' รายการจาก '+no+' (ผู้ขาย '+(po.supplier||'-')+')','ok');
+}
+function submitRcv(kind,editId,status){
+  const cf=RCV[kind];const v=k=>((document.getElementById(k)||{}).value||'').trim();
+  const lines=rcvL.filter(l=>(l.name||l.productId)&&Number(l.qty)>0).map(l=>({productId:l.productId||(findProdByName(l.name,'')||{}).id||'',name:(l.name||'').trim(),qty:Number(l.qty)||0,unit:l.unit||'',price:Number(l.price)||0,amount:(Number(l.qty)||0)*(Number(l.price)||0)}));
+  if(!lines.length){toast('กรุณาเพิ่มรายการ (มีชื่อและจำนวน > 0)','err');return;}
+  let d;if(editId){d=DB.docs.find(x=>x.id===editId);if(!d)return;if(d.status==='approved')reverseDoc(d);}else{d={id:uid(),type:cf.type,ts:Date.now(),status:'pending'};DB.docs.push(d);}
+  if(!d.no)d.no=nextNo(cf.type);
+  d.date=v('rcv_date')||todayISO();d.invNo=v('rcv_inv');d.poNo=v('rcv_po');d.supplier=v('rcv_sup');d.note=v('rcv_note');d.lines=lines;
+  d.totalQty=lines.reduce((s,l)=>s+l.qty,0);d.amount=lines.reduce((s,l)=>s+l.amount,0);
+  if(status==='approved'){const r=doApprove(d);if(!r.ok){toast('อนุมัติไม่สำเร็จ: '+r.err,'err');return;}toast('รับเข้าสต๊อคแล้ว: '+d.no,'ok');}
+  else{d.status='pending';toast((editId?'บันทึกการแก้ไข ':'สร้าง ')+d.no+' (รออนุมัติ)','ok');}
+  rcvL=[];closeModal();render();
 }
 /* ===== ผลิตภัณฑ์ไม่เป็นไปตามข้อกำหนด (Non-Conforming / NC) ===== */
 function ncMonthOf(dt){dt=String(dt||'').trim();if(!dt)return '';let m=dt.match(/^(\d{4})-(\d{1,2})/);if(m)return m[1]+'-'+String(m[2]).padStart(2,'0');m=dt.match(/^(\d{1,2})[\/.](\d{1,2})[\/.](\d{2,4})/);if(m){let y=m[3];if(y.length<=2)y='20'+y.padStart(2,'0');return y+'-'+String(m[2]).padStart(2,'0');}return '';}
