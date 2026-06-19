@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='NC-2026.06.18a';
+const APP_BUILD='NC-2026.06.18b';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -4518,26 +4518,67 @@ function viewNC(el){
     <div class="card"><div class="lbl"><span class="dot d-red">⚠️</span>จำนวน NG รวม</div><div class="val" style="color:var(--red)">${fmt(tNg)}</div></div>
   </div>
   <div class="panel"><div class="panel-h" style="flex-wrap:wrap;gap:8px">
-    <div style="display:flex;gap:8px;align-items:center"><label style="font-size:12.5px;font-weight:600">เดือน</label><select onchange="window.__ncMon=this.value;render()" style="padding:6px 10px">${months.map(m=>`<option value="${m}" ${m===mon?'selected':''}>${m==='ALL'?'ทั้งหมด':esc(m)}</option>`).join('')}</select></div>
+    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><select onchange="window.__ncMon=this.value;render()" style="padding:6px 10px">${months.map(m=>`<option value="${m}" ${m===mon?'selected':''}>${m==='ALL'?'ทั้งหมด':esc(m)}</option>`).join('')}</select><div class="searchbox"><input id="ncSearch" placeholder="ค้นหา PO/Part/ปัญหา" oninput="filterNCRows()"></div>${ncChip('ncfPo','🔢 PO','po')}${ncChip('ncfPart','🔩 Part','part')}${ncChip('ncfCust','👤 ลูกค้า','cust')}${ncChip('ncfMk','🏭 ผู้ผลิต','maker')}<select id="ncSort" onchange="filterNCRows()" style="max-width:150px;width:auto"><option value="date_desc">⬇ ใหม่ → เก่า</option><option value="date_asc">⬆ เก่า → ใหม่</option></select><button class="btn sm" onclick="['ncSearch','ncfPo','ncfPart','ncfCust','ncfMk'].forEach(i=>{var e=document.getElementById(i);if(e)e.value=''});var s=document.getElementById('ncSort');if(s)s.value='date_desc';filterNCRows()">ล้าง</button></div>
     <div class="right" style="display:flex;gap:6px;flex-wrap:wrap"><input type="file" id="ncFile" accept=".json" style="display:none" onchange="importNC(this)"><button class="btn sm" onclick="document.getElementById('ncFile').click()">📥 นำเข้า</button><button class="btn sm" onclick="printNC()">🖨️ พิมพ์รายงาน</button><button class="btn pri" onclick="openNCForm()">+ แจ้งงานเสีย</button></div>
   </div><div class="panel-b nopad">
     ${rows.length?`<div class="tbl-wrap"><table style="white-space:nowrap;font-size:11.5px"><thead><tr>
       <th>วันที่</th><th>เลขที่ PO</th><th>Part Number</th><th>CUSTOMER</th><th>LOT DATE</th><th class="num">จำนวนสั่ง</th><th>ผู้ผลิต(NG)</th><th>ปัญหา</th><th>วิธีแก้ไข</th><th class="num">NG</th><th></th>
-    </tr></thead><tbody>${rows.map(ncRowHtml).join('')}</tbody>
-    <tfoot><tr style="background:#fff7a8;font-weight:700"><td colspan="9" style="text-align:right">รวม NG</td><td class="num" style="color:var(--red)">${fmt(tNg)}</td><td></td></tr></tfoot></table></div>`:`<div class="empty"><div class="big">🚫</div><div class="t">ยังไม่มีรายการ NC</div><div>กด "+ แจ้งงานเสีย" หรือ "📥 นำเข้า"</div></div>`}
+    </tr></thead><tbody id="ncRows">${rows.map(ncRowHtml).join('')}</tbody>
+    <tfoot><tr style="background:#fff7a8;font-weight:700"><td colspan="9" style="text-align:right">รวม NG (ตามที่กรอง)</td><td class="num" id="ncSubNg" style="color:var(--red)">${fmt(tNg)}</td><td></td></tr></tfoot></table></div>`:`<div class="empty"><div class="big">🚫</div><div class="t">ยังไม่มีรายการ NC</div><div>กด "+ แจ้งงานเสีย" หรือ "📥 นำเข้า"</div></div>`}
   </div></div>`;
 }
 function ncRowHtml(r){
-  return `<tr>
+  return `<tr data-date="${esc(r.date||'')}" data-po="${esc((r.po||'').toLowerCase())}" data-part="${esc((r.part||'').toLowerCase())}" data-cust="${esc((r.customer||'').toLowerCase())}" data-mk="${esc((r.maker||'').toLowerCase())}" data-ng="${Number(r.ng)||0}">
     <td class="muted">${esc(r.date||'')}</td><td><span class="tag violet">${esc(r.po||'-')}</span></td>
-    <td class="pn linkish" onclick="openNCForm(DB.docs.find(x=>x.id==='${r.id}'))"><b>${esc(r.part||'')}</b></td>
+    <td class="pn linkish" onclick="viewNCDoc('${r.id}')"><b>${esc(r.part||'')}</b></td>
     <td>${esc(r.customer||'')}</td><td class="c muted">${esc(r.lot||'')}</td><td class="num">${r.qty?fmt(r.qty):'-'}</td>
     <td><span class="tag amber">${esc(r.maker||'-')}</span></td>
     <td style="color:var(--red);max-width:200px;overflow:hidden;text-overflow:ellipsis">${esc(r.defect||'')}</td>
     <td class="muted" style="max-width:220px;overflow:hidden;text-overflow:ellipsis">${esc(r.method||'')}</td>
     <td class="num"><b style="color:var(--red)">${r.ng?fmt(r.ng):'-'}</b></td>
-    <td style="white-space:nowrap"><button class="btn sm" onclick="openNCForm(DB.docs.find(x=>x.id==='${r.id}'))">✏️</button> <button class="btn sm danger" onclick="delNC('${r.id}')">ลบ</button></td>
+    <td style="white-space:nowrap"><button class="btn sm" onclick="viewNCDoc('${r.id}')">ดู</button> <button class="btn sm" onclick="printNCOne('${r.id}')">🖨️</button> <button class="btn sm" onclick="openNCForm(DB.docs.find(x=>x.id==='${r.id}'))">✏️</button> <button class="btn sm danger" onclick="delNC('${r.id}')">ลบ</button></td>
   </tr>`;
+}
+function ncDistinct(field){const set=new Set();DB.docs.filter(d=>d.type==='NC').forEach(d=>{let v=field==='po'?d.po:field==='part'?d.part:field==='cust'?d.customer:field==='maker'?d.maker:'';if(v)set.add(String(v));});return [...set].sort();}
+function ncChip(id,ph,field){return '<input id="'+id+'" class="fchip" list="dl_'+id+'" placeholder="'+ph+'" oninput="filterNCRows()" style="max-width:130px"><datalist id="dl_'+id+'">'+ncDistinct(field).map(v=>'<option value="'+esc(v)+'">').join('')+'</datalist>';}
+function filterNCRows(){
+  const g=id=>((document.getElementById(id)||{}).value||'').trim().toLowerCase();
+  const q=g('ncSearch'),fpo=g('ncfPo'),fpa=g('ncfPart'),fc=g('ncfCust'),fm=g('ncfMk');
+  let sumNg=0;
+  document.querySelectorAll('#ncRows tr').forEach(tr=>{const ds=tr.dataset||{};const t=tr.textContent.toLowerCase();const show=(!q||t.includes(q))&&(!fpo||(ds.po||'').includes(fpo))&&(!fpa||(ds.part||'').includes(fpa))&&(!fc||(ds.cust||'').includes(fc))&&(!fm||(ds.mk||'').includes(fm));tr.style.display=show?'':'none';if(show)sumNg+=Number(ds.ng||0);});
+  const sn=document.getElementById('ncSubNg');if(sn)sn.textContent=fmt(sumNg);
+  const sortv=((document.getElementById('ncSort')||{}).value)||'date_desc';
+  const tb=document.getElementById('ncRows');
+  if(tb){const rows=[...tb.querySelectorAll('tr')];rows.sort((a,b)=>{const A=a.dataset.date||'',B=b.dataset.date||'';return sortv==='date_asc'?A.localeCompare(B):B.localeCompare(A);});rows.forEach(r=>tb.appendChild(r));}
+}
+function viewNCDoc(id){
+  const d=DB.docs.find(x=>x.id===id);if(!d)return;
+  const kv=(k,v)=>`<div class="kv"><span class="k">${k}</span><b>${esc(v||'-')}</b></div>`;
+  modal({title:'🚫 รายงานงานเสีย — '+esc(d.part||''),size:'lg',body:`
+    <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap"><span class="tag gray">วันที่ ${esc(d.date||'')}</span>${d.po?`<span class="tag violet">PO ${esc(d.po)}</span>`:''}<span class="tag amber">${esc(d.maker||'-')}</span></div>
+    <div class="row c2">${kv('Part Number',d.part)}${kv('CUSTOMER',d.customer)}</div>
+    <div class="row c3">${kv('LOT DATE',d.lot)}${kv('จำนวนสั่งผลิต',d.qty?fmt(d.qty):'-')}${kv('จำนวน NG',d.ng?fmt(d.ng):'-')}</div>
+    <div class="row c2">${kv('ผู้แจ้ง/ผู้ตรวจ',d.reporter)}${kv('สถานที่พบปัญหา',d.loc)}</div>
+    <div class="kv"><span class="k">ปัญหา/ข้อบกพร่อง</span><b style="color:var(--red)">${esc(d.defect||'-')}</b></div>
+    <div class="kv"><span class="k">วิธีการแก้ไข</span>${esc(d.method||'-')}</div>
+    <div class="row c2">${kv('ค่าใช้จ่าย (บาท)',d.cost?fmt2(d.cost):'-')}${kv('ผู้รับผิดชอบ',d.resp)}</div>
+  `,footer:`<button class="btn" onclick="closeModal()">ปิด</button><button class="btn" onclick="closeModal();openNCForm(DB.docs.find(x=>x.id==='${d.id}'))">✏️ แก้ไข</button><button class="btn pri" onclick="printNCOne('${d.id}')">🖨️ พิมพ์</button>`});
+}
+function printNCOne(id){
+  const d=DB.docs.find(x=>x.id===id);if(!d)return;ensureSettings();const co=DB.settings.company||{};
+  const row='<tr><td class="c">1</td><td class="c">'+esc(d.date||'')+'</td><td class="c">'+esc(d.po||'')+'</td><td class="c">'+esc(d.part||'')+'</td><td class="c">'+esc(d.customer||'')+'</td><td class="c">'+esc(d.lot||'')+'</td><td class="r">'+(d.qty?fmt(d.qty):'')+'</td><td class="c">'+esc(d.maker||'')+'</td><td>'+esc(d.defect||'')+'</td><td>'+esc(d.method||'')+'</td><td class="r">'+(d.ng?fmt(d.ng):'')+'</td><td class="c">'+esc(d.reporter||'')+'</td><td>'+esc(d.resp||'')+'</td></tr>';
+  const html='<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"><title>NC '+esc(d.part||'')+'</title><style>'
+   +"@page{size:A4 landscape;margin:8mm}*{font-family:'Tahoma',sans-serif;box-sizing:border-box}body{margin:0;font-size:11px;color:#111}"
+   +".hd{text-align:center;font-weight:700;font-size:14px;background:#ffe000;border:1px solid #111;padding:5px}"
+   +"table{width:100%;border-collapse:collapse;font-size:10px;margin-top:6px}th,td{border:1px solid #555;padding:4px 5px}th{background:#eef;text-align:center}td.c{text-align:center}td.r{text-align:right}@media print{.noprint{display:none}}"
+   +".sg{display:flex;justify-content:space-between;margin-top:40px;font-size:11px}.sg div{width:23%;text-align:center}.sg .l{border-top:1px dotted #555;margin-top:26px;padding-top:3px}</style></head><body>"
+   +'<div class="hd">ใบรายงานผลิตภัณฑ์ที่ไม่เป็นไปตามข้อกำหนด &nbsp; Non-Conforming Product Report (NC)</div>'
+   +'<div style="font-size:11px;margin:4px 0"><b>'+esc(co.thName||co.name||'')+'</b> &nbsp; FM-QC-03 Rev.00</div>'
+   +'<table><thead><tr><th>No.</th><th>DATE</th><th>เลขที่ PO</th><th>Part Number</th><th>CUSTOMER</th><th>LOT DATE</th><th>จำนวนสั่ง</th><th>ผู้ผลิต(NG)</th><th>INFORM/PROBLEM</th><th>วิธีการ METHODS</th><th>NG</th><th>ผู้แจ้ง</th><th>ผู้รับผิดชอบ</th></tr></thead><tbody>'+row+'</tbody></table>'
+   +'<div class="sg"><div><div class="l">ผู้แจ้ง / REPORTER</div></div><div><div class="l">ผู้ตรวจสอบ / CHECKED</div></div><div><div class="l">ผู้รับผิดชอบ</div></div><div><div class="l">APPROVED</div></div></div>'
+   +'<div class="noprint" style="text-align:center;margin-top:14px"><button onclick="window.print()" style="padding:8px 22px;cursor:pointer">🖨️ พิมพ์ / PDF</button></div>'
+   +'<scr'+'ipt>setTimeout(function(){window.print()},400)</scr'+'ipt></body></html>';
+  const w=window.open('','_blank');if(!w){toast('popup ถูกบล็อก','err');return}w.document.write(html);w.document.close();
 }
 function ncPoLookup(){
   const g=k=>(document.getElementById(k)||{}); const po=(g('nc_po').value||'').trim();if(!po)return;
