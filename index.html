@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='NCSUM-2026.06.18a';
+const APP_BUILD='NCTAG2-2026.06.18a';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -4528,9 +4528,9 @@ function viewNC(el){
     <div class="right" style="display:flex;gap:6px;flex-wrap:wrap"><input type="file" id="ncFile" accept=".json" style="display:none" onchange="importNC(this)"><button class="btn sm" onclick="document.getElementById('ncFile').click()">📥 นำเข้า</button><button class="btn sm" onclick="printNC()">🖨️ พิมพ์รายงาน</button><button class="btn pri" onclick="openNCForm()">+ แจ้งงานเสีย</button></div>
   </div><div class="panel-b nopad">
     ${rows.length?`<div class="tbl-wrap"><table style="white-space:nowrap;font-size:11.5px"><thead><tr>
-      <th>วันที่</th><th>เลขที่ PO</th><th>Part Number</th><th>CUSTOMER</th><th>LOT DATE</th><th class="num">จำนวนสั่ง</th><th>ผู้ผลิต(NG)</th><th>ปัญหา</th><th>วิธีแก้ไข</th><th class="num">NG</th><th></th>
+      <th>วันที่</th><th>เลขที่ PO</th><th>Part Number</th><th>CUSTOMER</th><th>LOT DATE</th><th class="num">จำนวนสั่ง</th><th>ผู้ผลิต(NG)</th><th>ปัญหา</th><th>NC TAG</th><th>วิธีแก้ไข</th><th class="num">NG</th><th></th>
     </tr></thead><tbody id="ncRows">${rows.map(ncRowHtml).join('')}</tbody>
-    <tfoot><tr style="background:#fff7a8;font-weight:700"><td colspan="9" style="text-align:right">รวม NG (ตามที่กรอง)</td><td class="num" id="ncSubNg" style="color:var(--red)">${fmt(tNg)}</td><td></td></tr></tfoot></table></div>`:`<div class="empty"><div class="big">🚫</div><div class="t">ยังไม่มีรายการ NC</div><div>กด "+ แจ้งงานเสีย" หรือ "📥 นำเข้า"</div></div>`}
+    <tfoot><tr style="background:#fff7a8;font-weight:700"><td colspan="10" style="text-align:right">รวม NG (ตามที่กรอง)</td><td class="num" id="ncSubNg" style="color:var(--red)">${fmt(tNg)}</td><td></td></tr></tfoot></table></div>`:`<div class="empty"><div class="big">🚫</div><div class="t">ยังไม่มีรายการ NC</div><div>กด "+ แจ้งงานเสีย" หรือ "📥 นำเข้า"</div></div>`}
   </div></div>`;
 }
 function ncRowHtml(r){
@@ -4540,6 +4540,7 @@ function ncRowHtml(r){
     <td>${esc(r.customer||'')}</td><td class="c muted">${esc(r.lot||'')}</td><td class="num">${r.qty?fmt(r.qty):'-'}</td>
     <td><span class="tag amber">${esc(r.maker||'-')}</span></td>
     <td style="color:var(--red);max-width:200px;overflow:hidden;text-overflow:ellipsis">${esc(r.defect||'')}</td>
+    <td class="c"><button class="btn sm" onclick="printNCTag('${r.id}')" title="พิมพ์ NC TAG (FM-QC-12)">🏷️ TAG</button></td>
     <td class="muted" style="max-width:220px;overflow:hidden;text-overflow:ellipsis">${esc(r.method||'')}</td>
     <td class="num"><b style="color:var(--red)">${r.ng?fmt(r.ng):'-'}</b></td>
     <td style="white-space:nowrap"><button class="btn sm" onclick="viewNCDoc('${r.id}')">ดู</button> <button class="btn sm" onclick="openNCTag('${r.id}')" title="พิมพ์ NG TAG">🏷️</button> <button class="btn sm" onclick="printNCOne('${r.id}')">🖨️</button> <button class="btn sm" onclick="openNCForm(DB.docs.find(x=>x.id==='${r.id}'))">✏️</button> <button class="btn sm danger" onclick="delNC('${r.id}')">ลบ</button></td>
@@ -4675,6 +4676,37 @@ function printNC(){
    +'<div style="margin-top:8px;font-size:10px;line-height:1.6"><b>📊 สรุปผล</b> &nbsp; จำนวนรายการ: '+fmt(rows.length)+' &nbsp;|&nbsp; ยอด NG รวม: '+fmt(tNg)+'<br><b>เกิดปัญหาที่ลูกค้า:</b> '+sm(byC)+'<br><b>ผู้ผลิตที่ทำงานเสีย:</b> '+sm(byM)+'</div>'
    +'<div class="noprint" style="text-align:center;margin-top:12px"><button onclick="window.print()" style="padding:8px 22px;cursor:pointer">🖨️ พิมพ์ / PDF</button></div>'
    +'<scr'+'ipt>setTimeout(function(){window.print()},400)</scr'+'ipt></body></html>';
+  const w=window.open('','_blank');if(!w){toast('popup ถูกบล็อก','err');return}w.document.write(html);w.document.close();
+}
+function printNCTag(id){
+  const d=DB.docs.find(x=>x.id===id);if(!d)return;ensureSettings();const b='□';
+  const html='<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"><title>NC TAG '+esc(d.part||'')+'</title><style>'
+   +"@page{size:A4;margin:8mm}*{font-family:'Tahoma',sans-serif;box-sizing:border-box}body{margin:0}"
+   +".nctag{width:4cm;height:5cm;border:1.5px solid #000;overflow:hidden}"
+   +".nctag table{width:100%;height:100%;border-collapse:collapse;table-layout:fixed}"
+   +".nctag td{border:.4px solid #666;font-size:4.7px;padding:0 1px;line-height:1.12;vertical-align:top}"
+   +".nctag .lg{font-weight:800;font-size:7px;color:#1f3a93;text-align:center;width:22%}"
+   +".nctag .hh{color:#c0202e;font-weight:800;font-size:9px;text-align:center}"
+   +".nctag .sub{color:#c0202e;font-weight:700;font-size:4.3px;text-align:center}"
+   +".nctag .l{font-weight:700}.nctag .red{color:#c0202e;font-weight:700}.nctag .sec{background:#eee;font-weight:700;text-align:center}.nctag .fm{text-align:right;font-size:4px;color:#333}"
+   +"@media print{.noprint{display:none}}</style></head><body>"
+   +'<div class="nctag"><table>'
+   +'<tr><td class="lg" rowspan="2">RTK</td><td class="hh">NC TAG</td></tr>'
+   +'<tr><td class="sub">ป้ายแสดงชิ้นส่วนบกพร่อง</td></tr>'
+   +'<tr><td class="l">PO. '+esc(d.po||'')+'</td><td class="l">P/NO. '+esc(d.part||'')+'</td></tr>'
+   +'<tr><td class="l">LOT/DATE '+esc(d.lot||d.date||'')+'</td><td class="l">CUSTOMER '+esc(d.customer||'')+'</td></tr>'
+   +'<tr><td class="l">ผู้ผลิต '+esc(d.maker||'')+'</td><td class="l">รวม '+(d.qty?fmt(d.qty):'')+' ชิ้น</td></tr>'
+   +'<tr><td class="l">จำนวนตรวจ '+(d.qty?fmt(d.qty):'')+'</td><td class="l red">พบ NG '+(d.ng?fmt(d.ng):'')+'</td></tr>'
+   +'<tr><td colspan="2">ขั้นตอน&nbsp; '+b+' การตรวจจับ&nbsp; '+b+' ตรวจสอบขั้นตอนสุดท้าย&nbsp; '+b+' ในระหว่างการผลิต&nbsp; '+b+' จากการ CLAIM&nbsp; '+b+' ลูกค้าแจ้งปัญหา</td></tr>'
+   +'<tr><td colspan="2">รายละเอียดข้อบกพร่อง: <span class="red">'+esc(d.defect||'')+'</span></td></tr>'
+   +'<tr><td class="l">ผู้แจ้ง '+esc(d.reporter||'')+'</td><td class="l">วันที่ '+esc(d.date||'')+'</td></tr>'
+   +'<tr><td class="l" colspan="2">สถานที่เกิดปัญหา '+esc(d.loc||'')+'</td></tr>'
+   +'<tr><td class="sec" colspan="2">สรุปผลโดย QC &amp; QA / PD</td></tr>'
+   +'<tr><td colspan="2">'+b+' เปลี่ยนชิ้นส่วน/Rework&nbsp; '+b+' ขอใช้ชั่วคราว&nbsp; '+b+' ซ่อมแซม/Repair&nbsp; '+b+' จัดเก็บรอสรุปผล&nbsp; '+b+' ตรวจสอบ 100%&nbsp; '+b+' เคลม</td></tr>'
+   +'<tr><td colspan="2" class="fm">FM-QC-12 REV.01</td></tr>'
+   +'</table></div>'
+   +'<div class="noprint" style="margin-top:10px"><button onclick="window.print()" style="padding:8px 22px;cursor:pointer">🖨️ พิมพ์ NC TAG</button></div>'
+   +'<scr'+'ipt>setTimeout(function(){window.print()},300)</scr'+'ipt></body></html>';
   const w=window.open('','_blank');if(!w){toast('popup ถูกบล็อก','err');return}w.document.write(html);w.document.close();
 }
 function openNCTag(id){
