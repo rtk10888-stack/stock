@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='NCTAG-2026.06.18a';
+const APP_BUILD='NCSUM-2026.06.18a';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -4502,19 +4502,25 @@ function printTaxSale(){
   const w=window.open('','_blank');if(!w){toast('popup ถูกบล็อก','err');return}w.document.write(html);w.document.close();
 }
 /* ===== ผลิตภัณฑ์ไม่เป็นไปตามข้อกำหนด (Non-Conforming / NC) ===== */
-function ncMonths(){const set=new Set();DB.docs.filter(d=>d.type==='NC'&&d.date).forEach(d=>set.add(d.date.slice(0,7)));const a=[...set].filter(Boolean).sort();return a.length?['ALL',...a]:['ALL'];}
+function ncMonthOf(dt){dt=String(dt||'').trim();if(!dt)return '';let m=dt.match(/^(\d{4})-(\d{1,2})/);if(m)return m[1]+'-'+String(m[2]).padStart(2,'0');m=dt.match(/^(\d{1,2})[\/.](\d{1,2})[\/.](\d{2,4})/);if(m){let y=m[3];if(y.length<=2)y='20'+y.padStart(2,'0');return y+'-'+String(m[2]).padStart(2,'0');}return '';}
+function ncMonths(){const set=new Set();DB.docs.filter(d=>d.type==='NC').forEach(d=>{const m=ncMonthOf(d.date);if(m)set.add(m);});const a=[...set].filter(Boolean).sort();return ['ALL',...a];}
 function viewNC(el){
   ensureSettings();
-  if(!window.__ncMon){const ms=ncMonths();window.__ncMon=ms[ms.length-1]||'ALL';}
-  const mon=window.__ncMon;const months=ncMonths();
+  const months=ncMonths();
+  if(!window.__ncMon||months.indexOf(window.__ncMon)<0)window.__ncMon='ALL';
+  const mon=window.__ncMon;
   setTitle('🚫 ผลิตภัณฑ์ไม่เป็นไปตามข้อกำหนด','Non-Conforming Product Report (NC) · FM-QC-03 · ผู้พบปัญหาแจ้งงานเสีย');
-  let rows=DB.docs.filter(d=>d.type==='NC');if(mon!=='ALL')rows=rows.filter(d=>(d.date||'').slice(0,7)===mon);
+  let rows=DB.docs.filter(d=>d.type==='NC');if(mon!=='ALL')rows=rows.filter(d=>ncMonthOf(d.date)===mon);
   rows=rows.sort((a,b)=>(a.date||'').localeCompare(b.date||'')||(a.ts||0)-(b.ts||0));
   const tNg=rows.reduce((s,r)=>s+(Number(r.ng)||0),0);
+  const byCust={},byMk={};rows.forEach(r=>{const c=(r.customer||'').trim()||'-';byCust[c]=(byCust[c]||0)+1;const m=(r.maker||'').trim()||'-';byMk[m]=(byMk[m]||0)+1;});
+  const chip=o=>Object.entries(o).sort((a,b)=>b[1]-a[1]).map(e=>'<span style="white-space:nowrap"><b>'+esc(e[0])+'</b> <span style="color:var(--red);font-weight:700">'+e[1]+'</span></span>').join('')||'<span class="muted">-</span>';
   el.innerHTML=`
   <div class="hint"><span class="i">💡</span><div>บันทึกงานเสีย/ไม่ตรงข้อกำหนด · <b>เคาะเลขที่ PO</b> หรือ <b>ชื่องาน(Part)</b> → ระบบดึง ชื่อชิ้นงาน/ลูกค้า/Lot/ผู้ผลิต/จำนวน อัตโนมัติจากใบสั่งผลิต</div></div>
   <div class="cards">
-    <div class="card"><div class="lbl"><span class="dot d-brand">🚫</span>รายการ (${esc(mon)})</div><div class="val">${fmt(rows.length)}</div></div>
+    <div class="card"><div class="lbl"><span class="dot d-brand">🚫</span>รายการ (${esc(mon==='ALL'?'ทั้งหมด':mon)})</div><div class="val">${fmt(rows.length)}</div></div>
+    <div class="card"><div class="lbl"><span class="dot d-violet">🏢</span>เกิดปัญหาที่ลูกค้า</div><div style="display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:8px;font-size:13px">${chip(byCust)}</div></div>
+    <div class="card"><div class="lbl"><span class="dot d-amber">🏭</span>ผู้ผลิตงานเสีย</div><div style="display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:8px;font-size:13px">${chip(byMk)}</div></div>
     <div class="card"><div class="lbl"><span class="dot d-red">⚠️</span>จำนวน NG รวม</div><div class="val" style="color:var(--red)">${fmt(tNg)}</div></div>
   </div>
   <div class="panel"><div class="panel-h" style="flex-wrap:wrap;gap:8px">
@@ -4653,10 +4659,11 @@ function importNC(input){
 }
 function printNC(){
   ensureSettings();const co=DB.settings.company||{};const mon=window.__ncMon||'ALL';
-  let rows=DB.docs.filter(d=>d.type==='NC');if(mon!=='ALL')rows=rows.filter(d=>(d.date||'').slice(0,7)===mon);
+  let rows=DB.docs.filter(d=>d.type==='NC');if(mon!=='ALL')rows=rows.filter(d=>ncMonthOf(d.date)===mon);
   rows=rows.sort((a,b)=>(a.date||'').localeCompare(b.date||''));
   if(!rows.length){toast('ไม่มีรายการ','err');return;}
-  let tNg=0;const body=rows.map((r,i)=>{tNg+=Number(r.ng)||0;return '<tr><td class="c">'+(i+1)+'</td><td class="c">'+esc(r.date||'')+'</td><td class="c">'+esc(r.po||'')+'</td><td class="c">'+esc(r.part||'')+'</td><td class="c">'+esc(r.customer||'')+'</td><td class="c">'+esc(r.lot||'')+'</td><td class="r">'+(r.qty?fmt(r.qty):'')+'</td><td class="c">'+esc(r.maker||'')+'</td><td>'+esc(r.defect||'')+'</td><td>'+esc(r.method||'')+'</td><td class="r">'+(r.ng?fmt(r.ng):'')+'</td><td class="c">'+esc(r.reporter||'')+'</td><td>'+esc(r.resp||'')+'</td></tr>';}).join('');
+  let tNg=0;const byC={},byM={};const body=rows.map((r,i)=>{tNg+=Number(r.ng)||0;const c=(r.customer||'').trim()||'-';byC[c]=(byC[c]||0)+1;const mk=(r.maker||'').trim()||'-';byM[mk]=(byM[mk]||0)+1;return '<tr><td class="c">'+(i+1)+'</td><td class="c">'+esc(r.date||'')+'</td><td class="c">'+esc(r.po||'')+'</td><td class="c">'+esc(r.part||'')+'</td><td class="c">'+esc(r.customer||'')+'</td><td class="c">'+esc(r.lot||'')+'</td><td class="r">'+(r.qty?fmt(r.qty):'')+'</td><td class="c">'+esc(r.maker||'')+'</td><td>'+esc(r.defect||'')+'</td><td>'+esc(r.method||'')+'</td><td class="r">'+(r.ng?fmt(r.ng):'')+'</td><td class="c">'+esc(r.reporter||'')+'</td><td>'+esc(r.resp||'')+'</td></tr>';}).join('');
+  const sm=o=>Object.entries(o).sort((a,b)=>b[1]-a[1]).map(e=>esc(e[0])+' '+e[1]).join(' , ');
   const html='<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"><title>NC Report '+esc(mon)+'</title><style>'
    +"@page{size:A4 landscape;margin:6mm}*{font-family:'Tahoma',sans-serif;box-sizing:border-box}body{margin:0;font-size:10px;color:#111}"
    +".hd{text-align:center;font-weight:700;font-size:13px;background:#ffe000;border:1px solid #111;padding:4px}"
@@ -4665,6 +4672,7 @@ function printNC(){
    +'<div style="font-size:10px;margin:3px 0"><b>'+esc(co.thName||co.name||'')+'</b> &nbsp; เดือน: '+esc(mon==='ALL'?'ทั้งหมด':mon)+' &nbsp; FM-QC-03 Rev.00</div>'
    +'<table><thead><tr><th>No.</th><th>DATE</th><th>เลขที่ PO</th><th>Part Number</th><th>CUSTOMER</th><th>LOT DATE</th><th>จำนวนสั่ง</th><th>ผู้ผลิต(NG)</th><th>INFORM/PROBLEM</th><th>วิธีการ METHODS</th><th>NG</th><th>ผู้แจ้ง</th><th>ผู้รับผิดชอบ</th></tr></thead><tbody>'+body+'</tbody>'
    +'<tfoot><tr><td colspan="10" class="r">รวมยอด NG</td><td class="r">'+fmt(tNg)+'</td><td colspan="2"></td></tr></tfoot></table>'
+   +'<div style="margin-top:8px;font-size:10px;line-height:1.6"><b>📊 สรุปผล</b> &nbsp; จำนวนรายการ: '+fmt(rows.length)+' &nbsp;|&nbsp; ยอด NG รวม: '+fmt(tNg)+'<br><b>เกิดปัญหาที่ลูกค้า:</b> '+sm(byC)+'<br><b>ผู้ผลิตที่ทำงานเสีย:</b> '+sm(byM)+'</div>'
    +'<div class="noprint" style="text-align:center;margin-top:12px"><button onclick="window.print()" style="padding:8px 22px;cursor:pointer">🖨️ พิมพ์ / PDF</button></div>'
    +'<scr'+'ipt>setTimeout(function(){window.print()},400)</scr'+'ipt></body></html>';
   const w=window.open('','_blank');if(!w){toast('popup ถูกบล็อก','err');return}w.document.write(html);w.document.close();
