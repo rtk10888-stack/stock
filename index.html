@@ -226,7 +226,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='LANGFULL-2026.06.18a';
+const APP_BUILD='LANGFULL-2026.06.18b';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -478,8 +478,9 @@ function trG(g){return g;}
 function gCode(l){return {en:'en',cn:'zh-CN',km:'km',lo:'lo',my:'my'}[l]||'';}
 function gSetCookie(v){const h=location.hostname;document.cookie='googtrans='+v+';path=/';document.cookie='googtrans='+v+';path=/;domain='+h;const ps=h.split('.');if(ps.length>1)document.cookie='googtrans='+v+';path=/;domain=.'+ps.slice(-2).join('.');}
 function gClearCookie(){const h=location.hostname;const ex=';expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/';document.cookie='googtrans='+ex;document.cookie='googtrans='+ex+';domain='+h;const ps=h.split('.');if(ps.length>1)document.cookie='googtrans='+ex+';domain=.'+ps.slice(-2).join('.');}
-function setLang(l){ensureSettings();DB.settings.lang=l;saveDB();const c=gCode(l);if(c)gSetCookie('/th/'+c);else gClearCookie();location.reload();}
-function gtransSync(){try{const want=gCode(curLang());const m=document.cookie.match(/googtrans=([^;]+)/);const cur=m?decodeURIComponent(m[1]):'';const desired=want?('/th/'+want):'';if(cur!==desired){if(want)gSetCookie('/th/'+want);else gClearCookie();location.reload();}}catch(e){}}
+function gApplyCombo(code){let n=0;(function go(){const c=document.querySelector('.goog-te-combo');if(c){c.value=code;c.dispatchEvent(new Event('change'));return;}if(n++<80)setTimeout(go,150);})();}
+function setLang(l){ensureSettings();DB.settings.lang=l;saveDB();const c=gCode(l);if(c){gSetCookie('/th/'+c);gApplyCombo(c);const nm=(LANGS.find(x=>x[0]===l)||[])[1]||l;toast('🌐 '+nm,'ok');}else{gClearCookie();location.reload();}}
+function gtransSync(){try{const c=gCode(curLang());if(c)gApplyCombo(c);}catch(e){}}
 var PHRASE={
  en:{'ราคา/หน่วย':'Unit Price','เลขที่ใบกำกับภาษี':'Tax Invoice No.','เลขที่ใบกำกับ':'Invoice No.','สินค้าสำเร็จรูป':'Finished Goods','วัสดุสิ้นเปลือง':'Supplies','รับวัตถุดิบ':'Receive Material','ยังไม่ถึงเป้า':'Below Target','ถึงเป้า':'On Target','รออนุมัติ':'Pending','อนุมัติแล้ว':'Approved','เพิ่มรายการ':'Add Item','วันที่ใบกำกับ':'Invoice Date','จำนวนเงิน':'Amount','รวมทั้งสิ้น':'Grand Total','ยกเลิก':'Cancel','อนุมัติ':'Approve','บันทึก':'Save','พิมพ์':'Print','ค้นหา':'Search','นำเข้า':'Import','รายการ':'Items','จำนวน':'Qty','ราคา':'Price','ผู้ขาย':'Supplier','ลูกค้า':'Customer','ผู้ผลิต':'Maker','สถานะ':'Status','หมายเหตุ':'Note','รายละเอียด':'Detail','ประเภท':'Type','คงเหลือ':'Balance','มูลค่า':'Value','วันที่':'Date','เดือน':'Month','ทั้งหมด':'All','รวม':'Total','แก้ไข':'Edit','ลบ':'Delete','ปิด':'Close','ตกลง':'OK','เลขที่':'No.','หน่วย':'Unit','สินค้า':'Product','เลขผู้เสียภาษี':'Tax ID','สาขา':'Branch','สำนักงานใหญ่':'Head Office'},
  cn:{'ราคา/หน่วย':'单价','เลขที่ใบกำกับภาษี':'税票号','เลขที่ใบกำกับ':'发票号','สินค้าสำเร็จรูป':'成品','วัสดุสิ้นเปลือง':'耗材','รับวัตถุดิบ':'收原料','ยังไม่ถึงเป้า':'未达标','ถึงเป้า':'达标','รออนุมัติ':'待审批','อนุมัติแล้ว':'已审批','เพิ่มรายการ':'新增','วันที่ใบกำกับ':'发票日期','จำนวนเงิน':'金额','รวมทั้งสิ้น':'合计','ยกเลิก':'取消','อนุมัติ':'审批','บันทึก':'保存','พิมพ์':'打印','ค้นหา':'搜索','นำเข้า':'导入','รายการ':'项目','จำนวน':'数量','ราคา':'价格','ผู้ขาย':'供应商','ลูกค้า':'客户','ผู้ผลิต':'厂商','สถานะ':'状态','หมายเหตุ':'备注','รายละเอียด':'明细','ประเภท':'类型','คงเหลือ':'结余','มูลค่า':'金额','วันที่':'日期','เดือน':'月','ทั้งหมด':'全部','รวม':'合计','แก้ไข':'编辑','ลบ':'删除','ปิด':'关闭','ตกลง':'确定','เลขที่':'编号','หน่วย':'单位','สินค้า':'产品','เลขผู้เสียภาษี':'税号','สาขา':'分店','สำนักงานใหญ่':'总部'},
