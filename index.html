@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='IVFLOW-2026.06.20b';
+const APP_BUILD='QTIME2-2026.06.20c';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -880,7 +880,7 @@ function renderInvTable(){
   if(!list.length){wrap.innerHTML=`<div class="empty"><div class="big">🔍</div><div class="t">ไม่พบรายการ</div></div>`;return}
   const sum=f=>list.reduce((s,p)=>s+(Number(f(p))||0),0);
   const tMoq=sum(p=>p.moq||p.reorder||0),tPrice=sum(p=>p.salePrice||0),tOn=sum(p=>p.onHand),tWip=sum(p=>p.wip),tPl=sum(p=>p.atPlating),tQC=sum(p=>p.passedQC);
-  const qm=qtimeMap();const qtOf=p=>{const f=prodFlow(p);if(p.type==='RM'||p.type==='SUP'||isDirectFlow(f))return null;return Math.max(0,((qm[p.id]||{}).recv||0)-((qm[p.id]||{}).sort||0));};
+  const qm=qtimeMap();const qtOf=p=>{const f=prodFlow(p);if(p.type==='RM'||p.type==='SUP'||isDirectFlow(f))return null;let v=((qm[p.id]||{}).recv||0)-((qm[p.id]||{}).sort||0);if(f==='ชุบ-QC')v-=(p.atPlating||0);return Math.max(0,v);};
   const tQt=list.reduce((s,p)=>{const v=qtOf(p);return s+(v||0);},0);
   wrap.innerHTML=`<div class="tbl-wrap"><table><thead><tr>
     <th>ประเภท</th><th>Part Number</th><th>ชื่อ</th><th>ลูกค้า</th><th class="num">MOQ</th>${invCols.salePrice?`<th class="num">ราคาขาย${invColEye('salePrice')}</th>`:''}${invCols.prodPrice?`<th class="num">ราคาผลิต${invColEye('prodPrice')}</th>`:''}${invCols.plating?`<th>การชุบ${invColEye('plating')}</th>`:''}${invCols.cond?`<th>เงื่อนไขวัตถุดิบ${invColEye('cond')}</th>`:''}${invCols.flow!==false?`<th>สถานะการไหล${invColEye('flow')}</th>`:''}
@@ -907,7 +907,7 @@ function renderInvTable(){
       ${invCols.flow!==false?`<td><span class="tag" style="background:${flowStatus(p,blankPns).bg};color:#fff;cursor:pointer" onclick="flowFix('${p.id}')" title="คลิกดูวิธีแก้">${esc(flowStatus(p,blankPns).label)}</span></td>`:''}
       <td class="num"><b style="color:${low?'var(--red)':'var(--ink)'}">${fmt(p.onHand)}</b>${p.type==='RM'&&(p.barsOnHand||0)?'<br><span style="font-size:10.5px;color:var(--brand)">'+fmt(p.barsOnHand)+' เส้น</span>':''}</td>
       <td class="num ${p.wip?'':'muted'}">${fmt(p.wip)}</td>
-      ${invCols.qtime!==false?(()=>{const v=qtOf(p);return `<td class="num ${v?'':'muted'}" title="พักงานรอคัดแยก (รับเข้า−คัดแยก)">${v==null?'<span class="muted">—</span>':(v?'<b style="color:var(--amber,#b45309)">'+fmt(v)+'</b>':'0')}</td>`;})():''}
+      ${invCols.qtime!==false?(()=>{const v=qtOf(p);return `<td class="num ${v?'':'muted'}" title="พักงานรอคัดแยก (รับเข้า−คัดแยก−อยู่ระหว่างชุบ)">${v==null?'<span class="muted">—</span>':(v?'<b style="color:var(--amber,#b45309)">'+fmt(v)+'</b>':'0')}</td>`;})():''}
       <td class="num ${p.atPlating?'':'muted'}">${fmt(p.atPlating)}</td>
       <td class="num ${p.passedQC?'':'muted'}">${fmt(p.passedQC)}</td>
       <td style="text-align:right;white-space:nowrap"><button class="btn sm" onclick="openProduct('${p.id}')">ดู</button> <button class="btn sm" onclick="printProductCard('${p.id}')" title="พิมพ์บัตรสินค้า">🖨️</button> <button class="btn sm" onclick="openProductForm('${p.id}')">✏️ แก้ไข</button> <button class="btn sm danger" onclick="delProduct('${p.id}')">🗑️ ลบ</button></td>
