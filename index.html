@@ -179,6 +179,10 @@ td.num,th.num{text-align:right;font-family:'Inter',sans-serif;font-variant-numer
 </style>
 </head>
 <body>
+<div id="google_translate_element" style="position:absolute;left:-9999px;top:-9999px"></div>
+<style>.goog-te-banner-frame,.skiptranslate iframe,.goog-te-balloon-frame{display:none!important}body{top:0!important;position:static!important}#goog-gt-tt,.goog-tooltip{display:none!important}font{background:transparent!important;box-shadow:none!important;vertical-align:inherit!important}.goog-te-gadget{height:0;overflow:hidden}</style>
+<script>function googleTranslateElementInit(){try{new google.translate.TranslateElement({pageLanguage:'th',includedLanguages:'en,zh-CN,km,lo,my',autoDisplay:false},'google_translate_element');}catch(e){}}</script>
+<script src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
 <div class="app">
   <aside class="sidebar">
     <div class="brand">
@@ -222,7 +226,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='LANG-2026.06.18b';
+const APP_BUILD='LANGFULL-2026.06.18a';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -469,9 +473,13 @@ var LANGT={
  lo:{'g:ภาพรวม':'ພາບລວມ','g:วัตถุดิบ':'ວັດຖຸດິບ','g:การผลิต (สินค้าสำเร็จรูป)':'ການຜະລິດ','g:วางแผนจัดส่ง':'ແຜນຈັດສົ່ງ','g:ขาย & ปรับปรุง':'ຂາຍ & ປັບປຸງ','g:อื่นๆ':'ອື່ນໆ',dashboard:'ແດชບອດ',monitor:'ຕິດຕາມ (KPI)',inventory:'ສິນຄ້າຄົງຄັງ',approvals:'ສູນອະນຸມັດ',po:'ສັ່ງຊື້ວັດຖຸດິບ',recvip:'ຮັບເຂົ້າຕ່າງປະເທດ',recvsp:'ຮັບເຂົ້າພິເສດ',gr:'ຮັບວັດຖຸດິບ',sup:'ວັດສະດຸສິ້ນເປືອງ',prd:'ໃບສັ່ງຜະລິດ',wd:'ເບີກວັດຖຸດິບ',ws:'ເບີກວັດສະດຸ',dp:'ຜະລິດປະຈຳວັນ',rw:'ຮັບชิ້ນງານ',plate:'ສົ່ງຊุບ/ຮັບຊุບ',qc:'ຄັດແຍກ OK/NG',qcip:'ຄັດແຍກຕ່າງປະເທດ',qcsp:'ຄັດແຍກພິເສດ',qcmat:'ຄັດແຍກວັດຖຸດິບ',si:'ຮັບເຂົ້າສະຕັອກ',stkip:'ຮັບເຂົ້າສະຕັອກຕ່າງປະເທດ',stksp:'ຮັບເຂົ້າສະຕັອกพิເສດ',rmc:'ຮັບແมັດລູກຄ້າ',ip:'ສັ່ງຊື້ຕ່າງປະເທດ',sp:'ສັ່ງຊື້ພິເສດ',demand:'Forecast/PO/PL',mrp:'ກວດຄວາມພຽງພໍ',inv:'Invoice ສົ່ງລູກຄ້າ',iv2:'Invoice ພິເສດ',adj:'ປັບຍอด/ກວດนับ',moves:'ຄວາມເຄື່ອນໄຫວ',report:'ລາຍງານ',tax:'ພาษีຊื້',taxsale:'ພາษีຂາย',wht:'ຫัກ ณ ที่ຈ່າຍ',nc:'ງານบໍ່ໄດ້ມາຕฐาน',settings:'ຕັ້ງຄ່າ'},
  my:{'g:ภาพรวม':'ခြုံငုံ','g:วัตถุดิบ':'ကုန်ကြမ်း','g:การผลิต (สินค้าสำเร็จรูป)':'ထုတ်လုပ်မှု','g:วางแผนจัดส่ง':'ပို့ဆောင်အစီအစဉ်','g:ขาย & ปรับปรุง':'ရောင်း & ပြင်ဆင်','g:อื่นๆ':'အခြား',dashboard:'ဒက်ရှ်ဘုတ်',monitor:'စောင့်ကြည့် (KPI)',inventory:'ကုန်လက်ကျန်',approvals:'အတည်ပြုခြင်း',po:'ကုန်ကြမ်းဝယ်',recvip:'နိုင်ငံခြားလက်ခံ',recvsp:'အထူးလက်ခံ',gr:'ကုန်ကြမ်းလက်ခံ',sup:'သုံးပစ္စည်း',prd:'ထုတ်လုပ်အမှာ',wd:'ကုန်ကြမ်းထုတ်',ws:'ပစ္စည်းထုတ်',dp:'နေ့စဉ်ထုတ်လုပ်',rw:'အလုပ်လက်ခံ',plate:'ရေချိုး',qc:'ခွဲ OK/NG',qcip:'နိုင်ငံခြားခွဲ',qcsp:'အထူးခွဲ',qcmat:'ကုန်ကြမ်းခွဲ',si:'ဂိုဒေါင်သွင်း',stkip:'နိုင်ငံခြားသွင်း',stksp:'အထူးသွင်း',rmc:'ဖောက်သည်ပစ္စည်း',ip:'နိုင်ငံခြားဝယ်',sp:'အထူးဝယ်',demand:'Forecast/PO/PL',mrp:'လုံလောက်မှုစစ်',inv:'ဖောက်သည်ပြေစာ',iv2:'အထူးပြေစာ',adj:'ပြင်/ရေတွက်',moves:'ရွေ့လျားမှု',report:'အစီရင်ခံစာ',tax:'ဝယ်ယူ VAT',taxsale:'ရောင်း VAT',wht:'ဖြတ်တောက်ခွန်',nc:'စံမမီထုတ်ကုန်',settings:'ဆက်တင်'}
 };
-function trN(n){const L=curLang();if(L==='th'||!LANGT[L])return n.label;return LANGT[L][n.id]||n.label;}
-function trG(g){const L=curLang();if(L==='th'||!LANGT[L])return g;return LANGT[L]['g:'+g]||g;}
-function setLang(l){ensureSettings();DB.settings.lang=l;saveDB();renderNav();render();const nm=(LANGS.find(x=>x[0]===l)||[])[1]||l;toast('🌐 '+nm,'ok');}
+function trN(n){return n.label;}
+function trG(g){return g;}
+function gCode(l){return {en:'en',cn:'zh-CN',km:'km',lo:'lo',my:'my'}[l]||'';}
+function gSetCookie(v){const h=location.hostname;document.cookie='googtrans='+v+';path=/';document.cookie='googtrans='+v+';path=/;domain='+h;const ps=h.split('.');if(ps.length>1)document.cookie='googtrans='+v+';path=/;domain=.'+ps.slice(-2).join('.');}
+function gClearCookie(){const h=location.hostname;const ex=';expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/';document.cookie='googtrans='+ex;document.cookie='googtrans='+ex+';domain='+h;const ps=h.split('.');if(ps.length>1)document.cookie='googtrans='+ex+';domain=.'+ps.slice(-2).join('.');}
+function setLang(l){ensureSettings();DB.settings.lang=l;saveDB();const c=gCode(l);if(c)gSetCookie('/th/'+c);else gClearCookie();location.reload();}
+function gtransSync(){try{const want=gCode(curLang());const m=document.cookie.match(/googtrans=([^;]+)/);const cur=m?decodeURIComponent(m[1]):'';const desired=want?('/th/'+want):'';if(cur!==desired){if(want)gSetCookie('/th/'+want);else gClearCookie();location.reload();}}catch(e){}}
 var PHRASE={
  en:{'ราคา/หน่วย':'Unit Price','เลขที่ใบกำกับภาษี':'Tax Invoice No.','เลขที่ใบกำกับ':'Invoice No.','สินค้าสำเร็จรูป':'Finished Goods','วัสดุสิ้นเปลือง':'Supplies','รับวัตถุดิบ':'Receive Material','ยังไม่ถึงเป้า':'Below Target','ถึงเป้า':'On Target','รออนุมัติ':'Pending','อนุมัติแล้ว':'Approved','เพิ่มรายการ':'Add Item','วันที่ใบกำกับ':'Invoice Date','จำนวนเงิน':'Amount','รวมทั้งสิ้น':'Grand Total','ยกเลิก':'Cancel','อนุมัติ':'Approve','บันทึก':'Save','พิมพ์':'Print','ค้นหา':'Search','นำเข้า':'Import','รายการ':'Items','จำนวน':'Qty','ราคา':'Price','ผู้ขาย':'Supplier','ลูกค้า':'Customer','ผู้ผลิต':'Maker','สถานะ':'Status','หมายเหตุ':'Note','รายละเอียด':'Detail','ประเภท':'Type','คงเหลือ':'Balance','มูลค่า':'Value','วันที่':'Date','เดือน':'Month','ทั้งหมด':'All','รวม':'Total','แก้ไข':'Edit','ลบ':'Delete','ปิด':'Close','ตกลง':'OK','เลขที่':'No.','หน่วย':'Unit','สินค้า':'Product','เลขผู้เสียภาษี':'Tax ID','สาขา':'Branch','สำนักงานใหญ่':'Head Office'},
  cn:{'ราคา/หน่วย':'单价','เลขที่ใบกำกับภาษี':'税票号','เลขที่ใบกำกับ':'发票号','สินค้าสำเร็จรูป':'成品','วัสดุสิ้นเปลือง':'耗材','รับวัตถุดิบ':'收原料','ยังไม่ถึงเป้า':'未达标','ถึงเป้า':'达标','รออนุมัติ':'待审批','อนุมัติแล้ว':'已审批','เพิ่มรายการ':'新增','วันที่ใบกำกับ':'发票日期','จำนวนเงิน':'金额','รวมทั้งสิ้น':'合计','ยกเลิก':'取消','อนุมัติ':'审批','บันทึก':'保存','พิมพ์':'打印','ค้นหา':'搜索','นำเข้า':'导入','รายการ':'项目','จำนวน':'数量','ราคา':'价格','ผู้ขาย':'供应商','ลูกค้า':'客户','ผู้ผลิต':'厂商','สถานะ':'状态','หมายเหตุ':'备注','รายละเอียด':'明细','ประเภท':'类型','คงเหลือ':'结余','มูลค่า':'金额','วันที่':'日期','เดือน':'月','ทั้งหมด':'全部','รวม':'合计','แก้ไข':'编辑','ลบ':'删除','ปิด':'关闭','ตกลง':'确定','เลขที่':'编号','หน่วย':'单位','สินค้า':'产品','เลขผู้เสียภาษี':'税号','สาขา':'分店','สำนักงานใหญ่':'总部'},
@@ -480,6 +488,7 @@ var PHRASE={
  my:{'ราคา/หน่วย':'နှုန်း/ယူနစ်','เลขที่ใบกำกับ':'ပြေစာနံပါတ်','สินค้าสำเร็จรูป':'ပြီးကုန်','วัสดุสิ้นเปลือง':'သုံးပစ္စည်း','ยกเลิก':'ပယ်ဖျက်','อนุมัติ':'အတည်ပြု','บันทึก':'သိမ်း','พิมพ์':'ပုံနှိပ်','ค้นหา':'ရှာ','นำเข้า':'တင်သွင်း','รายการ':'စာရင်း','จำนวนเงิน':'ပမာဏ','จำนวน':'အရေအတွက်','ราคา':'စျေးနှုန်း','ผู้ขาย':'ရောင်းသူ','ลูกค้า':'ဖောက်သည်','ผู้ผลิต':'ထုတ်လုပ်သူ','สถานะ':'အခြေအနေ','หมายเหตุ':'မှတ်ချက်','รายละเอียด':'အသေးစိတ်','ประเภท':'အမျိုးအစား','คงเหลือ':'လက်ကျန်','มูลค่า':'တန်ဖိုး','วันที่':'ရက်စွဲ','เดือน':'လ','ทั้งหมด':'အားလုံး','รวม':'စုစုပေါင်း','แก้ไข':'ပြင်','ลบ':'ဖျက်','ปิด':'ပိတ်','ตกลง':'အိုကေ','เลขที่':'နံပါတ်','หน่วย':'ယူနစ်','รออนุมัติ':'စောင့်','อนุมัติแล้ว':'အတည်ပြုပြီး','เพิ่มรายการ':'ထည့်'}
 };
 function translatePage(){
+  return; /* แปลทั้งหน้าด้วย Google Website Translator แทน */
   const L=curLang();if(L==='th'||!PHRASE[L])return;const map=PHRASE[L];const keys=Object.keys(map).sort((a,b)=>b.length-a.length);
   const roots=[document.getElementById('content'),document.getElementById('pageTitle'),document.getElementById('pageCrumb'),document.getElementById('modalRoot')];
   roots.forEach(root=>{if(!root)return;const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,null);const ns=[];while(w.nextNode())ns.push(w.currentNode);
@@ -6631,6 +6640,7 @@ function tryGate(){
 (async function(){
   try{ if(window.supabase&&SUPA_URL&&SUPA_KEY){ supa=window.supabase.createClient(SUPA_URL,SUPA_KEY); } }catch(e){ supa=null; }
   await loadDB();
+  gtransSync();
   if(!gatePassed()){ renderNav(); renderGate(); return; }
   render();
   subscribeRealtime();
