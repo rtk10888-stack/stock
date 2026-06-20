@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='DASHCOL-2026.06.18a';
+const APP_BUILD='FLOWCOL-2026.06.18a';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -634,16 +634,16 @@ function recentMovesTable(n){
    INVENTORY
    ============================================================ */
 let invFilter={q:'',type:'all',cust:'',plating:'',cond:''};
-var invCols=(function(){try{return Object.assign({salePrice:true,prodPrice:true,plating:true,cond:true},JSON.parse(localStorage.getItem('rtk_invcols')||'{}'))}catch(e){return {salePrice:true,prodPrice:true,plating:true,cond:true}}})();
+var invCols=(function(){try{return Object.assign({salePrice:true,prodPrice:true,plating:true,cond:true,flow:true},JSON.parse(localStorage.getItem('rtk_invcols')||'{}'))}catch(e){return {salePrice:true,prodPrice:true,plating:true,cond:true,flow:true}}})();
 function invColToggle(k){invCols[k]=!invCols[k];try{localStorage.setItem('rtk_invcols',JSON.stringify(invCols))}catch(e){}renderInvTable();}
 function invColEye(k){return '<span onclick="event.stopPropagation();invColToggle(\''+k+'\')" style="cursor:pointer;opacity:.55;font-size:11px;margin-left:3px" title="ซ่อนคอลัมน์นี้">🙈</span>';}
-function invColReset(){invCols={salePrice:true,prodPrice:true,plating:true,cond:true};try{localStorage.setItem('rtk_invcols',JSON.stringify(invCols))}catch(e){}renderInvTable();openColMenu();}
+function invColReset(){invCols={salePrice:true,prodPrice:true,plating:true,cond:true,flow:true};try{localStorage.setItem('rtk_invcols',JSON.stringify(invCols))}catch(e){}renderInvTable();openColMenu();}
 var dashCols=(function(){try{return Object.assign({tax:true,taxsale:true,vat:true,wht:true,nc:true,plate:true,sales:true,kpi:true},JSON.parse(localStorage.getItem('rtk_dashcols')||'{}'))}catch(e){return {tax:true,taxsale:true,vat:true,wht:true,nc:true,plate:true,sales:true,kpi:true}}})();
 function dashColToggle(k){dashCols[k]=!dashCols[k];try{localStorage.setItem('rtk_dashcols',JSON.stringify(dashCols))}catch(e){}render();}
 function dashColReset(){dashCols={tax:true,taxsale:true,vat:true,wht:true,nc:true,plate:true,sales:true,kpi:true};try{localStorage.setItem('rtk_dashcols',JSON.stringify(dashCols))}catch(e){}render();openDashColMenu();}
 function dashEye(k){return '<span style="position:absolute;top:5px;right:7px;cursor:pointer;opacity:.45;font-size:11px" onclick="event.stopPropagation();dashColToggle(\''+k+'\')" title="ซ่อนการ์ดนี้">🙈</span>';}
 function openDashColMenu(){const cols=[['tax','ภาษีซื้อ'],['taxsale','ภาษีขาย'],['vat','VAT สุทธิ'],['wht','หัก ณ ที่จ่าย'],['nc','งานเสีย NC'],['plate','ส่งชุบคงค้าง'],['sales','ยอดขายปีนี้'],['kpi','KPI']];modal({title:'👁 เลือกการ์ดสรุปที่แสดง',body:'<div class="hint" style="margin-bottom:8px"><span class="i">💡</span><div>ติ๊กแสดง/ซ่อนการ์ด (จำเฉพาะเครื่องนี้)</div></div>'+cols.map(c=>`<label style="display:flex;gap:8px;align-items:center;padding:5px 2px;font-size:13.5px"><input type="checkbox" ${dashCols[c[0]]!==false?'checked':''} onchange="dashColToggle('${c[0]}')"> ${c[1]}</label>`).join(''),footer:`<button class="btn" onclick="dashColReset()">↺ แสดงทั้งหมด</button><button class="btn pri" onclick="closeModal()">ปิด</button>`});}
-function openColMenu(){const cols=[['salePrice','ราคาขาย'],['prodPrice','ราคาผลิต'],['plating','การชุบ'],['cond','เงื่อนไขวัตถุดิบ']];modal({title:'👁 เลือกคอลัมน์ที่แสดง',body:'<div class="hint" style="margin-bottom:8px"><span class="i">💡</span><div>ติ๊กเพื่อแสดง/ซ่อนคอลัมน์ (จำเฉพาะเครื่องนี้) · หรือกด 🙈 ที่หัวคอลัมน์เพื่อซ่อนเร็ว</div></div>'+cols.map(c=>`<label style="display:flex;gap:8px;align-items:center;padding:6px 2px;font-size:13.5px"><input type="checkbox" ${invCols[c[0]]!==false?'checked':''} onchange="invColToggle('${c[0]}')"> ${c[1]}</label>`).join(''),footer:`<button class="btn" onclick="invColReset()">↺ แสดงทั้งหมด</button><button class="btn pri" onclick="closeModal()">ปิด</button>`});}
+function openColMenu(){const cols=[['salePrice','ราคาขาย'],['prodPrice','ราคาผลิต'],['plating','การชุบ'],['cond','เงื่อนไขวัตถุดิบ'],['flow','สถานะการไหล']];modal({title:'👁 เลือกคอลัมน์ที่แสดง',body:'<div class="hint" style="margin-bottom:8px"><span class="i">💡</span><div>ติ๊กเพื่อแสดง/ซ่อนคอลัมน์ (จำเฉพาะเครื่องนี้) · หรือกด 🙈 ที่หัวคอลัมน์เพื่อซ่อนเร็ว</div></div>'+cols.map(c=>`<label style="display:flex;gap:8px;align-items:center;padding:6px 2px;font-size:13.5px"><input type="checkbox" ${invCols[c[0]]!==false?'checked':''} onchange="invColToggle('${c[0]}')"> ${c[1]}</label>`).join(''),footer:`<button class="btn" onclick="invColReset()">↺ แสดงทั้งหมด</button><button class="btn pri" onclick="closeModal()">ปิด</button>`});}
 function flowRefToggle(){const b=document.getElementById('flowRefBody');if(!b)return;const s=b.style.display==='none';b.style.display=s?'':'none';const t=document.getElementById('flowRefBtn');if(t)t.textContent=s?'▲ ซ่อนเงื่อนไข':'▼ ดู/ปรับเงื่อนไขการไหล';}
 function flowRefHTML(open){
   const cell='style="border:1px solid var(--line);padding:6px"';
@@ -872,7 +872,7 @@ function renderInvTable(){
   const sum=f=>list.reduce((s,p)=>s+(Number(f(p))||0),0);
   const tMoq=sum(p=>p.moq||p.reorder||0),tPrice=sum(p=>p.salePrice||0),tOn=sum(p=>p.onHand),tWip=sum(p=>p.wip),tPl=sum(p=>p.atPlating),tQC=sum(p=>p.passedQC);
   wrap.innerHTML=`<div class="tbl-wrap"><table><thead><tr>
-    <th>ประเภท</th><th>Part Number</th><th>ชื่อ</th><th>ลูกค้า</th><th class="num">MOQ</th>${invCols.salePrice?`<th class="num">ราคาขาย${invColEye('salePrice')}</th>`:''}${invCols.prodPrice?`<th class="num">ราคาผลิต${invColEye('prodPrice')}</th>`:''}${invCols.plating?`<th>การชุบ${invColEye('plating')}</th>`:''}${invCols.cond?`<th>เงื่อนไขวัตถุดิบ${invColEye('cond')}</th>`:''}<th>สถานะการไหล</th>
+    <th>ประเภท</th><th>Part Number</th><th>ชื่อ</th><th>ลูกค้า</th><th class="num">MOQ</th>${invCols.salePrice?`<th class="num">ราคาขาย${invColEye('salePrice')}</th>`:''}${invCols.prodPrice?`<th class="num">ราคาผลิต${invColEye('prodPrice')}</th>`:''}${invCols.plating?`<th>การชุบ${invColEye('plating')}</th>`:''}${invCols.cond?`<th>เงื่อนไขวัตถุดิบ${invColEye('cond')}</th>`:''}${invCols.flow!==false?`<th>สถานะการไหล${invColEye('flow')}</th>`:''}
     <th class="num">คงเหลือ</th><th class="num">WIP</th><th class="num">ชุบ</th><th class="num">รอรับเข้า</th><th></th>
   </tr></thead><tbody>
   ${list.map(p=>{
@@ -893,7 +893,7 @@ function renderInvTable(){
       ${invCols.prodPrice?`<td class="num"><input type="number" step="0.01" value="${p.prodPrice||0}" onchange="setProdPrice('${p.id}',this.value)" style="width:78px;text-align:right;padding:4px 6px"></td>`:''}
       ${invCols.plating?`<td>${plt}</td>`:''}
       ${invCols.cond?`<td>${cond}</td>`:''}
-      <td><span class="tag" style="background:${flowStatus(p,blankPns).bg};color:#fff;cursor:pointer" onclick="flowFix('${p.id}')" title="คลิกดูวิธีแก้">${esc(flowStatus(p,blankPns).label)}</span></td>
+      ${invCols.flow!==false?`<td><span class="tag" style="background:${flowStatus(p,blankPns).bg};color:#fff;cursor:pointer" onclick="flowFix('${p.id}')" title="คลิกดูวิธีแก้">${esc(flowStatus(p,blankPns).label)}</span></td>`:''}
       <td class="num"><b style="color:${low?'var(--red)':'var(--ink)'}">${fmt(p.onHand)}</b>${p.type==='RM'&&(p.barsOnHand||0)?'<br><span style="font-size:10.5px;color:var(--brand)">'+fmt(p.barsOnHand)+' เส้น</span>':''}</td>
       <td class="num ${p.wip?'':'muted'}">${fmt(p.wip)}</td>
       <td class="num ${p.atPlating?'':'muted'}">${fmt(p.atPlating)}</td>
@@ -902,7 +902,7 @@ function renderInvTable(){
     </tr>`}).join('')}
   </tbody><tfoot><tr style="font-weight:700;background:var(--panel2);border-top:2px solid var(--line)">
     <td colspan="4">SUBTOTAL — ${list.length} รายการ</td>
-    <td class="num">${fmt(tMoq)}</td>${invCols.salePrice?`<td class="num">${fmt2(tPrice)}</td>`:''}${invCols.prodPrice?`<td></td>`:''}${invCols.plating?`<td></td>`:''}${invCols.cond?`<td></td>`:''}<td></td>
+    <td class="num">${fmt(tMoq)}</td>${invCols.salePrice?`<td class="num">${fmt2(tPrice)}</td>`:''}${invCols.prodPrice?`<td></td>`:''}${invCols.plating?`<td></td>`:''}${invCols.cond?`<td></td>`:''}${invCols.flow!==false?`<td></td>`:''}
     <td class="num">${fmt(tOn)}</td><td class="num">${fmt(tWip)}</td><td class="num">${fmt(tPl)}</td><td class="num">${fmt(tQC)}</td><td></td>
   </tr></tfoot></table></div>`;
   if(typeof setupDualScroll==='function'){setupDualScroll();setTimeout(setupDualScroll,30);}
