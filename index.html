@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='QCMAT-2026.06.18a';
+const APP_BUILD='LANG-2026.06.18a';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -460,13 +460,26 @@ const NAV=[
 let route='dashboard';
 function pendingCount(){return DB.docs.filter(d=>d.status==='pending').length}
 const ABBR={dashboard:'HOME',monitor:'KPI',inventory:'STOCK',approvals:'APPR',po:'PO',ip:'IMPORT',sp:'SPECIAL',gr:'RECV',recvip:'RECV-IMP',recvsp:'RECV-SP',sup:'SUPPLY',prd:'PROD',wd:'ISSUE',ws:'SUP-ISS',dp:'DAILY',rw:'RECV-W',plate:'PLATE',qc:'QC',qcip:'QC-IMP',qcsp:'QC-SP',qcmat:'QC-MAT',si:'STK-IN',stkip:'STK-IMP',stksp:'STK-SP',rmc:'CUST-MAT',inv:'INV',iv2:'INV-SP',adj:'ADJ',moves:'MOVE',report:'REPORT',tax:'VAT-IN',taxsale:'VAT-OUT',wht:'WHT',nc:'NC',demand:'PLAN',mrp:'MRP',settings:'SET'};
+var LANG=(function(){try{return localStorage.getItem('rtk_lang')||'th'}catch(e){return 'th'}})();
+var LANGS=[['th','TH ไทย'],['en','US English'],['cn','CN 中文'],['km','KH ខ្មែរ'],['lo','LA ລາວ'],['my','MM မြန်မာ']];
+var LANGT={
+ en:{'g:ภาพรวม':'Overview','g:วัตถุดิบ':'Raw Material','g:การผลิต (สินค้าสำเร็จรูป)':'Production (FG)','g:วางแผนจัดส่ง':'Delivery Plan','g:ขาย & ปรับปรุง':'Sales & Adjust','g:อื่นๆ':'Others',dashboard:'Dashboard',monitor:'Monitor (KPI)',inventory:'Inventory',approvals:'Approvals',po:'Buy Material',recvip:'Receive Import',recvsp:'Receive Special',gr:'Receive Material',sup:'Supplies',prd:'Production Order',wd:'Issue Material',ws:'Issue Supplies',dp:'Daily Production',rw:'Receive Work',plate:'Plating',qc:'Sort OK/NG',qcip:'Sort Import',qcsp:'Sort Special',qcmat:'Sort Material',si:'Stock-In',stkip:'Stock-In Import',stksp:'Stock-In Special',rmc:'Customer Material',ip:'Buy Import',sp:'Buy Special',demand:'Forecast/PO/PL',mrp:'Sufficiency Check',inv:'Invoice (Sale)',iv2:'Invoice (Special)',adj:'Adjust/Count',moves:'Movements',report:'Report (Timeline)',tax:'Purchase VAT',taxsale:'Sales VAT',wht:'Withholding Tax',nc:'Non-Conforming (NC)',settings:'Settings'},
+ cn:{'g:ภาพรวม':'总览','g:วัตถุดิบ':'原料','g:การผลิต (สินค้าสำเร็จรูป)':'生产(成品)','g:วางแผนจัดส่ง':'出货计划','g:ขาย & ปรับปรุง':'销售与调整','g:อื่นๆ':'其他',dashboard:'仪表板',monitor:'监控(KPI)',inventory:'库存',approvals:'审批中心',po:'采购原料',recvip:'进口收货',recvsp:'特殊收货',gr:'原料收货',sup:'耗材',prd:'生产单',wd:'领料',ws:'领耗材',dp:'每日生产',rw:'收件',plate:'电镀',qc:'分检OK/NG',qcip:'进口分检',qcsp:'特殊分检',qcmat:'原料分检',si:'入库',stkip:'进口入库',stksp:'特殊入库',rmc:'客供料',ip:'进口采购',sp:'特殊采购',demand:'预测/PO/PL',mrp:'充足检查',inv:'销售发票',iv2:'特殊发票',adj:'调整/盘点',moves:'库存变动',report:'报表(时间线)',tax:'进项税',taxsale:'销项税',wht:'预扣税',nc:'不合格品(NC)',settings:'设置'},
+ km:{'g:ภาพรวม':'ទិដ្ឋភាពទូទៅ','g:วัตถุดิบ':'វត្ថុធាតុដើម','g:การผลิต (สินค้าสำเร็จรูป)':'ផលិតកម្ម','g:วางแผนจัดส่ง':'ផែនការដឹកជញ្ជូន','g:ขาย & ปรับปรุง':'លក់ & កែតម្រូវ','g:อื่นๆ':'ផ្សេងៗ',dashboard:'ផ្ទាំងគ្រប់គ្រង',monitor:'តាមដាន (KPI)',inventory:'ស្តុក',approvals:'ការអនុម័ត',po:'ទិញវត្ថុធាតុដើម',recvip:'ទទួលនាំចូល',recvsp:'ទទួលពិសេស',gr:'ទទួលវត្ថុធាតុដើម',sup:'សម្ភារៈប្រើប្រាស់',prd:'បញ្ជាផលិត',wd:'បើកវត្ថុធាតុដើម',ws:'បើកសម្ភារៈ',dp:'ផលិតប្រចាំថ្ងៃ',rw:'ទទួលការងារ',plate:'ស្រោបពណ៌',qc:'ញែក OK/NG',qcip:'ញែកនាំចូល',qcsp:'ញែកពិសេស',qcmat:'ញែកវត្ថុធាតុដើម',si:'បញ្ចូលស្តុក',stkip:'បញ្ចូលស្តុកនាំចូល',stksp:'បញ្ចូលស្តុកពិសេស',rmc:'សម្ភារៈអតិថិជន',ip:'ទិញនាំចូល',sp:'ទិញពិសេស',demand:'ព្យាករណ៍/PO/PL',mrp:'ពិនិត្យគ្រប់គ្រាន់',inv:'វិក្កយបត្រ(លក់)',iv2:'វិក្កយបត្រ(ពិសេស)',adj:'កែតម្រូវ/រាប់',moves:'ចលនាស្តុក',report:'របាយការណ៍',tax:'ពន្ធទិញ',taxsale:'ពន្ធលក់',wht:'ពន្ធកាត់ទុក',nc:'ផលិតផលមិនស្តង់ដារ',settings:'ការកំណត់'},
+ lo:{'g:ภาพรวม':'ພາບລວມ','g:วัตถุดิบ':'ວັດຖຸດິບ','g:การผลิต (สินค้าสำเร็จรูป)':'ການຜະລິດ','g:วางแผนจัดส่ง':'ແຜນຈັດສົ່ງ','g:ขาย & ปรับปรุง':'ຂາຍ & ປັບປຸງ','g:อื่นๆ':'ອື່ນໆ',dashboard:'ແດชບອດ',monitor:'ຕິດຕາມ (KPI)',inventory:'ສິນຄ້າຄົງຄັງ',approvals:'ສູນອະນຸມັດ',po:'ສັ່ງຊື້ວັດຖຸດິບ',recvip:'ຮັບເຂົ້າຕ່າງປະເທດ',recvsp:'ຮັບເຂົ້າພິເສດ',gr:'ຮັບວັດຖຸດິບ',sup:'ວັດສະດຸສິ້ນເປືອງ',prd:'ໃບສັ່ງຜະລິດ',wd:'ເບີກວັດຖຸດິບ',ws:'ເບີກວັດສະດຸ',dp:'ຜະລິດປະຈຳວັນ',rw:'ຮັບชิ້ນງານ',plate:'ສົ່ງຊุບ/ຮັບຊุບ',qc:'ຄັດແຍກ OK/NG',qcip:'ຄັດແຍກຕ່າງປະເທດ',qcsp:'ຄັດແຍກພິເສດ',qcmat:'ຄັດແຍກວັດຖຸດິບ',si:'ຮັບເຂົ້າສະຕັອກ',stkip:'ຮັບເຂົ້າສະຕັອກຕ່າງປະເທດ',stksp:'ຮັບເຂົ້າສະຕັອกพิເສດ',rmc:'ຮັບແมັດລູກຄ້າ',ip:'ສັ່ງຊື້ຕ່າງປະເທດ',sp:'ສັ່ງຊື້ພິເສດ',demand:'Forecast/PO/PL',mrp:'ກວດຄວາມພຽງພໍ',inv:'Invoice ສົ່ງລູກຄ້າ',iv2:'Invoice ພິເສດ',adj:'ປັບຍอด/ກວດนับ',moves:'ຄວາມເຄື່ອນໄຫວ',report:'ລາຍງານ',tax:'ພาษีຊื້',taxsale:'ພາษีຂາย',wht:'ຫัກ ณ ที่ຈ່າຍ',nc:'ງານบໍ່ໄດ້ມາຕฐาน',settings:'ຕັ້ງຄ່າ'},
+ my:{'g:ภาพรวม':'ခြုံငုံ','g:วัตถุดิบ':'ကုန်ကြမ်း','g:การผลิต (สินค้าสำเร็จรูป)':'ထုတ်လုပ်မှု','g:วางแผนจัดส่ง':'ပို့ဆောင်အစီအစဉ်','g:ขาย & ปรับปรุง':'ရောင်း & ပြင်ဆင်','g:อื่นๆ':'အခြား',dashboard:'ဒက်ရှ်ဘုတ်',monitor:'စောင့်ကြည့် (KPI)',inventory:'ကုန်လက်ကျန်',approvals:'အတည်ပြုခြင်း',po:'ကုန်ကြမ်းဝယ်',recvip:'နိုင်ငံခြားလက်ခံ',recvsp:'အထူးလက်ခံ',gr:'ကုန်ကြမ်းလက်ခံ',sup:'သုံးပစ္စည်း',prd:'ထုတ်လုပ်အမှာ',wd:'ကုန်ကြမ်းထုတ်',ws:'ပစ္စည်းထုတ်',dp:'နေ့စဉ်ထုတ်လုပ်',rw:'အလုပ်လက်ခံ',plate:'ရေချိုး',qc:'ခွဲ OK/NG',qcip:'နိုင်ငံခြားခွဲ',qcsp:'အထူးခွဲ',qcmat:'ကုန်ကြမ်းခွဲ',si:'ဂိုဒေါင်သွင်း',stkip:'နိုင်ငံခြားသွင်း',stksp:'အထူးသွင်း',rmc:'ဖောက်သည်ပစ္စည်း',ip:'နိုင်ငံခြားဝယ်',sp:'အထူးဝယ်',demand:'Forecast/PO/PL',mrp:'လုံလောက်မှုစစ်',inv:'ဖောက်သည်ပြေစာ',iv2:'အထူးပြေစာ',adj:'ပြင်/ရေတွက်',moves:'ရွေ့လျားမှု',report:'အစီရင်ခံစာ',tax:'ဝယ်ယူ VAT',taxsale:'ရောင်း VAT',wht:'ဖြတ်တောက်ခွန်',nc:'စံမမီထုတ်ကုန်',settings:'ဆက်တင်'}
+};
+function trN(n){if(LANG==='th'||!LANGT[LANG])return n.label;return LANGT[LANG][n.id]||n.label;}
+function trG(g){if(LANG==='th'||!LANGT[LANG])return g;return LANGT[LANG]['g:'+g]||g;}
+function setLang(l){LANG=l;try{localStorage.setItem('rtk_lang',l)}catch(e){}renderNav();const nm=(LANGS.find(x=>x[0]===l)||[])[1]||l;toast('🌐 '+nm,'ok');}
 function renderNav(){
   const nav=document.getElementById('nav');let h='';
+  h+=`<div style="padding:8px 12px 4px"><select onchange="setLang(this.value)" style="width:100%;padding:6px 8px;border-radius:8px" title="เลือกภาษา (เฉพาะเครื่องนี้)">${LANGS.map(l=>`<option value="${l[0]}" ${LANG===l[0]?'selected':''}>🌐 ${l[1]}</option>`).join('')}</select></div>`;
   NAV.forEach(n=>{
-    if(n.g){h+=`<div class="nav-group">${n.g}</div>`;return}
+    if(n.g){h+=`<div class="nav-group">${trG(n.g)}</div>`;return}
     let badge='';
     if(n.id==='approvals'){const c=pendingCount();if(c)badge=`<span class="badge">${c}</span>`}
-    h+=`<a class="${route===n.id?'active':''}" onclick="go('${n.id}')"><span class="ico">${n.ico}</span><span class="lbl">${n.label}</span><span class="ab">${ABBR[n.id]||n.label}</span>${badge}</a>`;
+    h+=`<a class="${route===n.id?'active':''}" onclick="go('${n.id}')"><span class="ico">${n.ico}</span><span class="lbl">${trN(n)}</span><span class="ab">${ABBR[n.id]||n.label}</span>${badge}</a>`;
   });
   nav.innerHTML=h;
 }
