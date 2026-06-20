@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='FLOWCOL-2026.06.18a';
+const APP_BUILD='QCSEMI-2026.06.18a';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -359,6 +359,7 @@ const DT={
   QI:{label:'คัดแยกต่างประเทศ',icon:'🌐',color:'amber',prefix:'QI',multi:true},
   QS:{label:'คัดแยกพิเศษ',icon:'⭐',color:'amber',prefix:'QS',multi:true},
   QM:{label:'คัดแยกวัตถุดิบ',icon:'🛒',color:'amber',prefix:'QM',multi:true},
+  QSE:{label:'คัดแยก SE-MI',icon:'🧩',color:'amber',prefix:'QSE',multi:true},
   SII:{label:'รับเข้าสต๊อคต่างประเทศ',icon:'🌐',color:'teal',prefix:'SII',multi:true},
   SIS:{label:'รับเข้าสต๊อคพิเศษ',icon:'⭐',color:'teal',prefix:'SIS',multi:true},
   PRD:{label:'ใบสั่งผลิต',icon:'📋',color:'violet',prefix:'PO',multi:false}, // production order, PO NO format
@@ -386,7 +387,7 @@ function applyDoc(d){
     if(t==='GR'){ d.lines.forEach(l=>{const p=P(l.productId);if(p){const fl=prodFlow(p);if(isDirectFlow(fl)){p.onHand+=l.qty;move(p.id,'onHand',+l.qty,'GR',d.no,'รับเข้า(ไม่ชุบ) '+(d.supplier||''));}else{p.wip+=l.qty;move(p.id,'wip',+l.qty,'GR',d.no,'รับเข้า(รอ QC) '+(d.supplier||''));}if(Number(l.bars)){p.barsOnHand=(p.barsOnHand||0)+Number(l.bars);move(p.id,'barsOnHand',+Number(l.bars),'GR',d.no,'รับเข้า(เส้น)');}}}); }
     else if(t==='RW'){ d.lines.forEach(l=>{const p=P(l.productId);if(p){const fl=prodFlow(p);if(isDirectFlow(fl)){p.onHand+=l.qty;move(p.id,'onHand',+l.qty,'RW',d.no,'รับชิ้นงาน(ไม่ชุบ) '+(l.maker||''));}else{p.wip+=l.qty;move(p.id,'wip',+l.qty,'RW',d.no,'รับชิ้นงาน '+(l.maker||''));}}}); }
     else if(t==='GI'||t==='GS'){ const lbl=(t==='GI'?'ต่างประเทศ':'พิเศษ'); d.lines.forEach(l=>{const p=P(l.productId);if(p){const fl=prodFlow(p);if(isDirectFlow(fl)){p.onHand+=l.qty;move(p.id,'onHand',+l.qty,t,d.no,'รับเข้า('+lbl+') '+(d.supplier||''));}else{p.wip+=l.qty;move(p.id,'wip',+l.qty,t,d.no,'รับเข้า('+lbl+'-รอ QC) '+(d.supplier||''));}}}); }
-    else if(t==='QI'||t==='QS'||t==='QM'){ d.lines.forEach(l=>{const p=P(l.productId);if(p){const ok=Number(l.ok)||0,ng=Number(l.ng)||0,tot=ok+ng;if(tot){p.wip-=tot;move(p.id,'wip',-tot,t,d.no,'คัดแยก');}if(ok){p.passedQC+=ok;move(p.id,'passedQC',+ok,t,d.no,'OK');}if(ng){p.ng+=ng;move(p.id,'ng',+ng,t,d.no,'NG');}}}); }
+    else if(t==='QI'||t==='QS'||t==='QM'||t==='QSE'){ d.lines.forEach(l=>{const p=P(l.productId);if(p){const ok=Number(l.ok)||0,ng=Number(l.ng)||0,tot=ok+ng;if(tot){p.wip-=tot;move(p.id,'wip',-tot,t,d.no,'คัดแยก');}if(ok){p.passedQC+=ok;move(p.id,'passedQC',+ok,t,d.no,'OK');}if(ng){p.ng+=ng;move(p.id,'ng',+ng,t,d.no,'NG');}}}); }
     else if(t==='SII'||t==='SIS'){ const lbl=(t==='SII'?'ต่างประเทศ':'พิเศษ'); d.lines.forEach(l=>{const p=P(l.productId);if(p){const q=Number(l.weighed||l.qty)||0;if(q){const wr=Math.min(q,p.passedQC||0);if(wr>0){p.passedQC-=wr;move(p.id,'passedQC',-wr,t,d.no,'รับเข้าสต๊อค('+lbl+')');}p.onHand+=q;move(p.id,'onHand',+q,t,d.no,'รับเข้าสต๊อค('+lbl+')');}}}); }
     else if(t==='WD'){ d.lines.forEach(l=>{const p=P(l.productId);if(p){p.onHand-=l.qty;move(p.id,'onHand',-l.qty,'WD',d.no,'เบิกผลิต '+(l.poNo||d.refPRD||''));if(Number(l.bars)){p.barsOnHand=(p.barsOnHand||0)-Number(l.bars);move(p.id,'barsOnHand',-Number(l.bars),'WD',d.no,'เบิก(เส้น)');}}}); }
     else if(t==='DP'){ if(d.productId&&!d.lines){const p=P(d.productId);if(p){p.wip+=d.qty;move(p.id,'wip',+d.qty,'DP',d.no,'ผลิตเสร็จ');}} }
@@ -437,6 +438,7 @@ const NAV=[
   {id:'qcip',ico:'🌐',label:'คัดแยกต่างประเทศ'},
   {id:'qcsp',ico:'⭐',label:'คัดแยกพิเศษ'},
   {id:'qcmat',ico:'🛒',label:'คัดแยกวัตถุดิบ'},
+  {id:'qcsemi',ico:'🧩',label:'คัดแยก SE-MI'},
   {id:'si',ico:'📦',label:'รับเข้าสต๊อค',dt:'SI'},
   {id:'stkip',ico:'🌐',label:'รับเข้าสต๊อคต่างประเทศ'},
   {id:'stksp',ico:'⭐',label:'รับเข้าสต๊อคพิเศษ'},
@@ -459,7 +461,7 @@ const NAV=[
 ];
 let route='dashboard';
 function pendingCount(){return DB.docs.filter(d=>d.status==='pending').length}
-const ABBR={dashboard:'HOME',monitor:'KPI',inventory:'STOCK',approvals:'APPR',po:'PO',ip:'IMPORT',sp:'SPECIAL',gr:'RECV',recvip:'RECV-IMP',recvsp:'RECV-SP',sup:'SUPPLY',prd:'PROD',wd:'ISSUE',ws:'SUP-ISS',dp:'DAILY',rw:'RECV-W',plate:'PLATE',qc:'QC',qcip:'QC-IMP',qcsp:'QC-SP',qcmat:'QC-MAT',si:'STK-IN',stkip:'STK-IMP',stksp:'STK-SP',rmc:'CUST-MAT',inv:'INV',iv2:'INV-SP',adj:'ADJ',moves:'MOVE',report:'REPORT',tax:'VAT-IN',taxsale:'VAT-OUT',wht:'WHT',nc:'NC',demand:'PLAN',mrp:'MRP',settings:'SET'};
+const ABBR={dashboard:'HOME',monitor:'KPI',inventory:'STOCK',approvals:'APPR',po:'PO',ip:'IMPORT',sp:'SPECIAL',gr:'RECV',recvip:'RECV-IMP',recvsp:'RECV-SP',sup:'SUPPLY',prd:'PROD',wd:'ISSUE',ws:'SUP-ISS',dp:'DAILY',rw:'RECV-W',plate:'PLATE',qc:'QC',qcip:'QC-IMP',qcsp:'QC-SP',qcmat:'QC-MAT',qcsemi:'QC-SEMI',si:'STK-IN',stkip:'STK-IMP',stksp:'STK-SP',rmc:'CUST-MAT',inv:'INV',iv2:'INV-SP',adj:'ADJ',moves:'MOVE',report:'REPORT',tax:'VAT-IN',taxsale:'VAT-OUT',wht:'WHT',nc:'NC',demand:'PLAN',mrp:'MRP',settings:'SET'};
 function curLang(){try{return localStorage.getItem('rtk_lang')||'th'}catch(e){return 'th'}}
 var LANGS=[['th','TH ไทย'],['en','US English'],['cn','CN 中文'],['km','KH ខ្មែរ'],['lo','LA ລາວ'],['my','MM မြန်មာ']];
 var LANGT={
@@ -508,7 +510,7 @@ function render(){
   const el=document.getElementById('content');
   const map={dashboard:viewDashboard,inventory:viewInventory,approvals:viewApprovals,monitor:viewMonitor,
     po:()=>viewDocs('PO'),ip:()=>viewDocs('IP'),sp:()=>viewDocs('SP'),gr:()=>viewDocs('GR'),prd:()=>viewDocs('PRD'),wd:()=>viewDocs('WD'),
-    dp:()=>viewDocs('DP'),rw:()=>viewDocs('RW'),plate:()=>viewDocs('PL'),qc:()=>viewDocs('QC'),si:()=>viewDocs('SI'),rmc:viewRMC,sup:viewSUP,ws:viewWS,recvip:()=>viewRcv('GI'),recvsp:()=>viewRcv('GS'),qcip:()=>viewQck('QI'),qcsp:()=>viewQck('QS'),qcmat:()=>viewQck('QM'),stkip:()=>viewStk('SII'),stksp:()=>viewStk('SIS'),
+    dp:()=>viewDocs('DP'),rw:()=>viewDocs('RW'),plate:()=>viewDocs('PL'),qc:()=>viewDocs('QC'),si:()=>viewDocs('SI'),rmc:viewRMC,sup:viewSUP,ws:viewWS,recvip:()=>viewRcv('GI'),recvsp:()=>viewRcv('GS'),qcip:()=>viewQck('QI'),qcsp:()=>viewQck('QS'),qcmat:()=>viewQck('QM'),qcsemi:()=>viewQck('QSE'),stkip:()=>viewStk('SII'),stksp:()=>viewStk('SIS'),
     inv:()=>viewDocs('INV'),iv2:()=>viewDocs('IV2'),adj:()=>viewDocs('ADJ'),moves:viewMoves,report:viewReport,tax:viewTax,taxsale:viewTaxSale,wht:viewWHT,nc:viewNC,settings:viewSettings,
     demand:viewDemand,mrp:viewMRP};
   (map[route]||viewDashboard)(el);
@@ -4845,7 +4847,7 @@ function submitStk(kind,editId,status){
   closeModal();render();
 }
 /* ===== คัดแยกต่างประเทศ (QI←GI) / คัดแยกพิเศษ (QS←GS) — เงื่อนไขเดียวกับ คัดแยก OK/NG ===== */
-var QCK={QI:{type:'QI',src:'GI',srcLabel:'รับเข้าต่างประเทศ',label:'คัดแยกต่างประเทศ',ico:'🌐'},QS:{type:'QS',src:'GS',srcLabel:'รับเข้าพิเศษ',label:'คัดแยกพิเศษ',ico:'⭐'},QM:{type:'QM',src:'PO',srcLabel:'สั่งซื้อวัตถุดิบ',label:'คัดแยกวัตถุดิบ',ico:'🛒'}};
+var QCK={QI:{type:'QI',src:'GI',srcLabel:'รับเข้าต่างประเทศ',label:'คัดแยกต่างประเทศ',ico:'🌐'},QS:{type:'QS',src:'GS',srcLabel:'รับเข้าพิเศษ',label:'คัดแยกพิเศษ',ico:'⭐'},QM:{type:'QM',src:'PO',srcLabel:'สั่งซื้อวัตถุดิบ',label:'คัดแยกวัตถุดิบ',ico:'🛒'},QSE:{type:'QSE',src:'GR',srcLabel:'รับวัตถุดิบ',label:'คัดแยก SE-MI',ico:'🧩'}};
 var qckDefs=[];
 function viewQck(kind){
   const cf=QCK[kind];ensureSettings();
@@ -4874,7 +4876,21 @@ function qckRow(d,kind){
   return `<tr><td class="pn linkish" onclick="openQckForm('${kind}',DB.docs.find(x=>x.id==='${d.id}'))">${esc(d.no)}</td><td class="muted">${esc(d.date||'')}</td><td><span class="tag violet">${esc(l.poNo||'-')}</span></td><td><b>${esc(pn)}</b></td><td><span class="tag amber">${esc(l.maker||'-')}</span></td><td>${esc(l.cust||'')}</td><td class="num">${fmt(tot)}</td><td class="num"><b style="color:var(--teal)">${fmt(ok)}</b></td><td class="num"><b style="color:var(--red)">${fmt(ng)}</b></td>
    <td style="white-space:nowrap"><button class="btn sm" onclick="printNCTag(qckTagObj('${d.id}'))" title="NC TAG">🏷️NC</button> ${ng>0?`<button class="btn sm" onclick="openNgTagDialog('${d.id}')" title="NG TAG">🏷️NG</button>`:''}</td>
    <td>${statusTag(d.status)}</td>
-   <td style="white-space:nowrap"><button class="btn sm" onclick="openQckForm('${kind}',DB.docs.find(x=>x.id==='${d.id}'))">✏️</button> ${d.status==='approved'?`<button class="btn sm danger" onclick="cancelDoc('${d.id}')">ยกเลิก</button>`:d.status==='cancelled'?`<button class="btn sm danger" onclick="delDocConfirm('${d.id}')">🗑️</button>`:`<button class="btn sm ok" onclick="approveDoc('${d.id}')">อนุมัติ</button> <button class="btn sm danger" onclick="deleteDoc('${d.id}')">ลบ</button>`}</td></tr>`;
+   <td style="white-space:nowrap"><button class="btn sm" onclick="printQckOne('${d.id}')" title="พิมพ์ใบคัดแยก">🖨️</button> <button class="btn sm" onclick="openQckForm('${kind}',DB.docs.find(x=>x.id==='${d.id}'))">✏️</button> ${d.status==='approved'?`<button class="btn sm danger" onclick="cancelDoc('${d.id}')">ยกเลิก</button>`:d.status==='cancelled'?`<button class="btn sm danger" onclick="delDocConfirm('${d.id}')">🗑️</button>`:`<button class="btn sm ok" onclick="approveDoc('${d.id}')">อนุมัติ</button> <button class="btn sm danger" onclick="deleteDoc('${d.id}')">ลบ</button>`}</td></tr>`;
+}
+function printQckOne(id){
+  const d=DB.docs.find(x=>x.id===id);if(!d)return;ensureSettings();const co=DB.settings.company||{};const l=(d.lines&&d.lines[0])||{};const p=l.productId?P(l.productId):null;const pn=p?p.pn:(l.name||'');const ok=Number(l.ok)||0,ng=Number(l.ng)||0;
+  const defs=(l.defects||[]).map(x=>'<tr><td>'+esc(x.type||'-')+'</td><td style="text-align:right">'+fmt(x.qty)+'</td></tr>').join('')||'<tr><td colspan="2" style="text-align:center">-</td></tr>';
+  const kv=(k,v)=>'<tr><td class="k">'+k+'</td><td>'+v+'</td></tr>';
+  const html='<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"><title>ใบคัดแยก '+esc(d.no)+'</title><style>'
+   +"@page{size:A4 portrait;margin:12mm}*{font-family:'Tahoma',sans-serif;box-sizing:border-box}body{margin:0;font-size:12px;color:#111}.hd{text-align:center;border-bottom:2px solid #111;padding-bottom:5px}.hd h1{font-size:15px;margin:0}.ttl{text-align:center;font-size:17px;font-weight:700;margin:8px 0}table{width:100%;border-collapse:collapse;margin-top:8px}td,th{border:1px solid #888;padding:5px 8px}td.k{background:#eef2f7;font-weight:700;width:32%}th{background:#eee}.sign{display:flex;justify-content:space-between;margin-top:40px;text-align:center;font-size:12px}.sign div{width:30%}.sign .line{border-top:1px dotted #555;margin-top:28px;padding-top:3px}@media print{.noprint{display:none}}</style></head><body>"
+   +'<div class="hd"><h1>'+esc(co.name||co.thName||'')+'</h1></div><div class="ttl">ใบคัดแยก OK / NG'+(d.type!=='QC'?' ('+esc((QCK[Object.keys(QCK).find(k=>QCK[k].type===d.type)]||{}).label||'')+')':'')+'</div>'
+   +'<table>'+kv('เลขที่',esc(d.no))+kv('วันที่',esc(d.date||''))+kv('เลขที่ PO',esc(l.poNo||''))+kv('Part Number',esc(pn))+kv('ลูกค้า',esc(l.cust||''))+kv('ผู้ผลิต/ผู้ขาย',esc(l.maker||''))+kv('ผู้ตรวจ',esc(l.inspector||''))+kv('รวมตรวจ',fmt(ok+ng))+kv('OK',fmt(ok))+kv('NG',fmt(ng))+'</table>'
+   +'<div style="margin-top:8px;font-weight:700">สรุปปัญหา NG</div><table><thead><tr><th>ปัญหา</th><th style="width:120px">จำนวน</th></tr></thead><tbody>'+defs+'</tbody></table>'
+   +'<div class="sign"><div><div class="line">ผู้ตรวจ</div></div><div><div class="line">หัวหน้างาน</div></div><div><div class="line">อนุมัติ</div></div></div>'
+   +'<div class="noprint" style="text-align:center;margin-top:14px"><button onclick="window.print()" style="padding:8px 22px;cursor:pointer">🖨️ พิมพ์ / PDF</button></div>'
+   +'<scr'+'ipt>setTimeout(function(){window.print()},400)</scr'+'ipt></body></html>';
+  const w=window.open('','_blank');if(!w){toast('popup ถูกบล็อก','err');return}w.document.write(html);w.document.close();
 }
 function qckTagObj(id){const d=DB.docs.find(x=>x.id===id);if(!d)return {};const l=(d.lines&&d.lines[0])||{};const p=l.productId?P(l.productId):null;return {part:p?p.pn:(l.name||''),po:l.poNo||'',customer:l.cust||'',maker:l.maker||'',lot:l.lot||d.date||'',qty:(Number(l.ok)||0)+(Number(l.ng)||0),ng:Number(l.ng)||0,defect:(l.defects||[]).map(x=>x.type+'×'+x.qty).join(', ')||'',reporter:l.inspector||'',date:d.date||'',loc:''};}
 function openQckForm(kind,edit){
