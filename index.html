@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='LANGDEV-2026.06.18a';
+const APP_BUILD='FLOWST-2026.06.18a';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -839,8 +839,18 @@ function printInvList(){
    +'<scr'+'ipt>setTimeout(function(){window.print()},400)</scr'+'ipt></body></html>';
   const w=window.open('','_blank');if(!w){toast('เบราว์เซอร์บล็อก popup','err');return}w.document.write(html);w.document.close();
 }
+function flowBlankPns(){const s=new Set();DB.docs.forEach(d=>{if(d.status==='cancelled')return;(d.lines||[]).forEach(l=>{if(!l.productId&&l.name){const t=(l.name||'').split(' ')[0];if(t)s.add(t);}});});return s;}
+function flowStatus(p,blankPns){
+  const fl=prodFlow(p);const valid=(DB.settings.flows||[]).map(f=>f.name);
+  if(!fl||(valid.length&&valid.indexOf(fl)<0))return {bg:'#dc2626',label:'⚠ กำหนดการไหลผิด',fix:'กดปุ่ม ✏️ แก้ไข → ตั้งช่อง "การชุบ/QC" ให้เป็นค่าใดค่าหนึ่ง: ไม่ชุบ / ไม่ชุบ-QC / ชุบ-QC'};
+  if((p.onHand||0)<0||(p.wip||0)<0||(p.passedQC||0)<0||(p.atPlating||0)<0||(p.ng||0)<0)return {bg:'#dc2626',label:'⚠ การไหลไม่ผ่าน · ยอดติดลบ',fix:'ยอดเข้า-ออกไม่สมดุล (ติดลบ): ตรวจใบรับเข้า/เบิก/คัดแยก/รับเข้าสต๊อค ของ Part นี้ → แก้หรือยกเลิกใบที่ผิด หรือใช้เมนู "ปรับยอด/ตรวจนับ" ตั้งยอดให้ถูก'};
+  if(blankPns&&blankPns.has(p.pn))return {bg:'#d97706',label:'⚠ ชื่องานไม่ตรงกัน',fix:'มีเอกสารที่พิมพ์ชื่อ/Part ไม่ตรง ทำให้ไม่ผูกกับสินค้านี้ (สต๊อคไม่ไหลเข้า) → แก้ชื่อในเอกสารให้ตรง Part Number หรือเลือก Part ให้ถูกในเอกสารนั้น'};
+  return {bg:'#16a34a',label:'✓ การไหลผ่าน',fix:''};
+}
+function flowFix(id){const p=P(id);if(!p)return;const fs=flowStatus(p,flowBlankPns());modal({title:'🔎 สถานะการไหล — '+esc(p.pn),body:`<div class="kv"><span class="k">Part</span><b>${esc(p.pn)} ${esc(p.name||'')}</b></div><div class="kv"><span class="k">สถานะ</span><b style="color:${fs.bg}">${esc(fs.label)}</b></div><div class="kv"><span class="k">การชุบ/QC</span>${esc(prodFlow(p)||'-')}</div><div class="kv"><span class="k">คงเหลือ/WIP/ชุบ/คัดผ่าน</span>${fmt(p.onHand||0)} / ${fmt(p.wip||0)} / ${fmt(p.atPlating||0)} / ${fmt(p.passedQC||0)}</div>${fs.fix?'<div class="hint" style="margin-top:8px"><span class="i">🔧</span><div><b>วิธีแก้:</b> '+esc(fs.fix)+'</div></div>':'<div class="hint" style="margin-top:8px"><span class="i">✅</span><div>การไหลปกติ ไม่ต้องแก้ไข</div></div>'}`,footer:`<button class="btn" onclick="closeModal()">ปิด</button>${fs.bg!=='#16a34a'?`<button class="btn pri" onclick="closeModal();openProductForm('${id}')">✏️ แก้ไขสินค้า</button>`:''}`});}
 function renderInvTable(){
   const wrap=document.getElementById('invTableWrap');if(!wrap)return;
+  const blankPns=flowBlankPns();
   const q=invFilter.q.trim().toLowerCase();
   let list;if(invFilter.type==='RMC'){const _ids=new Set(DB.docs.filter(d=>d.type==='RMC').map(d=>d.productId).filter(Boolean));list=DB.products.filter(p=>_ids.has(p.id));}else list=DB.products.filter(p=>invFilter.type==='all'||p.type===invFilter.type);
   if(q)list=list.filter(p=>(p.pn+' '+p.name+' '+p.customer+' '+p.material).toLowerCase().includes(q));
@@ -852,7 +862,7 @@ function renderInvTable(){
   const sum=f=>list.reduce((s,p)=>s+(Number(f(p))||0),0);
   const tMoq=sum(p=>p.moq||p.reorder||0),tPrice=sum(p=>p.salePrice||0),tOn=sum(p=>p.onHand),tWip=sum(p=>p.wip),tPl=sum(p=>p.atPlating),tQC=sum(p=>p.passedQC);
   wrap.innerHTML=`<div class="tbl-wrap"><table><thead><tr>
-    <th>ประเภท</th><th>Part Number</th><th>ชื่อ</th><th>ลูกค้า</th><th class="num">MOQ</th><th class="num">ราคาขาย</th><th class="num">ราคาผลิต</th><th>การชุบ</th><th>เงื่อนไขวัตถุดิบ</th>
+    <th>ประเภท</th><th>Part Number</th><th>ชื่อ</th><th>ลูกค้า</th><th class="num">MOQ</th><th class="num">ราคาขาย</th><th class="num">ราคาผลิต</th><th>การชุบ</th><th>เงื่อนไขวัตถุดิบ</th><th>สถานะการไหล</th>
     <th class="num">คงเหลือ</th><th class="num">WIP</th><th class="num">ชุบ</th><th class="num">รอรับเข้า</th><th></th>
   </tr></thead><tbody>
   ${list.map(p=>{
@@ -873,6 +883,7 @@ function renderInvTable(){
       <td class="num"><input type="number" step="0.01" value="${p.prodPrice||0}" onchange="setProdPrice('${p.id}',this.value)" style="width:78px;text-align:right;padding:4px 6px"></td>
       <td>${plt}</td>
       <td>${cond}</td>
+      <td><span class="tag" style="background:${flowStatus(p,blankPns).bg};color:#fff;cursor:pointer" onclick="flowFix('${p.id}')" title="คลิกดูวิธีแก้">${esc(flowStatus(p,blankPns).label)}</span></td>
       <td class="num"><b style="color:${low?'var(--red)':'var(--ink)'}">${fmt(p.onHand)}</b>${p.type==='RM'&&(p.barsOnHand||0)?'<br><span style="font-size:10.5px;color:var(--brand)">'+fmt(p.barsOnHand)+' เส้น</span>':''}</td>
       <td class="num ${p.wip?'':'muted'}">${fmt(p.wip)}</td>
       <td class="num ${p.atPlating?'':'muted'}">${fmt(p.atPlating)}</td>
@@ -881,7 +892,7 @@ function renderInvTable(){
     </tr>`}).join('')}
   </tbody><tfoot><tr style="font-weight:700;background:var(--panel2);border-top:2px solid var(--line)">
     <td colspan="4">SUBTOTAL — ${list.length} รายการ</td>
-    <td class="num">${fmt(tMoq)}</td><td class="num">${fmt2(tPrice)}</td><td></td><td></td><td></td>
+    <td class="num">${fmt(tMoq)}</td><td class="num">${fmt2(tPrice)}</td><td></td><td></td><td></td><td></td>
     <td class="num">${fmt(tOn)}</td><td class="num">${fmt(tWip)}</td><td class="num">${fmt(tPl)}</td><td class="num">${fmt(tQC)}</td><td></td>
   </tr></tfoot></table></div>`;
   if(typeof setupDualScroll==='function'){setupDualScroll();setTimeout(setupDualScroll,30);}
