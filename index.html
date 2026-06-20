@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='INVCOL-2026.06.18a';
+const APP_BUILD='DASHCOL-2026.06.18a';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -584,16 +584,16 @@ function viewDashboard(el){
   </div>
 
   <div class="panel">
-    <div class="panel-h"><h2>📊 สรุปภาพรวมปี ${yrBE}</h2><div class="desc">ภาษีซื้อ/ขาย · หัก ณ ที่จ่าย · คุณภาพ · ยอดขาย (คลิกการ์ดเพื่อไปยังเมนู)</div></div>
+    <div class="panel-h" style="flex-wrap:wrap;gap:8px"><h2>📊 สรุปภาพรวมปี ${yrBE}</h2><div class="desc">ภาษีซื้อ/ขาย · หัก ณ ที่จ่าย · คุณภาพ · ยอดขาย (คลิกการ์ดเพื่อไปเมนู)</div><div class="right"><button class="btn sm" onclick="openDashColMenu()" title="ซ่อน/แสดงการ์ด">👁 การ์ด</button></div></div>
     <div class="panel-b"><div class="cards" style="margin:0">
-      <div class="card" style="cursor:pointer" onclick="go('tax')"><div class="lbl"><span class="dot d-violet">🧾</span>ภาษีซื้อ (VAT)</div><div class="val">${fmt2(taxBuyVat)}</div><div class="sub">มูลค่า ${fmt2(taxBuyVal)}</div></div>
-      <div class="card" style="cursor:pointer" onclick="go('taxsale')"><div class="lbl"><span class="dot d-teal">📈</span>ภาษีขาย (VAT)</div><div class="val">${fmt2(taxSellVat)}</div><div class="sub">มูลค่า ${fmt2(taxSellVal)}</div></div>
-      <div class="card"><div class="lbl"><span class="dot ${vatNet>=0?'d-red':'d-teal'}">⚖️</span>VAT สุทธิ</div><div class="val" style="color:${vatNet>=0?'var(--red)':'var(--teal)'}">${fmt2(Math.abs(vatNet))}</div><div class="sub">${vatNet>=0?'ต้องชำระเพิ่ม':'ขอคืน/ยกไป'}</div></div>
-      <div class="card" style="cursor:pointer" onclick="go('wht')"><div class="lbl"><span class="dot d-amber">💸</span>หัก ณ ที่จ่าย</div><div class="val">${fmt2(whtTax)}</div><div class="sub">${fmt(whtYr.length)} รายการ</div></div>
-      <div class="card" style="cursor:pointer" onclick="go('nc')"><div class="lbl"><span class="dot d-red">🚫</span>งานเสีย NC</div><div class="val" style="color:var(--red)">${fmt(ncNg)}</div><div class="sub">${fmt(ncYr.length)} รายการ</div></div>
-      <div class="card" style="cursor:pointer" onclick="go('plate')"><div class="lbl"><span class="dot d-cyan">✨</span>ส่งชุบคงค้าง</div><div class="val">${fmt(plPending)}</div><div class="sub">รอรับคืนจากโรงชุบ</div></div>
-      <div class="card" style="cursor:pointer" onclick="go('inv')"><div class="lbl"><span class="dot d-brand">💵</span>ยอดขายปีนี้</div><div class="val">${fmt2(salesYr)}</div><div class="sub">จาก Invoice ส่งลูกค้า</div></div>
-      <div class="card" style="cursor:pointer" onclick="go('monitor')"><div class="lbl"><span class="dot d-violet">📡</span>KPI เฝ้าติดตาม</div><div class="val">8</div><div class="sub">ตัวชี้วัด · ดูแนวโน้ม</div></div>
+      ${dashCols.tax!==false?`<div class="card" style="cursor:pointer;position:relative" onclick="go('tax')">${dashEye('tax')}<div class="lbl"><span class="dot d-violet">🧾</span>ภาษีซื้อ (VAT)</div><div class="val">${fmt2(taxBuyVat)}</div><div class="sub">มูลค่า ${fmt2(taxBuyVal)}</div></div>`:''}
+      ${dashCols.taxsale!==false?`<div class="card" style="cursor:pointer;position:relative" onclick="go('taxsale')">${dashEye('taxsale')}<div class="lbl"><span class="dot d-teal">📈</span>ภาษีขาย (VAT)</div><div class="val">${fmt2(taxSellVat)}</div><div class="sub">มูลค่า ${fmt2(taxSellVal)}</div></div>`:''}
+      ${dashCols.vat!==false?`<div class="card" style="position:relative">${dashEye('vat')}<div class="lbl"><span class="dot ${vatNet>=0?'d-red':'d-teal'}">⚖️</span>VAT สุทธิ</div><div class="val" style="color:${vatNet>=0?'var(--red)':'var(--teal)'}">${fmt2(Math.abs(vatNet))}</div><div class="sub">${vatNet>=0?'ต้องชำระเพิ่ม':'ขอคืน/ยกไป'}</div></div>`:''}
+      ${dashCols.wht!==false?`<div class="card" style="cursor:pointer;position:relative" onclick="go('wht')">${dashEye('wht')}<div class="lbl"><span class="dot d-amber">💸</span>หัก ณ ที่จ่าย</div><div class="val">${fmt2(whtTax)}</div><div class="sub">${fmt(whtYr.length)} รายการ</div></div>`:''}
+      ${dashCols.nc!==false?`<div class="card" style="cursor:pointer;position:relative" onclick="go('nc')">${dashEye('nc')}<div class="lbl"><span class="dot d-red">🚫</span>งานเสีย NC</div><div class="val" style="color:var(--red)">${fmt(ncNg)}</div><div class="sub">${fmt(ncYr.length)} รายการ</div></div>`:''}
+      ${dashCols.plate!==false?`<div class="card" style="cursor:pointer;position:relative" onclick="go('plate')">${dashEye('plate')}<div class="lbl"><span class="dot d-cyan">✨</span>ส่งชุบคงค้าง</div><div class="val">${fmt(plPending)}</div><div class="sub">รอรับคืนจากโรงชุบ</div></div>`:''}
+      ${dashCols.sales!==false?`<div class="card" style="cursor:pointer;position:relative" onclick="go('inv')">${dashEye('sales')}<div class="lbl"><span class="dot d-brand">💵</span>ยอดขายปีนี้</div><div class="val">${fmt2(salesYr)}</div><div class="sub">จาก Invoice ส่งลูกค้า</div></div>`:''}
+      ${dashCols.kpi!==false?`<div class="card" style="cursor:pointer;position:relative" onclick="go('monitor')">${dashEye('kpi')}<div class="lbl"><span class="dot d-violet">📡</span>KPI เฝ้าติดตาม</div><div class="val">8</div><div class="sub">ตัวชี้วัด · ดูแนวโน้ม</div></div>`:''}
     </div></div>
   </div>
 
@@ -637,7 +637,13 @@ let invFilter={q:'',type:'all',cust:'',plating:'',cond:''};
 var invCols=(function(){try{return Object.assign({salePrice:true,prodPrice:true,plating:true,cond:true},JSON.parse(localStorage.getItem('rtk_invcols')||'{}'))}catch(e){return {salePrice:true,prodPrice:true,plating:true,cond:true}}})();
 function invColToggle(k){invCols[k]=!invCols[k];try{localStorage.setItem('rtk_invcols',JSON.stringify(invCols))}catch(e){}renderInvTable();}
 function invColEye(k){return '<span onclick="event.stopPropagation();invColToggle(\''+k+'\')" style="cursor:pointer;opacity:.55;font-size:11px;margin-left:3px" title="ซ่อนคอลัมน์นี้">🙈</span>';}
-function openColMenu(){const cols=[['salePrice','ราคาขาย'],['prodPrice','ราคาผลิต'],['plating','การชุบ'],['cond','เงื่อนไขวัตถุดิบ']];modal({title:'👁 เลือกคอลัมน์ที่แสดง',body:'<div class="hint" style="margin-bottom:8px"><span class="i">💡</span><div>ติ๊กเพื่อแสดง/ซ่อนคอลัมน์ (จำเฉพาะเครื่องนี้) · หรือกด 🙈 ที่หัวคอลัมน์เพื่อซ่อนเร็ว</div></div>'+cols.map(c=>`<label style="display:flex;gap:8px;align-items:center;padding:6px 2px;font-size:13.5px"><input type="checkbox" ${invCols[c[0]]!==false?'checked':''} onchange="invColToggle('${c[0]}')"> ${c[1]}</label>`).join(''),footer:`<button class="btn pri" onclick="closeModal()">ปิด</button>`});}
+function invColReset(){invCols={salePrice:true,prodPrice:true,plating:true,cond:true};try{localStorage.setItem('rtk_invcols',JSON.stringify(invCols))}catch(e){}renderInvTable();openColMenu();}
+var dashCols=(function(){try{return Object.assign({tax:true,taxsale:true,vat:true,wht:true,nc:true,plate:true,sales:true,kpi:true},JSON.parse(localStorage.getItem('rtk_dashcols')||'{}'))}catch(e){return {tax:true,taxsale:true,vat:true,wht:true,nc:true,plate:true,sales:true,kpi:true}}})();
+function dashColToggle(k){dashCols[k]=!dashCols[k];try{localStorage.setItem('rtk_dashcols',JSON.stringify(dashCols))}catch(e){}render();}
+function dashColReset(){dashCols={tax:true,taxsale:true,vat:true,wht:true,nc:true,plate:true,sales:true,kpi:true};try{localStorage.setItem('rtk_dashcols',JSON.stringify(dashCols))}catch(e){}render();openDashColMenu();}
+function dashEye(k){return '<span style="position:absolute;top:5px;right:7px;cursor:pointer;opacity:.45;font-size:11px" onclick="event.stopPropagation();dashColToggle(\''+k+'\')" title="ซ่อนการ์ดนี้">🙈</span>';}
+function openDashColMenu(){const cols=[['tax','ภาษีซื้อ'],['taxsale','ภาษีขาย'],['vat','VAT สุทธิ'],['wht','หัก ณ ที่จ่าย'],['nc','งานเสีย NC'],['plate','ส่งชุบคงค้าง'],['sales','ยอดขายปีนี้'],['kpi','KPI']];modal({title:'👁 เลือกการ์ดสรุปที่แสดง',body:'<div class="hint" style="margin-bottom:8px"><span class="i">💡</span><div>ติ๊กแสดง/ซ่อนการ์ด (จำเฉพาะเครื่องนี้)</div></div>'+cols.map(c=>`<label style="display:flex;gap:8px;align-items:center;padding:5px 2px;font-size:13.5px"><input type="checkbox" ${dashCols[c[0]]!==false?'checked':''} onchange="dashColToggle('${c[0]}')"> ${c[1]}</label>`).join(''),footer:`<button class="btn" onclick="dashColReset()">↺ แสดงทั้งหมด</button><button class="btn pri" onclick="closeModal()">ปิด</button>`});}
+function openColMenu(){const cols=[['salePrice','ราคาขาย'],['prodPrice','ราคาผลิต'],['plating','การชุบ'],['cond','เงื่อนไขวัตถุดิบ']];modal({title:'👁 เลือกคอลัมน์ที่แสดง',body:'<div class="hint" style="margin-bottom:8px"><span class="i">💡</span><div>ติ๊กเพื่อแสดง/ซ่อนคอลัมน์ (จำเฉพาะเครื่องนี้) · หรือกด 🙈 ที่หัวคอลัมน์เพื่อซ่อนเร็ว</div></div>'+cols.map(c=>`<label style="display:flex;gap:8px;align-items:center;padding:6px 2px;font-size:13.5px"><input type="checkbox" ${invCols[c[0]]!==false?'checked':''} onchange="invColToggle('${c[0]}')"> ${c[1]}</label>`).join(''),footer:`<button class="btn" onclick="invColReset()">↺ แสดงทั้งหมด</button><button class="btn pri" onclick="closeModal()">ปิด</button>`});}
 function flowRefToggle(){const b=document.getElementById('flowRefBody');if(!b)return;const s=b.style.display==='none';b.style.display=s?'':'none';const t=document.getElementById('flowRefBtn');if(t)t.textContent=s?'▲ ซ่อนเงื่อนไข':'▼ ดู/ปรับเงื่อนไขการไหล';}
 function flowRefHTML(open){
   const cell='style="border:1px solid var(--line);padding:6px"';
