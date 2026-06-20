@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='REPORT-2026.06.18b';
+const APP_BUILD='QCMAT-2026.06.18a';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -358,6 +358,7 @@ const DT={
   GS:{label:'รับเข้าพิเศษ',icon:'⭐',color:'cyan',prefix:'GS',multi:true},
   QI:{label:'คัดแยกต่างประเทศ',icon:'🌐',color:'amber',prefix:'QI',multi:true},
   QS:{label:'คัดแยกพิเศษ',icon:'⭐',color:'amber',prefix:'QS',multi:true},
+  QM:{label:'คัดแยกวัตถุดิบ',icon:'🛒',color:'amber',prefix:'QM',multi:true},
   SII:{label:'รับเข้าสต๊อคต่างประเทศ',icon:'🌐',color:'teal',prefix:'SII',multi:true},
   SIS:{label:'รับเข้าสต๊อคพิเศษ',icon:'⭐',color:'teal',prefix:'SIS',multi:true},
   PRD:{label:'ใบสั่งผลิต',icon:'📋',color:'violet',prefix:'PO',multi:false}, // production order, PO NO format
@@ -385,7 +386,7 @@ function applyDoc(d){
     if(t==='GR'){ d.lines.forEach(l=>{const p=P(l.productId);if(p){const fl=prodFlow(p);if(isDirectFlow(fl)){p.onHand+=l.qty;move(p.id,'onHand',+l.qty,'GR',d.no,'รับเข้า(ไม่ชุบ) '+(d.supplier||''));}else{p.wip+=l.qty;move(p.id,'wip',+l.qty,'GR',d.no,'รับเข้า(รอ QC) '+(d.supplier||''));}if(Number(l.bars)){p.barsOnHand=(p.barsOnHand||0)+Number(l.bars);move(p.id,'barsOnHand',+Number(l.bars),'GR',d.no,'รับเข้า(เส้น)');}}}); }
     else if(t==='RW'){ d.lines.forEach(l=>{const p=P(l.productId);if(p){const fl=prodFlow(p);if(isDirectFlow(fl)){p.onHand+=l.qty;move(p.id,'onHand',+l.qty,'RW',d.no,'รับชิ้นงาน(ไม่ชุบ) '+(l.maker||''));}else{p.wip+=l.qty;move(p.id,'wip',+l.qty,'RW',d.no,'รับชิ้นงาน '+(l.maker||''));}}}); }
     else if(t==='GI'||t==='GS'){ const lbl=(t==='GI'?'ต่างประเทศ':'พิเศษ'); d.lines.forEach(l=>{const p=P(l.productId);if(p){const fl=prodFlow(p);if(isDirectFlow(fl)){p.onHand+=l.qty;move(p.id,'onHand',+l.qty,t,d.no,'รับเข้า('+lbl+') '+(d.supplier||''));}else{p.wip+=l.qty;move(p.id,'wip',+l.qty,t,d.no,'รับเข้า('+lbl+'-รอ QC) '+(d.supplier||''));}}}); }
-    else if(t==='QI'||t==='QS'){ d.lines.forEach(l=>{const p=P(l.productId);if(p){const ok=Number(l.ok)||0,ng=Number(l.ng)||0,tot=ok+ng;if(tot){p.wip-=tot;move(p.id,'wip',-tot,t,d.no,'คัดแยก');}if(ok){p.passedQC+=ok;move(p.id,'passedQC',+ok,t,d.no,'OK');}if(ng){p.ng+=ng;move(p.id,'ng',+ng,t,d.no,'NG');}}}); }
+    else if(t==='QI'||t==='QS'||t==='QM'){ d.lines.forEach(l=>{const p=P(l.productId);if(p){const ok=Number(l.ok)||0,ng=Number(l.ng)||0,tot=ok+ng;if(tot){p.wip-=tot;move(p.id,'wip',-tot,t,d.no,'คัดแยก');}if(ok){p.passedQC+=ok;move(p.id,'passedQC',+ok,t,d.no,'OK');}if(ng){p.ng+=ng;move(p.id,'ng',+ng,t,d.no,'NG');}}}); }
     else if(t==='SII'||t==='SIS'){ const lbl=(t==='SII'?'ต่างประเทศ':'พิเศษ'); d.lines.forEach(l=>{const p=P(l.productId);if(p){const q=Number(l.weighed||l.qty)||0;if(q){const wr=Math.min(q,p.passedQC||0);if(wr>0){p.passedQC-=wr;move(p.id,'passedQC',-wr,t,d.no,'รับเข้าสต๊อค('+lbl+')');}p.onHand+=q;move(p.id,'onHand',+q,t,d.no,'รับเข้าสต๊อค('+lbl+')');}}}); }
     else if(t==='WD'){ d.lines.forEach(l=>{const p=P(l.productId);if(p){p.onHand-=l.qty;move(p.id,'onHand',-l.qty,'WD',d.no,'เบิกผลิต '+(l.poNo||d.refPRD||''));if(Number(l.bars)){p.barsOnHand=(p.barsOnHand||0)-Number(l.bars);move(p.id,'barsOnHand',-Number(l.bars),'WD',d.no,'เบิก(เส้น)');}}}); }
     else if(t==='DP'){ if(d.productId&&!d.lines){const p=P(d.productId);if(p){p.wip+=d.qty;move(p.id,'wip',+d.qty,'DP',d.no,'ผลิตเสร็จ');}} }
@@ -435,6 +436,7 @@ const NAV=[
   {id:'qc',ico:'🔎',label:'คัดแยก OK/NG',dt:'QC'},
   {id:'qcip',ico:'🌐',label:'คัดแยกต่างประเทศ'},
   {id:'qcsp',ico:'⭐',label:'คัดแยกพิเศษ'},
+  {id:'qcmat',ico:'🛒',label:'คัดแยกวัตถุดิบ'},
   {id:'si',ico:'📦',label:'รับเข้าสต๊อค',dt:'SI'},
   {id:'stkip',ico:'🌐',label:'รับเข้าสต๊อคต่างประเทศ'},
   {id:'stksp',ico:'⭐',label:'รับเข้าสต๊อคพิเศษ'},
@@ -457,7 +459,7 @@ const NAV=[
 ];
 let route='dashboard';
 function pendingCount(){return DB.docs.filter(d=>d.status==='pending').length}
-const ABBR={dashboard:'HOME',monitor:'KPI',inventory:'STOCK',approvals:'APPR',po:'PO',ip:'IMPORT',sp:'SPECIAL',gr:'RECV',recvip:'RECV-IMP',recvsp:'RECV-SP',sup:'SUPPLY',prd:'PROD',wd:'ISSUE',ws:'SUP-ISS',dp:'DAILY',rw:'RECV-W',plate:'PLATE',qc:'QC',qcip:'QC-IMP',qcsp:'QC-SP',si:'STK-IN',stkip:'STK-IMP',stksp:'STK-SP',rmc:'CUST-MAT',inv:'INV',iv2:'INV-SP',adj:'ADJ',moves:'MOVE',report:'REPORT',tax:'VAT-IN',taxsale:'VAT-OUT',wht:'WHT',nc:'NC',demand:'PLAN',mrp:'MRP',settings:'SET'};
+const ABBR={dashboard:'HOME',monitor:'KPI',inventory:'STOCK',approvals:'APPR',po:'PO',ip:'IMPORT',sp:'SPECIAL',gr:'RECV',recvip:'RECV-IMP',recvsp:'RECV-SP',sup:'SUPPLY',prd:'PROD',wd:'ISSUE',ws:'SUP-ISS',dp:'DAILY',rw:'RECV-W',plate:'PLATE',qc:'QC',qcip:'QC-IMP',qcsp:'QC-SP',qcmat:'QC-MAT',si:'STK-IN',stkip:'STK-IMP',stksp:'STK-SP',rmc:'CUST-MAT',inv:'INV',iv2:'INV-SP',adj:'ADJ',moves:'MOVE',report:'REPORT',tax:'VAT-IN',taxsale:'VAT-OUT',wht:'WHT',nc:'NC',demand:'PLAN',mrp:'MRP',settings:'SET'};
 function renderNav(){
   const nav=document.getElementById('nav');let h='';
   NAV.forEach(n=>{
@@ -475,7 +477,7 @@ function render(){
   const el=document.getElementById('content');
   const map={dashboard:viewDashboard,inventory:viewInventory,approvals:viewApprovals,monitor:viewMonitor,
     po:()=>viewDocs('PO'),ip:()=>viewDocs('IP'),sp:()=>viewDocs('SP'),gr:()=>viewDocs('GR'),prd:()=>viewDocs('PRD'),wd:()=>viewDocs('WD'),
-    dp:()=>viewDocs('DP'),rw:()=>viewDocs('RW'),plate:()=>viewDocs('PL'),qc:()=>viewDocs('QC'),si:()=>viewDocs('SI'),rmc:viewRMC,sup:viewSUP,ws:viewWS,recvip:()=>viewRcv('GI'),recvsp:()=>viewRcv('GS'),qcip:()=>viewQck('QI'),qcsp:()=>viewQck('QS'),stkip:()=>viewStk('SII'),stksp:()=>viewStk('SIS'),
+    dp:()=>viewDocs('DP'),rw:()=>viewDocs('RW'),plate:()=>viewDocs('PL'),qc:()=>viewDocs('QC'),si:()=>viewDocs('SI'),rmc:viewRMC,sup:viewSUP,ws:viewWS,recvip:()=>viewRcv('GI'),recvsp:()=>viewRcv('GS'),qcip:()=>viewQck('QI'),qcsp:()=>viewQck('QS'),qcmat:()=>viewQck('QM'),stkip:()=>viewStk('SII'),stksp:()=>viewStk('SIS'),
     inv:()=>viewDocs('INV'),iv2:()=>viewDocs('IV2'),adj:()=>viewDocs('ADJ'),moves:viewMoves,report:viewReport,tax:viewTax,taxsale:viewTaxSale,wht:viewWHT,nc:viewNC,settings:viewSettings,
     demand:viewDemand,mrp:viewMRP};
   (map[route]||viewDashboard)(el);
@@ -4790,7 +4792,7 @@ function submitStk(kind,editId,status){
   closeModal();render();
 }
 /* ===== คัดแยกต่างประเทศ (QI←GI) / คัดแยกพิเศษ (QS←GS) — เงื่อนไขเดียวกับ คัดแยก OK/NG ===== */
-var QCK={QI:{type:'QI',src:'GI',srcLabel:'รับเข้าต่างประเทศ',label:'คัดแยกต่างประเทศ',ico:'🌐'},QS:{type:'QS',src:'GS',srcLabel:'รับเข้าพิเศษ',label:'คัดแยกพิเศษ',ico:'⭐'}};
+var QCK={QI:{type:'QI',src:'GI',srcLabel:'รับเข้าต่างประเทศ',label:'คัดแยกต่างประเทศ',ico:'🌐'},QS:{type:'QS',src:'GS',srcLabel:'รับเข้าพิเศษ',label:'คัดแยกพิเศษ',ico:'⭐'},QM:{type:'QM',src:'PO',srcLabel:'สั่งซื้อวัตถุดิบ',label:'คัดแยกวัตถุดิบ',ico:'🛒'}};
 var qckDefs=[];
 function viewQck(kind){
   const cf=QCK[kind];ensureSettings();
