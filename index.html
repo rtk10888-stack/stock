@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='RMCPRD-2026.06.20j';
+const APP_BUILD='RMCINV-2026.06.20k';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -6176,6 +6176,8 @@ function rmcOutMap(){const m={};DB.docs.filter(x=>(x.type==='INV'||x.type==='IV2
 function rmcDays(a,b){const da=new Date(a),db=new Date(b);if(isNaN(da)||isNaN(db))return 1e9;return Math.abs((da-db)/86400000);}
 function rmcPRDInfo(pid,dateStr){if(!pid)return null;let best=null,bestD=999;DB.docs.forEach(d=>{if(d.type!=='PRD'||d.status==='cancelled')return;const q=(d.lines||[]).reduce((s,l)=>s+(((l.fgId||l.productId)===pid)?(Number(l.qty)||0):0),0);if(!q)return;const dd=rmcDays(d.date,dateStr);if(dd<=5&&dd<bestD){bestD=dd;best={no:d.no,qty:q,date:d.date};}});return best;}
 function rmcRWRecv(prdNo,pid){if(!prdNo)return 0;const key=String(prdNo).replace(/^PO/i,'').trim();let s=0;DB.docs.forEach(d=>{if(d.type!=='RW'||d.status==='cancelled')return;(d.lines||[]).forEach(l=>{const k=String(l.poNo||'').replace(/^PO/i,'').trim();if(k&&k===key&&(!pid||!l.productId||l.productId===pid))s+=Number(l.receivedQty)||0;});});return s;}
+function rmcRWDates(prdNo,pid){const key=String(prdNo||'').replace(/^PO/i,'').trim();const ds=[];if(!key)return ds;DB.docs.forEach(d=>{if(d.type!=='RW'||d.status==='cancelled')return;(d.lines||[]).forEach(l=>{const k=String(l.poNo||'').replace(/^PO/i,'').trim();if(k&&k===key&&(!pid||!l.productId||l.productId===pid)){const dt=l.date||d.date;if(dt)ds.push(dt);}});});return ds;}
+function rmcInvInfo(pid,refDates){if(!pid||!refDates||!refDates.length)return null;const nos=[];let qty=0;DB.docs.forEach(d=>{if(d.type!=='INV'||d.status==='cancelled')return;if(!refDates.some(rd=>rmcDays(d.date,rd)<=5))return;let q=0;(d.lines||[]).forEach(l=>{if(l.productId===pid)q+=Number(l.qty)||0;});if(q>0){qty+=q;const no=d.invNo||d.no;if(no&&nos.indexOf(no)<0)nos.push(no);}});return nos.length?{no:nos.join(', '),qty:qty}:null;}
 function rmcSetShip(id,val){const d=DB.docs.find(x=>x.id===id);if(!d)return;if(val===''||val==null)delete d.shipQty;else d.shipQty=Number(val)||0;try{saveDB();}catch(e){}renderRMCTable();}
 function rmcDistinct(field){const set=new Set();DB.docs.filter(d=>d.type==='RMC').forEach(d=>{let v=field==='mon'?((d.date||'')+'').slice(0,7):field==='order'?d.orderNo:field==='maker'?d.maker:field==='cust'?d.customer:field==='part'?(d.productId&&P(d.productId)?P(d.productId).pn:(d.partNo||'')):'';if(v)set.add(String(v));});return [...set].sort();}
 function viewRMC(el){
@@ -6203,7 +6205,9 @@ function renderRMCTable(){
   let tR=0,tPrd=0,tRecv=0,tShip=0,tBal=0;
   const rows=docs.map(d=>{const p=d.productId?P(d.productId):null;const pn=p?p.pn:(d.partNo||'');const pname=p?(p.name&&p.name!=='-'?p.name:''):(d.partName||'');
     const prd=rmcPRDInfo(p?p.id:'',d.date);const recv=rmcRWRecv(prd?prd.no:'',p?p.id:'');
-    const ship=(d.shipQty!==undefined&&d.shipQty!==null&&d.shipQty!=='')?Number(d.shipQty):recv;
+    const rwDates=rmcRWDates(prd?prd.no:'',p?p.id:'');const refDates=rwDates.length?rwDates:(d.date?[d.date]:[]);
+    const inv=rmcInvInfo(p?p.id:'',refDates);const autoShip=inv?inv.qty:0;
+    const ship=(d.shipQty!==undefined&&d.shipQty!==null&&d.shipQty!=='')?Number(d.shipQty):autoShip;
     const bal=(Number(d.qty)||0)-ship;
     const autoNote=bal>0?'ขาดส่ง '+fmt(bal):(bal<0?'เกิน '+fmt(-bal):'ส่งครบ ✓');
     const noteColor=bal>0?'var(--red)':(bal<0?'#b45309':'var(--teal)');
@@ -6215,15 +6219,16 @@ function renderRMCTable(){
       <td class="pn ${prd?'':'muted'}">${prd?esc(prd.no):'-'}</td>
       <td class="num ${prd?'':'muted'}">${prd?fmt(prd.qty):'-'}</td>
       <td class="num ${recv?'':'muted'}">${recv?fmt(recv):'-'}</td>
-      <td class="num"><input type="number" step="any" value="${ship}" onchange="rmcSetShip('${d.id}',this.value)" style="width:82px;text-align:right;padding:4px 6px" title="แก้ไขยอดจ่ายจริงได้"></td>
+      <td class="pn ${inv?'':'muted'}" title="ดึงจาก Invoice ส่งลูกค้า (±5 วันจากรับชิ้นงาน)">${inv?esc(inv.no):'-'}</td>
+      <td class="num"><input type="number" step="any" value="${ship}" onchange="rmcSetShip('${d.id}',this.value)" style="width:82px;text-align:right;padding:4px 6px" title="ดึงจาก Invoice อัตโนมัติ · แก้ไขตามจ่ายจริงได้"></td>
       <td class="num"><b style="color:${noteColor}">${fmt(bal)}</b></td>
       <td style="font-size:11px"><span style="font-weight:600;color:${noteColor}">${autoNote}</span>${d.note?' <span class="muted">· '+esc(d.note)+'</span>':''}</td>
       <td style="white-space:nowrap"><button class="btn sm" onclick="openRMCForm(DB.docs.find(x=>x.id==='${d.id}'))">✏️</button> <button class="btn sm danger" onclick="delRMC('${d.id}')">ยกเลิก</button></td>
     </tr>`;}).join('');
   wrap.innerHTML=`<div class="tbl-wrap"><table style="white-space:nowrap"><thead><tr>
-    <th>วันที่</th><th>เลขที่ใบสั่ง</th><th>Maker</th><th>Part Number</th><th>Part Name</th><th>ลูกค้า</th><th class="num">รับแมท ลูกค้า</th><th>PO. สั่งผลิต</th><th class="num">จำนวน</th><th class="num">รับชิ้นงาน</th><th class="num">จำนวนจ่ายออก</th><th class="num">คงเหลือ</th><th>หมายเหตุ</th><th></th>
+    <th>วันที่</th><th>เลขที่ใบสั่ง</th><th>Maker</th><th>Part Number</th><th>Part Name</th><th>ลูกค้า</th><th class="num">รับแมท ลูกค้า</th><th>PO. สั่งผลิต</th><th class="num">จำนวน</th><th class="num">รับชิ้นงาน</th><th>Invoice ส่งลูกค้า</th><th class="num">จำนวนจ่ายออก</th><th class="num">คงเหลือ</th><th>หมายเหตุ</th><th></th>
   </tr></thead><tbody id="rmcFilterBody">${rows}</tbody>
-  <tfoot><tr style="background:#fff7a8;font-weight:700"><td colspan="6" style="text-align:right">รวม</td><td class="num">${fmt(tR)}</td><td></td><td class="num">${fmt(tPrd)}</td><td class="num">${fmt(tRecv)}</td><td class="num">${fmt(tShip)}</td><td class="num">${fmt(tBal)}</td><td colspan="2"></td></tr></tfoot></table></div>`;
+  <tfoot><tr style="background:#fff7a8;font-weight:700"><td colspan="6" style="text-align:right">รวม</td><td class="num">${fmt(tR)}</td><td></td><td class="num">${fmt(tPrd)}</td><td class="num">${fmt(tRecv)}</td><td></td><td class="num">${fmt(tShip)}</td><td class="num">${fmt(tBal)}</td><td colspan="2"></td></tr></tfoot></table></div>`;
   try{filterRmcRows();}catch(e){}
 }
 function filterRmcRows(){const g=id=>((document.getElementById(id)||{}).value||'').trim().toLowerCase();const q=g('rmcSearch'),fm=g('rf_mon'),fo=g('rf_order'),fk=g('rf_maker'),fc=g('rf_cust'),fp=g('rf_part');document.querySelectorAll('#rmcFilterBody tr').forEach(tr=>{const ds=tr.dataset||{};const t=tr.textContent.toLowerCase();const show=(!q||t.includes(q))&&(!fm||(ds.mon||'').includes(fm))&&(!fo||(ds.order||'').toLowerCase().includes(fo))&&(!fk||(ds.maker||'').toLowerCase().includes(fk))&&(!fc||(ds.cust||'').toLowerCase().includes(fc))&&(!fp||(ds.part||'').toLowerCase().includes(fp));tr.style.display=show?'':'none';});}
