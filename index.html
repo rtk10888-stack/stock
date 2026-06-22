@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='POABBR-2026.06.20x';
+const APP_BUILD='PNDOT-2026.06.20y';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -896,12 +896,13 @@ function invMoveAgg(){const m={};const ens=p=>m[p]||(m[p]={adj:0,tin:0,tout:0,ng
     if(v.bucket==='ng')g.ng+=q;
     else if(v.bucket==='onHand'){if(v.docType==='ADJ')g.adj+=q;else if(q>=0)g.tin+=q;else g.tout+=-q;}
   });return m;}
-function flowBlankPns(){const s=new Set();DB.docs.forEach(d=>{if(d.status==='cancelled')return;(d.lines||[]).forEach(l=>{if(!l.productId&&l.name){const t=(l.name||'').split(' ')[0];if(t)s.add(t);}});});return s;}
+function pnNorm(s){return String(s||'').trim().replace(/[.\s]+$/,'').toLowerCase();}
+function flowBlankPns(){const s=new Set();const prodSet=new Set(DB.products.map(p=>pnNorm(p.pn)));DB.docs.forEach(d=>{if(d.status==='cancelled')return;(d.lines||[]).forEach(l=>{if(!l.productId&&l.name){const t=(l.name||'').split(' ')[0];if(t&&!prodSet.has(pnNorm(t)))s.add(t);}});});return s;}
 function flowStatus(p,blankPns){
   const fl=prodFlow(p);const valid=(DB.settings.flows||[]).map(f=>f.name);
   if(!fl||(valid.length&&valid.indexOf(fl)<0))return {bg:'#dc2626',label:'⚠ กำหนดการไหลผิด',fix:'กดปุ่ม ✏️ แก้ไข → ตั้งช่อง "การชุบ/QC" ให้เป็นค่าใดค่าหนึ่ง: ไม่ชุบ / ไม่ชุบ-QC / ชุบ-QC'};
   if((p.onHand||0)<0||(p.wip||0)<0||(p.passedQC||0)<0||(p.atPlating||0)<0||(p.ng||0)<0)return {bg:'#dc2626',label:'⚠ การไหลไม่ผ่าน · ยอดติดลบ',fix:'ยอดเข้า-ออกไม่สมดุล (ติดลบ): ตรวจใบรับเข้า/เบิก/คัดแยก/รับเข้าสต๊อค ของ Part นี้ → แก้หรือยกเลิกใบที่ผิด หรือใช้เมนู "ปรับยอด/ตรวจนับ" ตั้งยอดให้ถูก'};
-  if(blankPns&&blankPns.has(p.pn))return {bg:'#d97706',label:'⚠ ชื่องานไม่ตรงกัน',fix:'มีเอกสารที่พิมพ์ชื่อ/Part ไม่ตรง ทำให้ไม่ผูกกับสินค้านี้ (สต๊อคไม่ไหลเข้า) → แก้ชื่อในเอกสารให้ตรง Part Number หรือเลือก Part ให้ถูกในเอกสารนั้น'};
+  if(blankPns&&blankPns.size&&[...blankPns].some(t=>pnNorm(t)===pnNorm(p.pn)))return {bg:'#d97706',label:'⚠ ชื่องานไม่ตรงกัน',fix:'มีเอกสารที่พิมพ์ชื่อ/Part ไม่ตรง ทำให้ไม่ผูกกับสินค้านี้ (สต๊อคไม่ไหลเข้า) → แก้ชื่อในเอกสารให้ตรง Part Number หรือเลือก Part ให้ถูกในเอกสารนั้น'};
   return {bg:'#16a34a',label:'✓ การไหลผ่าน',fix:''};
 }
 function flowFix(id){const p=P(id);if(!p)return;const fs=flowStatus(p,flowBlankPns());modal({title:'🔎 สถานะการไหล — '+esc(p.pn),body:`<div class="kv"><span class="k">Part</span><b>${esc(p.pn)} ${esc(p.name||'')}</b></div><div class="kv"><span class="k">สถานะ</span><b style="color:${fs.bg}">${esc(fs.label)}</b></div><div class="kv"><span class="k">การชุบ/QC</span>${esc(prodFlow(p)||'-')}</div><div class="kv"><span class="k">คงเหลือ/WIP/ชุบ/คัดผ่าน</span>${fmt(p.onHand||0)} / ${fmt(p.wip||0)} / ${fmt(p.atPlating||0)} / ${fmt(p.passedQC||0)}</div>${fs.fix?'<div class="hint" style="margin-top:8px"><span class="i">🔧</span><div><b>วิธีแก้:</b> '+esc(fs.fix)+'</div></div>':'<div class="hint" style="margin-top:8px"><span class="i">✅</span><div>การไหลปกติ ไม่ต้องแก้ไข</div></div>'}`,footer:`<button class="btn" onclick="closeModal()">ปิด</button>${fs.bg!=='#16a34a'?`<button class="btn pri" onclick="closeModal();openProductForm('${id}')">✏️ แก้ไขสินค้า</button>`:''}`});}
