@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='RPTCOLS-2026.06.20s';
+const APP_BUILD='RPTMAKER-2026.06.20t';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -4891,11 +4891,12 @@ function reportAggAll(){
 function rptPOAgg(poNo,pid){
   const key=String(poNo||'').replace(/^PO/i,'').trim();
   const mk=d=>String(d||'').replace(/^PO/i,'').trim();
-  const r={rwRecv:0,rwDate:'',plSent:0,plRecv:0,plDate:'',plSentDate:'',qcOk:0,qcNg:0,qcDate:'',si:0,siDate:''};
+  const r={rwRecv:0,rwDate:'',plSent:0,plRecv:0,plDate:'',plSentDate:'',qcOk:0,qcNg:0,qcDate:'',si:0,siDate:'',maker:''};
   if(!key)return r;
   DB.docs.forEach(d=>{if(d.status==='cancelled')return;
     (d.lines||[]).forEach(l=>{
       if(mk(l.poNo)!==key)return; if(pid&&l.productId&&l.productId!==pid)return;
+      if(!r.maker&&(l.maker||d.maker))r.maker=l.maker||d.maker;
       if(d.type==='RW'){r.rwRecv+=Number(l.receivedQty)||0;const dt=l.date||d.date||'';if(dt>r.rwDate)r.rwDate=dt;}
       else if(d.type==='PL'){r.plSent+=Number(l.sentQty)||0;r.plRecv+=Number(l.recvQty)||0;const ds=l.date||d.date||'';if(ds>r.plSentDate)r.plSentDate=ds;const dr=l.recvDate||'';if(dr>r.plDate)r.plDate=dr;}
       else if(d.type==='QC'){r.qcOk+=Number(l.ok)||0;r.qcNg+=Number(l.ng)||0;const dt=l.date||d.date||'';if(dt>r.qcDate)r.qcDate=dt;}
@@ -4915,7 +4916,7 @@ var rptCols=(function(){try{return JSON.parse(localStorage.getItem('rtk_rptcols'
 function rptColToggle(k){rptCols[k]=(rptCols[k]===false)?true:false;try{localStorage.setItem('rtk_rptcols',JSON.stringify(rptCols))}catch(e){}render();}
 function rptColReset(){rptCols={};try{localStorage.setItem('rtk_rptcols','{}')}catch(e){}render();openRptColMenu();}
 function rptColEye(k){return '<span style="cursor:pointer;opacity:.4;font-size:10px;margin-left:2px" onclick="rptColToggle(\''+k+'\')" title="ซ่อนคอลัมน์นี้">🙈</span>';}
-var RPT_COLS=[['cust','ลูกค้า'],['pdate','วันที่สั่ง/ผลิต'],['po','PO เลขที่'],['ord','สั่ง/ผลิต'],['rwdate','วันที่รับงาน'],['rwqty','รับงาน'],['wip','WIP'],['sent','ส่งชุบ/คัด'],['qt','Q-Time'],['pldate','วันที่รับชุบ'],['plqty','รับชุบ'],['plpend','ค้างชุบ'],['qcdate','วันที่คัด'],['ok','OK'],['ng','NG'],['sidate','วันที่เข้าสต๊อค'],['siqty','เข้าสต๊อค'],['sum','สรุป']];
+var RPT_COLS=[['cust','ลูกค้า'],['maker','ผู้ผลิต'],['pdate','วันที่สั่ง/ผลิต'],['po','PO เลขที่'],['ord','สั่ง/ผลิต'],['rwdate','วันที่รับงาน'],['rwqty','รับงาน'],['wip','WIP'],['sent','ส่งชุบ/คัด'],['qt','Q-Time'],['pldate','วันที่รับชุบ'],['plqty','รับชุบ'],['plpend','ค้างชุบ'],['qcdate','วันที่คัด'],['ok','OK'],['ng','NG'],['sidate','วันที่เข้าสต๊อค'],['siqty','เข้าสต๊อค'],['sum','สรุป']];
 function openRptColMenu(){modal({title:'👁 เลือกคอลัมน์รายงานที่แสดง',body:'<div class="hint" style="margin-bottom:8px"><span class="i">💡</span><div>ติ๊ก = แสดง · เอาติ๊กออก = ซ่อน (จำเฉพาะเครื่องนี้)</div></div><div style="columns:2;gap:14px">'+RPT_COLS.map(c=>`<label style="display:flex;gap:7px;align-items:center;padding:4px 2px;font-size:13px;break-inside:avoid"><input type="checkbox" ${rptCols[c[0]]!==false?'checked':''} onchange="rptColToggle('${c[0]}')"> ${c[1]}</label>`).join('')+'</div>',footer:`<button class="btn" onclick="rptColReset()">↺ แสดงทั้งหมด</button><button class="btn pri" onclick="closeModal()">ปิด</button>`});}
 function viewReport(el){
   setTitle('📑 รายงาน','ติดตามเส้นทางชิ้นงาน (Traceability Timeline) — สั่งซื้อ → ผลิต → ชุบ → คัดแยก → รับเข้าสต๊อค → ส่งลูกค้า');
@@ -4952,12 +4953,12 @@ function viewReport(el){
     const poRows=[];
     DB.docs.filter(d=>d.type==='PRD'&&d.status!=='cancelled').forEach(prd=>{
       const byP={};(prd.lines||[]).forEach(l=>{const pid=l.fgId||l.productId;if(!pid)return;byP[pid]=(byP[pid]||0)+(Number(l.qty)||0);});
-      Object.keys(byP).forEach(pid=>{const p=P(pid);if(!p)return;poRows.push({poNo:prd.no,date:prd.date||'',p:p,ordered:byP[pid]});});
+      Object.keys(byP).forEach(pid=>{const p=P(pid);if(!p)return;poRows.push({poNo:prd.no,date:prd.date||'',p:p,ordered:byP[pid],maker:prd.maker||''});});
     });
     poRows.sort((a,b)=>(b.date||'').localeCompare(a.date||'')||String(b.poNo||'').localeCompare(String(a.poNo||''),undefined,{numeric:true}));
     const dash='<span class="muted">-</span>';const C=k=>rptCols[k]!==false;
     html+=`<div class="panel"><div class="panel-h"><h2>📊 สรุปภาพรวมตามชิ้นงาน (ราย PO)</h2><div class="right" style="display:flex;gap:8px;align-items:center"><span class="desc">${poRows.length} ใบสั่ง</span><button class="btn sm" onclick="openRptColMenu()" title="ซ่อน/แสดงคอลัมน์">👁 คอลัมน์</button></div></div><div class="panel-b nopad"><div class="tbl-wrap"><table style="white-space:nowrap;font-size:11.5px"><thead><tr>
-      <th>Part Number</th>${C('cust')?`<th>ลูกค้า${rptColEye('cust')}</th>`:''}${C('pdate')?`<th>วันที่สั่ง/ผลิต${rptColEye('pdate')}</th>`:''}${C('po')?`<th>PO เลขที่${rptColEye('po')}</th>`:''}${C('ord')?`<th class="num">สั่ง/ผลิต${rptColEye('ord')}</th>`:''}${C('rwdate')?`<th>วันที่รับงาน${rptColEye('rwdate')}</th>`:''}${C('rwqty')?`<th class="num">รับงาน${rptColEye('rwqty')}</th>`:''}${C('wip')?`<th class="num">WIP${rptColEye('wip')}</th>`:''}${C('sent')?`<th class="num">ส่งชุบ/คัด${rptColEye('sent')}</th>`:''}${C('qt')?`<th class="num">Q-Time${rptColEye('qt')}</th>`:''}${C('pldate')?`<th>วันที่รับชุบ${rptColEye('pldate')}</th>`:''}${C('plqty')?`<th class="num">รับชุบ${rptColEye('plqty')}</th>`:''}${C('plpend')?`<th class="num">ค้างชุบ${rptColEye('plpend')}</th>`:''}${C('qcdate')?`<th>วันที่คัด${rptColEye('qcdate')}</th>`:''}${C('ok')?`<th class="num">OK${rptColEye('ok')}</th>`:''}${C('ng')?`<th class="num">NG${rptColEye('ng')}</th>`:''}${C('sidate')?`<th>วันที่เข้าสต๊อค${rptColEye('sidate')}</th>`:''}${C('siqty')?`<th class="num">เข้าสต๊อค${rptColEye('siqty')}</th>`:''}${C('sum')?`<th>สรุป${rptColEye('sum')}</th>`:''}<th></th>
+      <th>Part Number</th>${C('cust')?`<th>ลูกค้า${rptColEye('cust')}</th>`:''}${C('maker')?`<th>ผู้ผลิต${rptColEye('maker')}</th>`:''}${C('pdate')?`<th>วันที่สั่ง/ผลิต${rptColEye('pdate')}</th>`:''}${C('po')?`<th>PO เลขที่${rptColEye('po')}</th>`:''}${C('ord')?`<th class="num">สั่ง/ผลิต${rptColEye('ord')}</th>`:''}${C('rwdate')?`<th>วันที่รับงาน${rptColEye('rwdate')}</th>`:''}${C('rwqty')?`<th class="num">รับงาน${rptColEye('rwqty')}</th>`:''}${C('wip')?`<th class="num">WIP${rptColEye('wip')}</th>`:''}${C('sent')?`<th class="num">ส่งชุบ/คัด${rptColEye('sent')}</th>`:''}${C('qt')?`<th class="num">Q-Time${rptColEye('qt')}</th>`:''}${C('pldate')?`<th>วันที่รับชุบ${rptColEye('pldate')}</th>`:''}${C('plqty')?`<th class="num">รับชุบ${rptColEye('plqty')}</th>`:''}${C('plpend')?`<th class="num">ค้างชุบ${rptColEye('plpend')}</th>`:''}${C('qcdate')?`<th>วันที่คัด${rptColEye('qcdate')}</th>`:''}${C('ok')?`<th class="num">OK${rptColEye('ok')}</th>`:''}${C('ng')?`<th class="num">NG${rptColEye('ng')}</th>`:''}${C('sidate')?`<th>วันที่เข้าสต๊อค${rptColEye('sidate')}</th>`:''}${C('siqty')?`<th class="num">เข้าสต๊อค${rptColEye('siqty')}</th>`:''}${C('sum')?`<th>สรุป${rptColEye('sum')}</th>`:''}<th></th>
     </tr></thead><tbody id="rptOvRows">`;
     html+=poRows.map(row=>{const p=row.p;const ordered=row.ordered;const a=rptPOAgg(row.poNo,p.id);
       const flow=prodFlow(p);const isPlate=flow==='ชุบ-QC';const isQC=flow!=='ไม่ชุบ'&&!isDirectFlow(flow);
@@ -4973,6 +4974,7 @@ function viewReport(el){
       return `<tr data-cust="${esc((p.customer||'').toLowerCase())}" data-po="${esc(String(row.poNo||'').toLowerCase())}" data-pn="${esc(String(p.pn).toLowerCase())}" data-date="${esc(row.date||'')}" data-wip="${wip}" data-qt="${qt}" data-bal="${outst}" data-ord="${ordered}">
         <td class="pn linkish" onclick="rptPick('${esc(p.pn)}')"><b>${esc(p.pn)}</b> <span class="muted">${esc(p.name||'')}</span></td>
         ${C('cust')?`<td>${esc(p.customer||'')}</td>`:''}
+        ${C('maker')?`<td>${esc(row.maker||a.maker||'')||dash}</td>`:''}
         ${C('pdate')?`<td class="muted">${esc(row.date)||dash}</td>`:''}
         ${C('po')?`<td class="pn">${esc(row.poNo||'')||dash}</td>`:''}
         ${C('ord')?`<td class="num"><b>${fmt(ordered)}</b></td>`:''}
