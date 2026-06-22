@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='PNDOT-2026.06.20y';
+const APP_BUILD='INVSORT-2026.06.20z';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -668,7 +668,7 @@ function recentMovesTable(n){
 /* ============================================================
    INVENTORY
    ============================================================ */
-let invFilter={q:'',type:'all',cust:'',plating:'',cond:''};
+let invFilter={q:'',type:'all',cust:'',plating:'',cond:'',sort:''};
 var invCols=(function(){try{return Object.assign({salePrice:true,prodPrice:true,plating:true,cond:true,flow:true,qtime:true,adj:true,tin:true,tout:true,ng:true,atp:true,rcv:true},JSON.parse(localStorage.getItem('rtk_invcols')||'{}'))}catch(e){return {salePrice:true,prodPrice:true,plating:true,cond:true,flow:true,qtime:true,adj:true,tin:true,tout:true,ng:true,atp:true,rcv:true}}})();
 function invColToggle(k){invCols[k]=!invCols[k];try{localStorage.setItem('rtk_invcols',JSON.stringify(invCols))}catch(e){}renderInvTable();}
 var ivShowFlow=(function(){try{return localStorage.getItem('rtk_ivflow')!=='0'}catch(e){return true}})();
@@ -807,6 +807,7 @@ function viewInventory(el){
       <input list="dl_invcust" placeholder="👥 ลูกค้า (พิมพ์ค้นหา)" value="${esc(invFilter.cust)}" oninput="invFilter.cust=this.value;renderInvTable()" style="max-width:170px;width:auto"><datalist id="dl_invcust">${custs.map(v=>'<option value="'+esc(v)+'">').join('')}</datalist>
       <input list="dl_invplt" placeholder="✨ การชุบ (พิมพ์ค้นหา)" value="${esc(invFilter.plating)}" oninput="invFilter.plating=this.value;renderInvTable()" style="max-width:150px;width:auto"><datalist id="dl_invplt"><option value="ไม่ชุบ"><option value="ไม่ชุบ-QC"><option value="ชุบ-QC"></datalist>
       <input list="dl_invcond" placeholder="🧱 เงื่อนไขวัตถุดิบ" value="${esc(invFilter.cond)}" oninput="invFilter.cond=this.value;renderInvTable()" style="max-width:180px;width:auto"><datalist id="dl_invcond"><option value="ลูกค้าจ่ายแมท"><option value="บริษัทซื้อแมท"></datalist>
+      <select onchange="invFilter.sort=this.value;renderInvTable()" style="max-width:150px;width:auto"><option value="" ${invFilter.sort?'':'selected'}>↕ เรียงตามเดิม</option><option value="new" ${invFilter.sort==='new'?'selected':''}>↓ ใหม่ → เก่า</option><option value="old" ${invFilter.sort==='old'?'selected':''}>↑ เก่า → ใหม่</option><option value="pn" ${invFilter.sort==='pn'?'selected':''}>PN: A → Z</option></select>
       <div class="right">
         <input type="file" id="balanceFile" accept=".json" style="display:none" onchange="applyBalanceUpdate(this)">
         <button class="btn" onclick="document.getElementById('balanceFile').click()">📊 อัปเดตยอดคงเหลือ</button>
@@ -915,7 +916,9 @@ function renderInvTable(){
   if(invFilter.cust){const cv=invFilter.cust.toLowerCase();list=list.filter(p=>(p.customer||'').toLowerCase().includes(cv));}
   if(invFilter.plating){const pv=invFilter.plating.toLowerCase(); list=list.filter(p=>prodFlow(p).toLowerCase().includes(pv)); }
   if(invFilter.cond){const cv=invFilter.cond.toLowerCase(); if(cv==='cust'||cv.indexOf('ลูกค้า')>=0)list=list.filter(p=>p.custSupplyMat); else if(cv==='own'||cv.indexOf('บริษัท')>=0)list=list.filter(p=>p.type==='FG'&&!p.custSupplyMat); }
-  list=list.slice().sort((a,b)=>a.pn.localeCompare(b.pn));
+  const _sv=invFilter.sort||'';
+  if(_sv==='new'||_sv==='old'){const _ord=new Map(DB.products.map((p,i)=>[p.id,i]));list=list.slice().sort((a,b)=>_sv==='new'?((_ord.get(b.id)||0)-(_ord.get(a.id)||0)):((_ord.get(a.id)||0)-(_ord.get(b.id)||0)));}
+  else list=list.slice().sort((a,b)=>String(a.pn).localeCompare(String(b.pn),undefined,{numeric:true}));
   if(!list.length){wrap.innerHTML=`<div class="empty"><div class="big">🔍</div><div class="t">ไม่พบรายการ</div></div>`;return}
   const sum=f=>list.reduce((s,p)=>s+(Number(f(p))||0),0);
   const tMoq=sum(p=>p.moq||p.reorder||0),tPrice=sum(p=>p.salePrice||0),tOn=sum(p=>p.onHand),tWip=sum(p=>p.wip),tPl=sum(p=>p.atPlating),tQC=sum(p=>p.passedQC);
