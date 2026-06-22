@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='INVDATE-2026.06.21a';
+const APP_BUILD='PRODDATE-2026.06.21b';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -1004,7 +1004,10 @@ function openProductForm(id){
         <option value="SUP" ${p&&p.type==='SUP'?'selected':''}>วัสดุสิ้นเปลือง</option></select></div>
       <div class="field"><label>Part Number <span class="req">*</span></label><input id="f_pn" value="${p?esc(p.pn):''}" placeholder="เช่น 40051848"></div>
     </div>
-    <div class="field"><label>ชื่อสินค้า</label><input id="f_name" value="${p?esc(p.name):''}" placeholder="เช่น SHAFT, SEAT, BUSH"></div>
+    <div class="row c2">
+      <div class="field"><label>ชื่อสินค้า</label><input id="f_name" value="${p?esc(p.name):''}" placeholder="เช่น SHAFT, SEAT, BUSH"></div>
+      <div class="field"><label>วันที่</label><input type="date" id="f_date" value="${p?esc(p.date||todayISO()):todayISO()}"></div>
+    </div>
     <div class="row c2">
       <div class="field"><label>ลูกค้า</label><input id="f_cust" list="dl_cust" value="${p?esc(p.customer):''}"><datalist id="dl_cust">${cust.map(c=>`<option value="${esc(c)}">`).join('')}</datalist></div>
       <div class="field"><label>วัตถุดิบ (เกรด)</label><input id="f_mat" value="${p?esc(p.material):''}" placeholder="S45C, SS400, 6R..."></div>
@@ -1035,7 +1038,7 @@ function saveProduct(id){
   let p=id?P(id):null;
   if(!p){p=mkProduct(type,{pn,name:'',cust:''});p.onHand=Number(v('f_open').value)||0;DB.products.push(p);
     if(p.onHand)move(p.id,'onHand',p.onHand,'ADJ','ยอดยกมา','ยอดยกมาตั้งต้น');}
-  p.type=type;p.pn=pn;p.name=v('f_name').value.trim()||'-';p.customer=v('f_cust').value.trim()||'ไม่ระบุ';
+  p.type=type;p.pn=pn;p.name=v('f_name').value.trim()||'-';p.customer=v('f_cust').value.trim()||'ไม่ระบุ';if(v('f_date'))p.date=v('f_date').value||p.date||todayISO();
   p.material=v('f_mat').value.trim();p.reorder=Number(v('f_reorder').value)||0;
   p.salePrice=Number(v('f_sale').value)||0;p.buyPrice=Number(v('f_buy').value)||0;p.prodPrice=Number((v('f_prodprice')||{}).value)||0;p.remark=v('f_remark').value.trim();
   {const flow=(v('f_flow')&&v('f_flow').value)||'ไม่ชุบ-QC';p.flow=flow;p.needPlating=(flow==='ชุบ-QC');p.needQC=(flow!=='ไม่ชุบ'&&!isDirectFlow(flow));p.plating=(flow==='ชุบ-QC')?((v('f_plt')&&v('f_plt').value.trim())||'ชุบ'):'';p.custSupplyMat=(type==='FG'&&v('f_csm'))?v('f_csm').checked:false;}
