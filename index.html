@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='POHDR-2026.06.20w';
+const APP_BUILD='POABBR-2026.06.20x';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -3825,8 +3825,8 @@ function openPurchaseForm(edit){
       <div class="field"><label>กำหนดส่ง</label><input type="date" id="pu_due" value="${edit?(edit.deliveryDate||''):''}"></div>
     </div>
     <div class="row c3">
-      <div class="field"><label>รหัสผู้ขาย/ผลิต (NO.)</label><input id="pu_code" list="dl_pucode" onchange="puCodeFill()" value="${edit?esc(edit.vendorCode||''):''}" placeholder="ใส่รหัส → ดึงชื่อ"><datalist id="dl_pucode">${makers.map(m=>`<option value="${esc(m.code||'')}">${esc(m.name||'')}</option>`).join('')}</datalist></div>
-      <div class="field"><label>ผู้ขาย (Supplier) ตัวย่อ</label><input id="pu_abbr" list="dl_puabbr" onchange="puAbbrFill()" value="${edit?esc(edit.supplierAbbr||''):''}" placeholder="ใส่ตัวย่อ → ดึงชื่อ"><datalist id="dl_puabbr">${makers.filter(m=>m.abbr).map(m=>`<option value="${esc(m.abbr)}">${esc(m.name||'')}</option>`).join('')}</datalist></div>
+      <div class="field"><label>รหัสผู้ขาย/ผลิต (NO.)</label><input id="pu_code" list="dl_pucode" onchange="puCodeFill()" oninput="puCodeFill()" value="${edit?esc(edit.vendorCode||''):''}" placeholder="ใส่รหัส → ดึงชื่อ"><datalist id="dl_pucode">${makers.map(m=>`<option value="${esc(m.code||'')}">${esc(m.name||'')}</option>`).join('')}</datalist></div>
+      <div class="field"><label>ผู้ขาย (Supplier) ตัวย่อ</label><input id="pu_abbr" list="dl_puabbr" onchange="puAbbrFill()" oninput="puAbbrFill()" value="${edit?esc(edit.supplierAbbr||''):''}" placeholder="ใส่ตัวย่อ → ดึงชื่อ"><datalist id="dl_puabbr">${makers.filter(m=>m.abbr).map(m=>`<option value="${esc(m.abbr)}">${esc(m.name||'')}</option>`).join('')}</datalist></div>
       <div class="field"><label>ประเภท</label><select id="pu_type" onchange="puTypeHint()"><option value="RM" ${edit&&edit.poType==='SUP'?'':'selected'}>วัตถุดิบ</option><option value="SUP" ${edit&&edit.poType==='SUP'?'selected':''}>วัสดุสิ้นเปลือง</option></select></div>
     </div>
     <div class="row c2">
@@ -3852,7 +3852,7 @@ function openPurchaseForm(edit){
   setTimeout(()=>{renderPoLines();puTypeHint();},15);
 }
 function puCodeFill(){const c=((document.getElementById('pu_code')||{}).value||'').trim();if(!c)return;const setF=(id,val)=>{const e=document.getElementById(id);if(e&&val)e.value=val;};const m=makerByCode(c);if(m){setF('pu_sup',m.name||c);setF('pu_tax',m.taxId||'');setF('pu_addr',m.address||'');setF('pu_tel',m.tel||'');setF('pu_contact',m.contact||'');}else{const r=resolveSupplier(c);setF('pu_sup',r.name||c);if(r.taxId)setF('pu_tax',r.taxId);}}
-function puAbbrFill(){const a=((document.getElementById('pu_abbr')||{}).value||'').trim();if(!a)return;const setF=(id,val)=>{const e=document.getElementById(id);if(e&&val)e.value=val;};let m=(DB.settings.makers||[]).find(x=>(x.abbr||'').toLowerCase()===a.toLowerCase())||(DB.settings.makers||[]).find(x=>(x.code||'')===a);if(m){setF('pu_sup',m.name||a);setF('pu_tax',m.taxId||'');setF('pu_addr',m.address||'');setF('pu_tel',m.tel||'');setF('pu_contact',m.contact||'');}else{const r=resolveSupplier(a);setF('pu_sup',r.name||a);if(r.taxId)setF('pu_tax',r.taxId);}}
+function puAbbrFill(){const a=((document.getElementById('pu_abbr')||{}).value||'').trim();if(!a)return;const al=a.toLowerCase();const setF=(id,val)=>{const e=document.getElementById(id);if(e&&val)e.value=val;};let m=(DB.settings.makers||[]).find(x=>(x.abbr||'').toLowerCase()===al)||(DB.settings.makers||[]).find(x=>(x.code||'')===a);if(m){setF('pu_sup',m.name||a);setF('pu_tax',m.taxId||'');setF('pu_addr',m.address||'');setF('pu_tel',m.tel||'');setF('pu_contact',m.contact||'');return;}const sp=(DB.settings.supList||[]).find(x=>(x.shortName||'').toLowerCase()===al)||(DB.settings.supList||[]).find(x=>(x.code||'')===a);if(sp){setF('pu_sup',sp.name||a);setF('pu_tax',sp.taxId||'');setF('pu_addr',sp.address||'');setF('pu_tel',sp.tel||'');setF('pu_contact',sp.contact||'');return;}const r=resolveSupplier(a);setF('pu_sup',r.name||a);if(r.taxId)setF('pu_tax',r.taxId);}
 function puSupFill(){const e=document.getElementById('pu_sup');if(!e||!e.value.trim())return;const r=resolveSupplier(e.value);const t=document.getElementById('pu_tax');if(t&&r.taxId&&!t.value)t.value=r.taxId;}
 function puTypeHint(){const el=document.getElementById('puTypeHint');if(!el)return;const t=((document.getElementById('pu_type')||{}).value)||'RM';el.innerHTML=t==='SUP'?'<div class="hint" style="margin:0"><span class="i">🧰</span><div>ประเภท <b>วัสดุสิ้นเปลือง</b>: เมื่อบันทึก ระบบจะส่งรายการเข้าเมนู <b>วัสดุสิ้นเปลือง</b> · เพิ่มยอด <b>คงเหลือ (เข้าทันที)</b> · และส่งเข้า <b>ภาษีซื้อ</b> อัตโนมัติ</div></div>':'';}
 function addPoLine(){poLines.push({productId:'',name:'',qty:'',bars:'',unit:'Kgs.',price:''});renderPoLines()}
