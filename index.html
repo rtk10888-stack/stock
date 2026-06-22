@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='RMCINV-2026.06.20k';
+const APP_BUILD='RMCAUTO-2026.06.20l';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -650,18 +650,18 @@ function recentMovesTable(n){
    INVENTORY
    ============================================================ */
 let invFilter={q:'',type:'all',cust:'',plating:'',cond:''};
-var invCols=(function(){try{return Object.assign({salePrice:true,prodPrice:true,plating:true,cond:true,flow:true,qtime:true,adj:true,tin:true,tout:true,ng:true},JSON.parse(localStorage.getItem('rtk_invcols')||'{}'))}catch(e){return {salePrice:true,prodPrice:true,plating:true,cond:true,flow:true,qtime:true,adj:true,tin:true,tout:true,ng:true}}})();
+var invCols=(function(){try{return Object.assign({salePrice:true,prodPrice:true,plating:true,cond:true,flow:true,qtime:true,adj:true,tin:true,tout:true,ng:true,atp:true,rcv:true},JSON.parse(localStorage.getItem('rtk_invcols')||'{}'))}catch(e){return {salePrice:true,prodPrice:true,plating:true,cond:true,flow:true,qtime:true,adj:true,tin:true,tout:true,ng:true,atp:true,rcv:true}}})();
 function invColToggle(k){invCols[k]=!invCols[k];try{localStorage.setItem('rtk_invcols',JSON.stringify(invCols))}catch(e){}renderInvTable();}
 var ivShowFlow=(function(){try{return localStorage.getItem('rtk_ivflow')!=='0'}catch(e){return true}})();
 function ivFlowColToggle(){ivShowFlow=!ivShowFlow;try{localStorage.setItem('rtk_ivflow',ivShowFlow?'1':'0')}catch(e){}viewDocs('INV');}
 function invColEye(k){return '<span onclick="event.stopPropagation();invColToggle(\''+k+'\')" style="cursor:pointer;opacity:.55;font-size:11px;margin-left:3px" title="ซ่อนคอลัมน์นี้">🙈</span>';}
-function invColReset(){invCols={salePrice:true,prodPrice:true,plating:true,cond:true,flow:true,qtime:true,adj:true,tin:true,tout:true,ng:true};try{localStorage.setItem('rtk_invcols',JSON.stringify(invCols))}catch(e){}renderInvTable();openColMenu();}
+function invColReset(){invCols={salePrice:true,prodPrice:true,plating:true,cond:true,flow:true,qtime:true,adj:true,tin:true,tout:true,ng:true,atp:true,rcv:true};try{localStorage.setItem('rtk_invcols',JSON.stringify(invCols))}catch(e){}renderInvTable();openColMenu();}
 var dashCols=(function(){try{return Object.assign({tax:true,taxsale:true,vat:true,wht:true,nc:true,plate:true,sales:true,kpi:true},JSON.parse(localStorage.getItem('rtk_dashcols')||'{}'))}catch(e){return {tax:true,taxsale:true,vat:true,wht:true,nc:true,plate:true,sales:true,kpi:true}}})();
 function dashColToggle(k){dashCols[k]=!dashCols[k];try{localStorage.setItem('rtk_dashcols',JSON.stringify(dashCols))}catch(e){}render();}
 function dashColReset(){dashCols={tax:true,taxsale:true,vat:true,wht:true,nc:true,plate:true,sales:true,kpi:true};try{localStorage.setItem('rtk_dashcols',JSON.stringify(dashCols))}catch(e){}render();openDashColMenu();}
 function dashEye(k){return '<span style="position:absolute;top:5px;right:7px;cursor:pointer;opacity:.45;font-size:11px" onclick="event.stopPropagation();dashColToggle(\''+k+'\')" title="ซ่อนการ์ดนี้">🙈</span>';}
 function openDashColMenu(){const cols=[['tax','ภาษีซื้อ'],['taxsale','ภาษีขาย'],['vat','VAT สุทธิ'],['wht','หัก ณ ที่จ่าย'],['nc','งานเสีย NC'],['plate','ส่งชุบคงค้าง'],['sales','ยอดขายปีนี้'],['kpi','KPI']];modal({title:'👁 เลือกการ์ดสรุปที่แสดง',body:'<div class="hint" style="margin-bottom:8px"><span class="i">💡</span><div>ติ๊กแสดง/ซ่อนการ์ด (จำเฉพาะเครื่องนี้)</div></div>'+cols.map(c=>`<label style="display:flex;gap:8px;align-items:center;padding:5px 2px;font-size:13.5px"><input type="checkbox" ${dashCols[c[0]]!==false?'checked':''} onchange="dashColToggle('${c[0]}')"> ${c[1]}</label>`).join(''),footer:`<button class="btn" onclick="dashColReset()">↺ แสดงทั้งหมด</button><button class="btn pri" onclick="closeModal()">ปิด</button>`});}
-function openColMenu(){const cols=[['salePrice','ราคาขาย'],['prodPrice','ราคาผลิต'],['plating','การชุบ'],['cond','เงื่อนไขวัตถุดิบ'],['flow','สถานะการไหล'],['qtime','Q-Time (พักงานรอคัดแยก)'],['adj','ปรับยอด'],['tin','รวมรับ'],['tout','รวมจ่าย'],['ng','NG']];modal({title:'👁 เลือกคอลัมน์ที่แสดง',body:'<div class="hint" style="margin-bottom:8px"><span class="i">💡</span><div>ติ๊กเพื่อแสดง/ซ่อนคอลัมน์ (จำเฉพาะเครื่องนี้) · หรือกด 🙈 ที่หัวคอลัมน์เพื่อซ่อนเร็ว</div></div>'+cols.map(c=>`<label style="display:flex;gap:8px;align-items:center;padding:6px 2px;font-size:13.5px"><input type="checkbox" ${invCols[c[0]]!==false?'checked':''} onchange="invColToggle('${c[0]}')"> ${c[1]}</label>`).join(''),footer:`<button class="btn" onclick="invColReset()">↺ แสดงทั้งหมด</button><button class="btn pri" onclick="closeModal()">ปิด</button>`});}
+function openColMenu(){const cols=[['salePrice','ราคาขาย'],['prodPrice','ราคาผลิต'],['plating','การชุบ'],['cond','เงื่อนไขวัตถุดิบ'],['flow','สถานะการไหล'],['qtime','Q-Time (พักงานรอคัดแยก)'],['adj','ปรับยอด'],['tin','รวมรับ'],['tout','รวมจ่าย'],['ng','NG'],['atp','ชุบ (อยู่ระหว่างชุบ)'],['rcv','รอรับเข้า (คัดผ่าน)']];modal({title:'👁 เลือกคอลัมน์ที่แสดง',body:'<div class="hint" style="margin-bottom:8px"><span class="i">💡</span><div>ติ๊กเพื่อแสดง/ซ่อนคอลัมน์ (จำเฉพาะเครื่องนี้) · หรือกด 🙈 ที่หัวคอลัมน์เพื่อซ่อนเร็ว</div></div>'+cols.map(c=>`<label style="display:flex;gap:8px;align-items:center;padding:6px 2px;font-size:13.5px"><input type="checkbox" ${invCols[c[0]]!==false?'checked':''} onchange="invColToggle('${c[0]}')"> ${c[1]}</label>`).join(''),footer:`<button class="btn" onclick="invColReset()">↺ แสดงทั้งหมด</button><button class="btn pri" onclick="closeModal()">ปิด</button>`});}
 function flowRefToggle(){const b=document.getElementById('flowRefBody');if(!b)return;const s=b.style.display==='none';b.style.display=s?'':'none';const t=document.getElementById('flowRefBtn');if(t)t.textContent=s?'▲ ซ่อนเงื่อนไข':'▼ ดู/ปรับเงื่อนไขการไหล';}
 function flowRefHTML(open){
   const cell='style="border:1px solid var(--line);padding:6px"';
@@ -905,7 +905,7 @@ function renderInvTable(){
   const tQt=list.reduce((s,p)=>{const v=qtOf(p);return s+(v||0);},0);
   wrap.innerHTML=`<div class="tbl-wrap"><table><thead><tr>
     <th>ประเภท</th><th>Part Number</th><th>ชื่อ</th><th>ลูกค้า</th><th class="num">MOQ</th>${invCols.salePrice?`<th class="num">ราคาขาย${invColEye('salePrice')}</th>`:''}${invCols.prodPrice?`<th class="num">ราคาผลิต${invColEye('prodPrice')}</th>`:''}${invCols.plating?`<th>การชุบ${invColEye('plating')}</th>`:''}${invCols.cond?`<th>เงื่อนไขวัตถุดิบ${invColEye('cond')}</th>`:''}${invCols.flow!==false?`<th>สถานะการไหล${invColEye('flow')}</th>`:''}${invCols.adj!==false?`<th class="num">ปรับยอด${invColEye('adj')}</th>`:''}${invCols.tin!==false?`<th class="num">รวมรับ${invColEye('tin')}</th>`:''}${invCols.tout!==false?`<th class="num">รวมจ่าย${invColEye('tout')}</th>`:''}${invCols.ng!==false?`<th class="num">NG${invColEye('ng')}</th>`:''}
-    <th class="num">คงเหลือ</th><th class="num">WIP</th>${invCols.qtime!==false?`<th class="num">Q-Time${invColEye('qtime')}</th>`:''}<th class="num">ชุบ</th><th class="num">รอรับเข้า</th><th></th>
+    <th class="num">คงเหลือ</th><th class="num">WIP</th>${invCols.qtime!==false?`<th class="num">Q-Time${invColEye('qtime')}</th>`:''}${invCols.atp!==false?`<th class="num">ชุบ${invColEye('atp')}</th>`:''}${invCols.rcv!==false?`<th class="num">รอรับเข้า${invColEye('rcv')}</th>`:''}<th></th>
   </tr></thead><tbody>
   ${list.map(p=>{
     const low=p.onHand<=(p.reorder||0)&&(p.reorder>0||p.onHand===0);
@@ -930,14 +930,14 @@ function renderInvTable(){
       <td class="num"><b style="color:${low?'var(--red)':'var(--ink)'}">${fmt(p.onHand)}</b>${p.type==='RM'&&(p.barsOnHand||0)?'<br><span style="font-size:10.5px;color:var(--brand)">'+fmt(p.barsOnHand)+' เส้น</span>':''}</td>
       <td class="num ${p.wip?'':'muted'}">${fmt(p.wip)}</td>
       ${invCols.qtime!==false?(()=>{const v=qtOf(p);return `<td class="num ${v?'':'muted'}" title="พักงานรอคัดแยก (รับเข้า−คัดแยก−อยู่ระหว่างชุบ)">${v==null?'<span class="muted">—</span>':(v?'<b style="color:var(--amber,#b45309)">'+fmt(v)+'</b>':'0')}</td>`;})():''}
-      <td class="num ${p.atPlating?'':'muted'}">${fmt(p.atPlating)}</td>
-      <td class="num ${p.passedQC?'':'muted'}">${fmt(p.passedQC)}</td>
+      ${invCols.atp!==false?`<td class="num ${p.atPlating?'':'muted'}">${fmt(p.atPlating)}</td>`:''}
+      ${invCols.rcv!==false?`<td class="num ${p.passedQC?'':'muted'}">${fmt(p.passedQC)}</td>`:''}
       <td style="text-align:right;white-space:nowrap"><button class="btn sm" onclick="openProduct('${p.id}')">ดู</button> <button class="btn sm" onclick="printProductCard('${p.id}')" title="พิมพ์บัตรสินค้า">🖨️</button> <button class="btn sm" onclick="openProductForm('${p.id}')">✏️ แก้ไข</button> <button class="btn sm danger" onclick="delProduct('${p.id}')">🗑️ ลบ</button></td>
     </tr>`}).join('')}
   </tbody><tfoot><tr style="font-weight:700;background:var(--panel2);border-top:2px solid var(--line)">
     <td colspan="4">SUBTOTAL — ${list.length} รายการ</td>
     <td class="num">${fmt(tMoq)}</td>${invCols.salePrice?`<td class="num">${fmt2(tPrice)}</td>`:''}${invCols.prodPrice?`<td></td>`:''}${invCols.plating?`<td></td>`:''}${invCols.cond?`<td></td>`:''}${invCols.flow!==false?`<td></td>`:''}${invCols.adj!==false?`<td class="num">${(tAdj>0?'+':'')+fmt(tAdj)}</td>`:''}${invCols.tin!==false?`<td class="num">${fmt(tTin)}</td>`:''}${invCols.tout!==false?`<td class="num">${fmt(tTout)}</td>`:''}${invCols.ng!==false?`<td class="num">${fmt(tNg)}</td>`:''}
-    <td class="num">${fmt(tOn)}</td><td class="num">${fmt(tWip)}</td>${invCols.qtime!==false?`<td class="num">${fmt(tQt)}</td>`:''}<td class="num">${fmt(tPl)}</td><td class="num">${fmt(tQC)}</td><td></td>
+    <td class="num">${fmt(tOn)}</td><td class="num">${fmt(tWip)}</td>${invCols.qtime!==false?`<td class="num">${fmt(tQt)}</td>`:''}${invCols.atp!==false?`<td class="num">${fmt(tPl)}</td>`:''}${invCols.rcv!==false?`<td class="num">${fmt(tQC)}</td>`:''}<td></td>
   </tr></tfoot></table></div>`;
   if(typeof setupDualScroll==='function'){setupDualScroll();setTimeout(setupDualScroll,30);}
 }
@@ -6253,12 +6253,18 @@ function openRMCForm(edit){
   `,footer:`<button class="btn" onclick="closeModal()">ยกเลิก</button><button class="btn pri" onclick="submitRMC('${edit?edit.id:''}')">บันทึก + เข้าคงเหลือ</button>`});
 }
 function rmcPartPick(){const v=((document.getElementById('rm_part')||{}).value||'').trim();const p=DB.products.find(x=>x.type==='FG'&&x.pn===v);if(p){const nm=document.getElementById('rm_pname');if(nm&&!nm.value&&p.name&&p.name!=='-')nm.value=p.name;const cu=document.getElementById('rm_cust');if(cu&&!cu.value&&p.customer&&p.customer!=='ไม่ระบุ')cu.value=p.customer;}}
+function rmcEnsureProduct(partNo,name,cust){
+  partNo=(partNo||'').trim();if(!partNo)return null;
+  let p=DB.products.find(x=>x.pn===partNo&&(x.type==='RMC'||x.type==='FG'))||findProdByName(partNo,'FG')||findProdByName(partNo,'RMC');
+  if(!p){p={id:uid(),type:'RMC',pn:partNo,name:(name||'').trim()||'-',customer:(cust||'').trim()||'ไม่ระบุ',moq:0,material:'',plating:'',needPlating:false,custSupplyMat:false,flow:'รับแมทลูกค้า',prodPrice:0,salePrice:0,buyPrice:0,supplier:'',remark:'',onHand:0,wip:0,atPlating:0,passedQC:0,ng:0,reorder:0};DB.products.push(p);}
+  return p;
+}
 function submitRMC(editId){
   const v=k=>((document.getElementById(k)||{}).value||'').trim();
   const partNo=v('rm_part');const qty=Number(v('rm_qty'))||0;
   if(!partNo){toast('กรุณาระบุ Part Number','err');return;}
   if(qty<=0){toast('กรุณาระบุจำนวน','err');return;}
-  const p=DB.products.find(x=>x.type==='FG'&&x.pn===partNo)||findProdByName(partNo,'FG');
+  const p=rmcEnsureProduct(partNo,v('rm_pname'),v('rm_cust'));
   let d;
   if(editId){d=DB.docs.find(x=>x.id===editId);if(!d)return;if(d.status==='approved')reverseDoc(d);}
   else{d={id:uid(),type:'RMC',ts:Date.now()};DB.docs.push(d);}
@@ -6288,8 +6294,9 @@ async function bulkImportRMC(input){
     for(let i=bestHr+1;i<best.length;i++){const r=best[i];if(!r)continue;
       const partNo=String(r[c.part]==null?'':r[c.part]).trim();if(!partNo||/part number/i.test(partNo))continue;
       const qty=c.qty>=0?Math.round(Number(String(r[c.qty]).replace(/,/g,''))||0):0;if(qty<=0)continue;
-      const p=byPn[partNo]||findProdByName(partNo,'FG');
-      const d={id:uid(),type:'RMC',ts:Date.now()+added,no:nextNo('RMC'),date:c.date>=0?xlDate(r[c.date]):'',orderNo:c.order>=0?String(r[c.order]==null?'':r[c.order]).trim():'',maker:c.maker>=0?String(r[c.maker]==null?'':r[c.maker]).trim():'',productId:p?p.id:'',partNo:partNo,partName:c.pname>=0?String(r[c.pname]==null?'':r[c.pname]).trim():'',customer:c.cust>=0?String(r[c.cust]==null?'':r[c.cust]).trim():'',qty:qty,note:c.note>=0?String(r[c.note]==null?'':r[c.note]).trim():'',status:'approved',imported:true};
+      const _pname=c.pname>=0?String(r[c.pname]==null?'':r[c.pname]).trim():'';const _cust=c.cust>=0?String(r[c.cust]==null?'':r[c.cust]).trim():'';
+      const p=byPn[partNo]||rmcEnsureProduct(partNo,_pname,_cust);
+      const d={id:uid(),type:'RMC',ts:Date.now()+added,no:nextNo('RMC'),date:c.date>=0?xlDate(r[c.date]):'',orderNo:c.order>=0?String(r[c.order]==null?'':r[c.order]).trim():'',maker:c.maker>=0?String(r[c.maker]==null?'':r[c.maker]).trim():'',productId:p?p.id:'',partNo:partNo,partName:_pname,customer:_cust,qty:qty,note:c.note>=0?String(r[c.note]==null?'':r[c.note]).trim():'',status:'approved',imported:true};
       DB.docs.push(d);doApprove(d);if(d.customer&&!DB.settings.customers.includes(d.customer))DB.settings.customers.push(d.customer);
       added++;if(p)matched++;
     }
