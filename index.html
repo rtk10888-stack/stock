@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='INVMOVE-2026.06.20g';
+const APP_BUILD='SUPPO-2026.06.20h';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -268,9 +268,9 @@ function DEFAULT_MAKERS(){return [
 function ensureSettings(){const s=DB&&DB.settings;if(!s)return;if(!s.company)s.company=DEFAULT_COMPANY();if(s.company&&!s.company.poSign)s.company.poSign=DEFAULT_COMPANY().poSign;if(s.company&&s.company.poSign&&/[ก-๙]/.test(JSON.stringify(s.company.poSign)))s.company.poSign=DEFAULT_COMPANY().poSign;if(s.company&&!s.company.thName)s.company.thName=DEFAULT_COMPANY().thName;if(s.company&&s.company.address&&s.company.address.indexOf('ออนนุช')>=0)s.company.address=DEFAULT_COMPANY().address;if(s.company&&!s.company.addressEn)s.company.addressEn=DEFAULT_COMPANY().addressEn;if(!s.makers||!s.makers.length)s.makers=DEFAULT_MAKERS();if(s.passcode===undefined)s.passcode='';if(!s.suppliers)s.suppliers=[];if(!s.customers)s.customers=[];if(!s.platings)s.platings=[];if(!s.flows||!s.flows.length)s.flows=[{name:'ไม่ชุบ',direct:true},{name:'ไม่ชุบ-QC',direct:false},{name:'ชุบ-QC',direct:false}];if(!s.custList)s.custList=(s.customers||[]).map(n=>({name:n}));if(!s.supList)s.supList=(s.suppliers||[]).map(n=>({name:n}));(s.customers||[]).forEach(n=>{if(n&&!s.custList.find(c=>c.name===n))s.custList.push({name:n});});(s.suppliers||[]).forEach(n=>{if(n&&!s.supList.find(c=>c.name===n))s.supList.push({name:n});});s.customers=s.custList.map(c=>c.name).filter(Boolean);s.suppliers=s.supList.map(c=>c.name).filter(Boolean);}
 function makerByCode(code){return (DB.settings.makers||[]).find(m=>m.code===code)||null;}
 function fmt2(n){return (Number(n)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}
-function prodFlow(p){if(!p)return'';if(p.flow)return p.flow;if(p.type==='RM'||p.type==='SUP')return'ไม่ชุบ';const pl=(p.plating||'').trim();if(pl==='ไม่ชุบ'||pl==='ไม่ชุบ-QC'||pl==='ชุบ-QC')return pl;if(p.needPlating&&pl)return'ชุบ-QC';return'ไม่ชุบ-QC';}
+function prodFlow(p){if(!p)return'';if(p.flow)return p.flow;if(p.type==='RM'||p.type==='SUP')return'ไม่ชุบ';if(p.type==='RMC')return'รับแมทลูกค้า';const pl=(p.plating||'').trim();if(pl==='ไม่ชุบ'||pl==='ไม่ชุบ-QC'||pl==='ชุบ-QC')return pl;if(p.needPlating&&pl)return'ชุบ-QC';return'ไม่ชุบ-QC';}
 function platingSpec(p){if(!p)return'';const pl=(p.plating||'').trim();if(pl==='ไม่ชุบ'||pl==='ไม่ชุบ-QC'||pl==='ชุบ-QC')return'';return pl;}
-function flowEnsure(){if(!DB.settings)return;if(!DB.settings.flows||!DB.settings.flows.length)DB.settings.flows=[{name:'ไม่ชุบ',direct:true},{name:'ไม่ชุบ-QC',direct:false},{name:'ชุบ-QC',direct:false}];}
+function flowEnsure(){if(!DB.settings)return;const def=[{name:'ไม่ชุบ',direct:true},{name:'ไม่ชุบ-QC',direct:false},{name:'ชุบ-QC',direct:false},{name:'รับแมทลูกค้า',direct:true},{name:'วัสดุสิ้นเปลือง',direct:true}];if(!DB.settings.flows||!DB.settings.flows.length){DB.settings.flows=def.map(d=>Object.assign({},d));return;}def.forEach(d=>{if(!DB.settings.flows.some(f=>f.name===d.name))DB.settings.flows.push(Object.assign({},d));});}
 function flowList(){flowEnsure();return DB.settings.flows||[];}
 function isDirectFlow(name){const f=(DB.settings.flows||[]).find(x=>x.name===name);return f?!!f.direct:(name==='ไม่ชุบ');}
 function flowsEditor(){const arr=DB.settings.flows||[];return `<div class="panel"><div class="panel-h"><h2>🔄 เงื่อนไขการชุบ / การไหลของสต๊อค</h2><div class="right"><button class="btn sm" onclick="flowAdd()">+ เพิ่มเงื่อนไข</button></div></div><div class="panel-b"><div style="display:flex;flex-direction:column;gap:7px">${arr.map((f,i)=>`<div style="display:flex;gap:8px;align-items:center;border:1px solid var(--line);border-radius:8px;padding:6px 10px"><input value="${esc(f.name)}" onchange="flowSetName(${i},this.value)" style="flex:1;padding:5px 8px"><label style="font-size:12px;display:flex;gap:5px;align-items:center;white-space:nowrap"><input type="checkbox" ${f.direct?'checked':''} onchange="flowSetDirect(${i},this.checked)" style="width:auto"> เข้าคงเหลือทันที</label><span style="cursor:pointer;color:var(--red)" onclick="flowDel(${i})">🗑️</span></div>`).join('')||'<span class="muted">ยังไม่มีเงื่อนไข</span>'}</div><div class="hint" style="margin-top:8px"><span class="i">ℹ️</span><div>ติ๊ก "เข้าคงเหลือทันที" = รับเข้าแล้วเข้าคงเหลือเลย · ไม่ติ๊ก = เข้า WIP รอคัดแยก/ชุบก่อน</div></div></div></div>`;}
@@ -961,7 +961,9 @@ function openProductForm(id){
     <div class="row c2">
       <div class="field"><label>ประเภท <span class="req">*</span></label><select id="f_type">
         <option value="FG" ${!p||p.type==='FG'?'selected':''}>สินค้าสำเร็จรูป (ชิ้นงาน)</option>
-        <option value="RM" ${p&&p.type==='RM'?'selected':''}>วัตถุดิบ</option></select></div>
+        <option value="RM" ${p&&p.type==='RM'?'selected':''}>วัตถุดิบ</option>
+        <option value="RMC" ${p&&p.type==='RMC'?'selected':''}>รับแมทลูกค้า</option>
+        <option value="SUP" ${p&&p.type==='SUP'?'selected':''}>วัสดุสิ้นเปลือง</option></select></div>
       <div class="field"><label>Part Number <span class="req">*</span></label><input id="f_pn" value="${p?esc(p.pn):''}" placeholder="เช่น 40051848"></div>
     </div>
     <div class="field"><label>ชื่อสินค้า</label><input id="f_name" value="${p?esc(p.name):''}" placeholder="เช่น SHAFT, SEAT, BUSH"></div>
@@ -986,7 +988,7 @@ function openProductForm(id){
     <div class="field"><label>หมายเหตุ</label><input id="f_remark" value="${p?esc(p.remark):''}"></div>
     ${isEdit?'<div class="hint"><span class="i">ℹ️</span> ยอดคงเหลือปรับผ่านเอกสาร (รับเข้า/เบิก/ปรับยอด) เพื่อให้มีการอนุมัติและบันทึกประวัติ</div>':'<div class="field"><label>ยอดยกมา (สต๊อคตั้งต้น)</label><input type="number" id="f_open" value="0"></div>'}
   `,footer:`<button class="btn" onclick="closeModal()">ยกเลิก</button><button class="btn pri" onclick="saveProduct('${id||''}')">บันทึก</button>`});
-  setTimeout(()=>{const ts=document.getElementById('f_type');if(!ts)return;ts.onchange=()=>{}},10);
+  setTimeout(()=>{const ts=document.getElementById('f_type');if(!ts)return;ts.onchange=()=>{const fs=document.getElementById('f_flow');if(!fs)return;const t=ts.value;if(t==='SUP')fs.value='วัสดุสิ้นเปลือง';else if(t==='RMC')fs.value='รับแมทลูกค้า';else if(t==='RM')fs.value='ไม่ชุบ';};},10);
 }
 function saveProduct(id){
   const v=k=>document.getElementById(k);
@@ -998,7 +1000,7 @@ function saveProduct(id){
   p.type=type;p.pn=pn;p.name=v('f_name').value.trim()||'-';p.customer=v('f_cust').value.trim()||'ไม่ระบุ';
   p.material=v('f_mat').value.trim();p.reorder=Number(v('f_reorder').value)||0;
   p.salePrice=Number(v('f_sale').value)||0;p.buyPrice=Number(v('f_buy').value)||0;p.prodPrice=Number((v('f_prodprice')||{}).value)||0;p.remark=v('f_remark').value.trim();
-  {const flow=(v('f_flow')&&v('f_flow').value)||'ไม่ชุบ-QC';p.flow=flow;p.needPlating=(flow==='ชุบ-QC');p.needQC=(flow!=='ไม่ชุบ');p.plating=(flow==='ชุบ-QC')?((v('f_plt')&&v('f_plt').value.trim())||'ชุบ'):'';p.custSupplyMat=(type==='FG'&&v('f_csm'))?v('f_csm').checked:false;}
+  {const flow=(v('f_flow')&&v('f_flow').value)||'ไม่ชุบ-QC';p.flow=flow;p.needPlating=(flow==='ชุบ-QC');p.needQC=(flow!=='ไม่ชุบ'&&!isDirectFlow(flow));p.plating=(flow==='ชุบ-QC')?((v('f_plt')&&v('f_plt').value.trim())||'ชุบ'):'';p.custSupplyMat=(type==='FG'&&v('f_csm'))?v('f_csm').checked:false;}
   // register customer
   if(p.customer&&!DB.settings.customers.includes(p.customer))DB.settings.customers.push(p.customer);
   closeModal();render();toast(id?'บันทึกการแก้ไขแล้ว':'เพิ่มสินค้าใหม่แล้ว','ok');
@@ -3779,17 +3781,23 @@ function applyPurchaseImport(input){
   r.readAsText(f);
 }
 function openPurchaseForm(edit){
-  ensureSettings();const sups=DB.settings.suppliers||[];
+  ensureSettings();const sups=DB.settings.suppliers||[];const makers=DB.settings.makers||[];
   modal({title:'🛒 '+(edit?'แก้ไข':'สร้าง')+'ใบสั่งซื้อวัตถุดิบ',size:'lg',body:`
     <div class="row c3">
       <div class="field"><label>เลขที่ (PO NO.)</label><input id="pu_no" list="dl_puno" value="${edit?esc(edit.no):esc(peekPU())}"><datalist id="dl_puno">${DB.docs.filter(x=>x.type==='PO').sort((a,b)=>b.ts-a.ts).map(x=>`<option value="${esc(x.no)}">${esc(x.supplier||'')}</option>`).join('')}</datalist></div>
       <div class="field"><label>วันที่</label><input type="date" id="pu_date" value="${edit?edit.date:todayISO()}"></div>
       <div class="field"><label>กำหนดส่ง</label><input type="date" id="pu_due" value="${edit?(edit.deliveryDate||''):''}"></div>
     </div>
+    <div class="row c3">
+      <div class="field"><label>รหัสผู้ขาย/ผลิต (NO.)</label><input id="pu_code" list="dl_pucode" onchange="puCodeFill()" value="${edit?esc(edit.vendorCode||''):''}" placeholder="ใส่รหัส → ดึงชื่อ"><datalist id="dl_pucode">${makers.map(m=>`<option value="${esc(m.code||'')}">${esc(m.name||'')}</option>`).join('')}</datalist></div>
+      <div class="field"><label>ผู้ขาย (Supplier) ตัวย่อ</label><input id="pu_abbr" list="dl_puabbr" onchange="puAbbrFill()" value="${edit?esc(edit.supplierAbbr||''):''}" placeholder="ใส่ตัวย่อ → ดึงชื่อ"><datalist id="dl_puabbr">${sups.map(s=>`<option value="${esc(s)}">`).join('')}</datalist></div>
+      <div class="field"><label>ประเภท</label><select id="pu_type" onchange="puTypeHint()"><option value="RM" ${edit&&edit.poType==='SUP'?'':'selected'}>วัตถุดิบ</option><option value="SUP" ${edit&&edit.poType==='SUP'?'selected':''}>วัสดุสิ้นเปลือง</option></select></div>
+    </div>
     <div class="row c2">
-      <div class="field"><label>ผู้ขาย (Supplier) <span class="req">*</span></label><input id="pu_sup" list="dl_pusup" onchange="puSupFill()" value="${edit?esc(edit.supplier||''):''}" placeholder="ชื่อผู้ขาย"><datalist id="dl_pusup">${sups.map(s=>`<option value="${esc(s)}">`).join('')}</datalist></div>
+      <div class="field"><label>ผู้ขาย (Supplier) — ชื่อเต็ม <span class="req">*</span></label><input id="pu_sup" list="dl_pusup" onchange="puSupFill()" value="${edit?esc(edit.supplier||''):''}" placeholder="ชื่อผู้ขาย (เต็ม)"><datalist id="dl_pusup">${sups.map(s=>`<option value="${esc(s)}">`).join('')}</datalist></div>
       <div class="field"><label>เงื่อนไขชำระเงิน</label><input id="pu_credit" value="${edit?esc(edit.creditTerms||''):'30 วัน'}"></div>
     </div>
+    <div id="puTypeHint" style="margin:-2px 0 6px"></div>
     <details style="margin:2px 0 8px"><summary style="cursor:pointer;font-size:12px;color:var(--brand)">+ ข้อมูลผู้ขายเพิ่มเติม (ที่อยู่/เลขภาษี/ผู้ติดต่อ) สำหรับพิมพ์</summary>
       <div class="row c2" style="margin-top:6px"><div class="field"><label>ที่อยู่</label><input id="pu_addr" value="${edit&&edit.supplierInfo?esc(edit.supplierInfo.address||''):''}"></div><div class="field"><label>เลขภาษี</label><input id="pu_tax" value="${edit&&edit.supplierInfo?esc(edit.supplierInfo.taxId||''):''}"></div></div>
       <div class="row c2"><div class="field"><label>ผู้ติดต่อ</label><input id="pu_contact" value="${edit&&edit.supplierInfo?esc(edit.supplierInfo.contact||''):''}"></div><div class="field"><label>โทร</label><input id="pu_tel" value="${edit&&edit.supplierInfo?esc(edit.supplierInfo.tel||''):''}"></div></div>
@@ -3805,8 +3813,12 @@ function openPurchaseForm(edit){
     <div class="field" style="margin-top:8px"><label>หมายเหตุ</label><input id="pu_note" value="${edit?esc(edit.note||''):''}"></div>
   `,footer:`<button class="btn" onclick="closeModal()">ยกเลิก</button><button class="btn" onclick="submitPurchase('pending','${edit?edit.id:''}')">บันทึก (รออนุมัติ)</button><button class="btn pri" onclick="submitPurchase('approved','${edit?edit.id:''}')">บันทึก + อนุมัติ</button>`});
   poLines=edit&&edit.lines?edit.lines.map(l=>({productId:l.productId||'',name:l.name||'',qty:l.qty||'',bars:l.bars||'',unit:l.unit||'Kgs.',price:l.price||''})):[{productId:'',name:'',qty:'',bars:'',unit:'Kgs.',price:''}];
-  setTimeout(renderPoLines,15);
+  setTimeout(()=>{renderPoLines();puTypeHint();},15);
 }
+function puCodeFill(){const c=((document.getElementById('pu_code')||{}).value||'').trim();if(!c)return;const setF=(id,val)=>{const e=document.getElementById(id);if(e&&val)e.value=val;};const m=makerByCode(c);if(m){setF('pu_sup',m.name||c);setF('pu_tax',m.taxId||'');setF('pu_addr',m.address||'');setF('pu_tel',m.tel||'');setF('pu_contact',m.contact||'');}else{const r=resolveSupplier(c);setF('pu_sup',r.name||c);if(r.taxId)setF('pu_tax',r.taxId);}}
+function puAbbrFill(){const a=((document.getElementById('pu_abbr')||{}).value||'').trim();if(!a)return;const r=resolveSupplier(a);const e=document.getElementById('pu_sup');if(e)e.value=r.name||a;const t=document.getElementById('pu_tax');if(t&&r.taxId&&!t.value)t.value=r.taxId;}
+function puSupFill(){const e=document.getElementById('pu_sup');if(!e||!e.value.trim())return;const r=resolveSupplier(e.value);const t=document.getElementById('pu_tax');if(t&&r.taxId&&!t.value)t.value=r.taxId;}
+function puTypeHint(){const el=document.getElementById('puTypeHint');if(!el)return;const t=((document.getElementById('pu_type')||{}).value)||'RM';el.innerHTML=t==='SUP'?'<div class="hint" style="margin:0"><span class="i">🧰</span><div>ประเภท <b>วัสดุสิ้นเปลือง</b>: เมื่อบันทึก ระบบจะส่งรายการเข้าเมนู <b>วัสดุสิ้นเปลือง</b> · เพิ่มยอด <b>คงเหลือ (เข้าทันที)</b> · และส่งเข้า <b>ภาษีซื้อ</b> อัตโนมัติ</div></div>':'';}
 function addPoLine(){poLines.push({productId:'',name:'',qty:'',bars:'',unit:'Kgs.',price:''});renderPoLines()}
 function rmPoLine(i){poLines.splice(i,1);renderPoLines()}
 function renderPoLines(){
@@ -3834,11 +3846,25 @@ function submitPurchase(status,editId){
   const no=(v('pu_no')||'').trim();if(!no){toast('กรุณากรอกเลขที่','err');return}
   const lines=poLines.filter(l=>(l.name||l.productId)&&Number(l.qty)>0).map(l=>({productId:l.productId||'',name:(l.name||'').trim(),qty:Number(l.qty),bars:Number(l.bars)||0,unit:l.unit||'',price:Number(l.price)||0}));
   if(!lines.length){toast('กรุณาเพิ่มรายการอย่างน้อย 1 บรรทัด','err');return}
+  const poType=(v('pu_type')||'RM');
+  const vendorCode=(v('pu_code')||'').trim(),supplierAbbr=(v('pu_abbr')||'').trim();
+  if(poType==='SUP'){
+    const suplines=poLines.filter(l=>(l.name||l.productId)&&Number(l.qty)>0).map(l=>{const nm=(l.name||'').trim();const p=supEnsureProduct(nm.split(' ')[0]||nm);return {productId:p?p.id:'',name:nm,qty:Number(l.qty)||0,unit:l.unit||'Kgs.',price:Number(l.price)||0};});
+    let d;
+    if(editId){d=DB.docs.find(x=>x.id===editId);if(!d)return;if(d.status==='approved')reverseDoc(d);}
+    else{d={id:uid(),type:'SUP',ts:Date.now()};DB.docs.push(d);}
+    if(!d.no||d.type!=='SUP')d.no=nextNo('SUP');
+    d.type='SUP';d.poType='SUP';d.date=v('pu_date')||todayISO();d.refNo=no;d.supplier=sup;d.vendorCode=vendorCode;d.supplierAbbr=supplierAbbr;d.taxId=(v('pu_tax')||'').trim();d.invNo=d.invNo||'';d.creditTerms=(v('pu_credit')||'').trim();d.note=(v('pu_note')||'').trim();d.lines=suplines;
+    d.totalQty=suplines.reduce((s,l)=>s+l.qty,0);d.subtotal=suplines.reduce((s,l)=>s+l.qty*l.price,0);d.amount=d.subtotal;d.status='approved';
+    const r=doApprove(d);if(!r.ok){toast('ไม่สำเร็จ: '+r.err,'err');return;}
+    if(sup&&!DB.settings.suppliers.includes(sup))DB.settings.suppliers.push(sup);
+    closeModal();render();toast('บันทึกวัสดุสิ้นเปลือง '+no+' → เข้าคงเหลือ + ส่งภาษีซื้อแล้ว','ok');return;
+  }
   if(!editId){const dup=DB.docs.find(x=>x.type==='PO'&&x.no===no);if(dup){toast('เลขที่ '+no+' มีอยู่แล้ว','err');return}}
   const sub=lines.reduce((s,l)=>s+l.qty*l.price,0);const disc=Number(v('pu_disc'))||0;const amount=sub-disc;const vat7=!!(document.getElementById('pu_vat')&&document.getElementById('pu_vat').checked);const vat=vat7?amount*0.07:0;const grand=amount+vat;
   let d;
   if(editId){d=DB.docs.find(x=>x.id===editId);if(!d)return;}else{d={id:uid(),type:'PO',ts:Date.now(),status:'pending'};DB.docs.push(d);}
-  d.no=no;d.date=v('pu_date')||todayISO();d.deliveryDate=v('pu_due')||'';d.supplier=sup;d.creditTerms=(v('pu_credit')||'').trim();
+  d.no=no;d.date=v('pu_date')||todayISO();d.deliveryDate=v('pu_due')||'';d.supplier=sup;d.creditTerms=(v('pu_credit')||'').trim();d.poType='RM';d.vendorCode=vendorCode;d.supplierAbbr=supplierAbbr;
   d.supplierInfo={address:(v('pu_addr')||'').trim(),taxId:(v('pu_tax')||'').trim(),contact:(v('pu_contact')||'').trim(),tel:(v('pu_tel')||'').trim()};
   d.lines=lines;d.vat7=vat7;d.subtotal=sub;d.discount=disc;d.amount=amount;d.vat=vat;d.grandTotal=grand;d.total=grand;d.note=(v('pu_note')||'').trim();
   commitPU(no);
