@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SUPCODE-2026.06.20p';
+const APP_BUILD='RPTPO-2026.06.20q';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -4888,6 +4888,22 @@ function reportAggAll(){
   });});
   return m;
 }
+function rptPOAgg(poNo,pid){
+  const key=String(poNo||'').replace(/^PO/i,'').trim();
+  const mk=d=>String(d||'').replace(/^PO/i,'').trim();
+  const r={rwRecv:0,rwDate:'',plSent:0,plRecv:0,plDate:'',plSentDate:'',qcOk:0,qcNg:0,qcDate:'',si:0,siDate:''};
+  if(!key)return r;
+  DB.docs.forEach(d=>{if(d.status==='cancelled')return;
+    (d.lines||[]).forEach(l=>{
+      if(mk(l.poNo)!==key)return; if(pid&&l.productId&&l.productId!==pid)return;
+      if(d.type==='RW'){r.rwRecv+=Number(l.receivedQty)||0;const dt=l.date||d.date||'';if(dt>r.rwDate)r.rwDate=dt;}
+      else if(d.type==='PL'){r.plSent+=Number(l.sentQty)||0;r.plRecv+=Number(l.recvQty)||0;const ds=l.date||d.date||'';if(ds>r.plSentDate)r.plSentDate=ds;const dr=l.recvDate||'';if(dr>r.plDate)r.plDate=dr;}
+      else if(d.type==='QC'){r.qcOk+=Number(l.ok)||0;r.qcNg+=Number(l.ng)||0;const dt=l.date||d.date||'';if(dt>r.qcDate)r.qcDate=dt;}
+      else if(d.type==='SI'){r.si+=Number(l.weighed||l.qcOk||l.computed||0);const dt=l.date||d.date||'';if(dt>r.siDate)r.siDate=dt;}
+    });
+  });
+  return r;
+}
 function reportTimeline(pid){
   const ev=[];
   DB.docs.forEach(d=>{if(d.status==='cancelled')return;if(d.type==='PO'||d.type==='IP'||d.type==='SP'||d.type==='PRD'){(d.lines||[]).forEach(l=>{if((l.productId||l.fgId)===pid)ev.push({ts:d.ts||0,date:d.date||'',type:d.type,no:d.no,qty:Number(l.qty)||0,sign:0});});}});
@@ -4927,12 +4943,45 @@ function viewReport(el){
     html+=`</tbody></table></div></div></div>`;
   } else {
     html+=`<div class="panel-b"><div class="hint"><span class="i">💡</span><div>พิมพ์เลือกชิ้นงานด้านบนเพื่อดู <b>ไทม์ไลน์</b> ทุกขั้นตอน หรือคลิกแถวในตารางสรุปด้านล่าง</div></div></div></div>`;
-    const ids=new Set(DB.movements.map(m=>m.productId));Object.keys(agg).forEach(k=>ids.add(k));
-    const list=[...ids].map(id=>P(id)).filter(Boolean).sort((a,b)=>(a.customer||'').localeCompare(b.customer||'')||a.pn.localeCompare(b.pn));
-    html+=`<div class="panel"><div class="panel-h"><h2>📊 สรุปภาพรวมตามชิ้นงาน</h2><div class="desc">${list.length} รายการที่มีความเคลื่อนไหว</div></div><div class="panel-b nopad"><div class="tbl-wrap"><table style="white-space:nowrap;font-size:12px"><thead><tr><th>Part Number</th><th>ลูกค้า</th><th>PO เลขที่</th><th class="num">สั่งซื้อ/ผลิต</th><th class="num">WIP</th><th class="num">Q-TIME 🐌</th><th class="num">คัดผ่าน</th><th class="num">NG</th><th class="num">เข้าสต๊อค</th><th class="num">ส่งลูกค้า</th><th class="num">คงเหลือ</th><th></th></tr></thead><tbody id="rptOvRows">`;
-    html+=list.map(p=>{const a=agg[p.id]||{};const pos=(a.pos||[]);const poTxt=pos.slice(0,2).join(', ')+(pos.length>2?' +'+(pos.length-2):'');
-      const ordered=(a.po||0)+(a.prd||0);const recv=a.recv||0;const wip=Math.max(0,ordered-recv);const qt=p.wip||0;const passed=p.passedQC||0;const bal=p.onHand||0;
-      return `<tr data-cust="${esc((p.customer||'').toLowerCase())}" data-po="${esc(pos.join(' ').toLowerCase())}" data-pn="${esc(String(p.pn).toLowerCase())}" data-wip="${wip}" data-qt="${qt}" data-bal="${bal}" data-ord="${ordered}"><td class="pn linkish" onclick="rptPick('${esc(p.pn)}')"><b>${esc(p.pn)}</b> <span class="muted">${esc(p.name||'')}</span></td><td>${esc(p.customer||'')}</td><td class="muted" style="font-size:11px">${esc(poTxt)||'-'}</td><td class="num">${fmt(ordered)}</td><td class="num ${wip?'':'muted'}" ${wip?'style="color:#b45309"':''} title="สั่งซื้อ/ผลิตแล้วยังส่งมาไม่หมด">${fmt(wip)}</td><td class="num ${qt?'':'muted'}" ${qt?'style="color:#b45309"':''} title="รับเข้าแล้วยังไม่ได้ส่งคัด/ส่งชุบ">${fmt(qt)}</td><td class="num" style="color:var(--teal)" title="คัด OK แล้วยังไม่เข้าสต๊อค">${fmt(passed)}</td><td class="num" style="color:var(--red)">${fmt(a.ng||0)}</td><td class="num">${fmt(a.si||0)}</td><td class="num">${fmt(a.inv||0)}</td><td class="num"><b>${fmt(bal)}</b></td><td style="white-space:nowrap"><button class="btn sm" onclick="rptPick('${esc(p.pn)}')">ดู</button> <button class="btn sm" onclick="printReport('${p.id}')" title="พิมพ์เส้นทาง">🖨️</button> <button class="btn sm" onclick="openProductForm('${p.id}')" title="แก้ไขสินค้า">✏️</button> <button class="btn sm danger" onclick="delProduct('${p.id}')" title="ลบสินค้า">🗑️</button></td></tr>`;}).join('');
+    const poRows=[];
+    DB.docs.filter(d=>d.type==='PRD'&&d.status!=='cancelled').forEach(prd=>{
+      const byP={};(prd.lines||[]).forEach(l=>{const pid=l.fgId||l.productId;if(!pid)return;byP[pid]=(byP[pid]||0)+(Number(l.qty)||0);});
+      Object.keys(byP).forEach(pid=>{const p=P(pid);if(!p)return;poRows.push({poNo:prd.no,date:prd.date||'',p:p,ordered:byP[pid]});});
+    });
+    poRows.sort((a,b)=>(b.date||'').localeCompare(a.date||'')||String(b.poNo||'').localeCompare(String(a.poNo||''),undefined,{numeric:true}));
+    const dash='<span class="muted">-</span>';
+    html+=`<div class="panel"><div class="panel-h"><h2>📊 สรุปภาพรวมตามชิ้นงาน (ราย PO)</h2><div class="desc">${poRows.length} ใบสั่ง</div></div><div class="panel-b nopad"><div class="tbl-wrap"><table style="white-space:nowrap;font-size:11.5px"><thead><tr>
+      <th>Part Number</th><th>ลูกค้า</th><th>วันที่สั่ง/ผลิต</th><th>PO เลขที่</th><th class="num">สั่ง/ผลิต</th><th>วันที่รับงาน</th><th class="num">รับงาน</th><th class="num">WIP</th><th class="num">ส่งชุบ/คัด</th><th class="num">Q-Time</th><th>วันที่รับชุบ</th><th class="num">รับชุบ</th><th class="num">ค้างชุบ</th><th>วันที่คัด</th><th class="num">OK</th><th class="num">NG</th><th>วันที่เข้าสต๊อค</th><th class="num">เข้าสต๊อค</th><th>สรุป</th><th></th>
+    </tr></thead><tbody id="rptOvRows">`;
+    html+=poRows.map(row=>{const p=row.p;const ordered=row.ordered;const a=rptPOAgg(row.poNo,p.id);
+      const flow=prodFlow(p);const isPlate=flow==='ชุบ-QC';const isQC=flow!=='ไม่ชุบ'&&!isDirectFlow(flow);
+      const wip=Math.max(0,ordered-a.rwRecv);
+      const sent=isPlate?a.plSent:(a.qcOk+a.qcNg);
+      const qt=Math.max(0,a.rwRecv-sent);
+      const plPend=isPlate?Math.max(0,a.plSent-a.plRecv):0;
+      const done=ordered>0&&a.si>=ordered;const outst=Math.max(0,ordered-a.si);
+      const sumTxt=done?'<span style="color:var(--teal);font-weight:700">จบ PO ✓</span>':(a.si>0?'<span style="color:#b45309">ค้าง '+fmt(outst)+'</span>':'<span class="muted">กำลังดำเนินการ</span>');
+      const plateCells=isPlate?`<td class="muted">${esc(a.plDate)||dash}</td><td class="num ${a.plRecv?'':'muted'}">${a.plRecv?fmt(a.plRecv):'-'}</td><td class="num ${plPend?'':'muted'}" ${plPend?'style="color:#b45309"':''}>${plPend?fmt(plPend):'-'}</td>`:`<td>${dash}</td><td class="num">${dash}</td><td class="num">${dash}</td>`;
+      return `<tr data-cust="${esc((p.customer||'').toLowerCase())}" data-po="${esc(String(row.poNo||'').toLowerCase())}" data-pn="${esc(String(p.pn).toLowerCase())}" data-wip="${wip}" data-qt="${qt}" data-bal="${outst}" data-ord="${ordered}">
+        <td class="pn linkish" onclick="rptPick('${esc(p.pn)}')"><b>${esc(p.pn)}</b> <span class="muted">${esc(p.name||'')}</span></td>
+        <td>${esc(p.customer||'')}</td>
+        <td class="muted">${esc(row.date)||dash}</td>
+        <td class="pn">${esc(row.poNo||'')||dash}</td>
+        <td class="num"><b>${fmt(ordered)}</b></td>
+        <td class="muted">${esc(a.rwDate)||dash}</td>
+        <td class="num ${a.rwRecv?'':'muted'}">${a.rwRecv?fmt(a.rwRecv):'-'}</td>
+        <td class="num ${wip?'':'muted'}" ${wip?'style="color:#b45309"':''}>${fmt(wip)}</td>
+        <td class="num ${sent?'':'muted'}">${sent?fmt(sent):'-'}</td>
+        <td class="num ${qt?'':'muted'}" ${qt?'style="color:#b45309"':''}>${fmt(qt)}</td>
+        ${plateCells}
+        <td class="muted">${esc(a.qcDate)||dash}</td>
+        <td class="num" style="color:var(--teal)">${fmt(a.qcOk)}</td>
+        <td class="num" style="color:var(--red)">${fmt(a.qcNg)}</td>
+        <td class="muted">${esc(a.siDate)||dash}</td>
+        <td class="num"><b>${fmt(a.si)}</b></td>
+        <td>${sumTxt}</td>
+        <td style="white-space:nowrap"><button class="btn sm" onclick="rptPick('${esc(p.pn)}')">ดู</button> <button class="btn sm" onclick="printReport('${p.id}')" title="พิมพ์เส้นทาง">🖨️</button></td>
+      </tr>`;}).join('')||`<tr><td colspan="20" class="muted" style="text-align:center;padding:18px">ยังไม่มีใบสั่งผลิต (PO) — สร้างใบสั่งผลิตเพื่อเริ่มติดตามราย PO</td></tr>`;
     html+=`</tbody></table></div></div></div>`;
   }
   el.innerHTML=html;
