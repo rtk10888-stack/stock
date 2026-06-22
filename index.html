@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='PRODDATE-2026.06.21b';
+const APP_BUILD='PORMCLEAN-2026.06.21c';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -3879,8 +3879,19 @@ function renderPoLines(){
     <td><div class="rm-x" style="height:32px" onclick="rmPoLine(${i})">✕</div></td>
   </tr>`).join('')}
   </tbody></table></div>
-  <datalist id="dl_rm3">${DB.products.filter(p=>p.type==='RM').slice(0,1200).map(p=>`<option value="${esc(p.pn+(p.name&&p.name!=='-'?' '+p.name:''))}">`).join('')}</datalist>`;
+  <datalist id="dl_rm3">${poRmOptions().slice(0,1200).map(p=>`<option value="${esc(p.pn+(p.name&&p.name!=='-'?' '+p.name:''))}">`).join('')}</datalist>`;
   poTotals();
+}
+function poRmOptions(){
+  const rms=DB.products.filter(p=>p.type==='RM');
+  const active=new Set();(DB.movements||[]).forEach(m=>{if(m.productId)active.add(m.productId);});
+  DB.docs.forEach(d=>{if(d.status==='cancelled')return;(d.lines||[]).forEach(l=>{if(l.productId)active.add(l.productId);});});
+  const isActive=p=>active.has(p.id)||(p.onHand||0)!==0||(p.wip||0)!==0;
+  const byName={};rms.forEach(p=>{const k=(p.name||'').trim().toLowerCase();if(!k||k==='-')return;(byName[k]=byName[k]||[]).push(p);});
+  const out=rms.filter(p=>{const k=(p.name||'').trim().toLowerCase();const grp=(k&&k!=='-')?byName[k]:null;
+    if(grp&&grp.length>1&&grp.some(isActive))return isActive(p); // ชื่อซ้ำ → เก็บเฉพาะตัวที่มีการใช้งานจริง (ตัดชื่อพิมพ์ผิดที่ไม่เคยใช้)
+    return true;});
+  return out.sort((a,b)=>String(a.pn).localeCompare(String(b.pn),undefined,{numeric:true}));
 }
 function poLineCalc(i){const l=poLines[i];const e=document.getElementById('puamt_'+i);if(e)e.textContent=fmt2((Number(l.price)||0)*(Number(l.qty)||0));poTotals();}
 function poPick(i,val){poLines[i].name=val;const pn=(val||'').split(' ')[0];const p=DB.products.find(x=>x.type==='RM'&&(x.pn===pn||x.pn===val));poLines[i].productId=p?p.id:'';}
