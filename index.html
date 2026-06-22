@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='NAVHIDE-2026.06.20n';
+const APP_BUILD='SETCARDS-2026.06.20o';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -5621,7 +5621,7 @@ function viewSettings(el){
       ${listEditor('platings','✨ ประเภทการชุบ')}
     </div>
     <div>
-      <div class="panel"><div class="panel-h"><h2>💾 ข้อมูล & การสำรอง</h2></div><div class="panel-b">
+      <div class="panel"><div class="panel-h"><h2>💾 ข้อมูล & การสำรอง</h2><div class="right"><button class="btn sm" onclick="setCardMenu()" title="ซ่อน/แสดงการ์ดผู้ดูแล">👁 จัดการการ์ด</button></div></div><div class="panel-b">
         <div class="kv"><span class="k">สินค้าทั้งหมด</span><b>${fmt(DB.products.length)}</b></div>
         <div class="kv"><span class="k">เอกสาร</span><b>${fmt(DB.docs.length)}</b></div>
         <div class="kv"><span class="k">ความเคลื่อนไหว</span><b>${fmt(DB.movements.length)}</b></div>
@@ -5632,10 +5632,15 @@ function viewSettings(el){
         </div>
         <div class="hint" style="margin-top:14px"><span class="i">ℹ️</span><div>ข้อมูลถูกบันทึกอัตโนมัติในเบราว์เซอร์ + คลาวด์ ควรกด "สำรองข้อมูล" เก็บไฟล์ไว้สม่ำเสมอ</div></div>
       </div></div>
-      <div class="panel"><div class="panel-h"><h2>⚠️ ล้างข้อมูล</h2></div><div class="panel-b">
+      ${setCards.password!==false?`<div class="panel"><div class="panel-h"><h2>🔒 รหัสผ่านเข้าระบบ${setCardEye('password')}</h2></div><div class="panel-b">
+        <p class="muted" style="font-size:12.5px;margin-bottom:10px">ตั้งรหัสผ่านล็อกการเข้าใช้งานระบบ (เว้นว่าง = ไม่ล็อก)</p>
+        <div class="field"><label>รหัสผ่าน</label><input id="set_pass" type="text" value="${esc(DB.settings.passcode||'')}" placeholder="ตั้งรหัสผ่าน" autocomplete="off"></div>
+        <button class="btn pri" onclick="savePass()">🔐 บันทึกรหัสผ่าน</button>
+      </div></div>`:''}
+      ${setCards.cleardata!==false?`<div class="panel"><div class="panel-h"><h2>⚠️ ล้างข้อมูล${setCardEye('cleardata')}</h2></div><div class="panel-b">
         <p class="muted" style="font-size:12.5px;margin-bottom:10px">รีเซ็ตกลับเป็นข้อมูลตัวอย่างตั้งต้น (ลบเอกสาร/ความเคลื่อนไหวทั้งหมด)</p>
         <button class="btn danger" onclick="resetAll()">🗑️ รีเซ็ตเป็นค่าเริ่มต้น</button>
-      </div></div>
+      </div></div>`:''}
     </div>
   </div>`;
 }
@@ -5693,6 +5698,11 @@ function companyEditor(){
 function saveCompany(){const v=k=>(document.getElementById(k)||{}).value;DB.settings.company={name:v('co_name').trim(),taxId:v('co_tax').trim(),tel:v('co_tel').trim(),address:v('co_addr').trim(),email:v('co_email').trim()};render();toast('บันทึกข้อมูลบริษัทแล้ว','ok')}
 function addSetting(key){const v=prompt('เพิ่มรายการใหม่:');if(v&&v.trim()){DB.settings[key].push(v.trim());render();toast('เพิ่มแล้ว','ok')}}
 function delSetting(key,i){DB.settings[key].splice(i,1);render()}
+var setCards=(function(){try{return Object.assign({cleardata:true,password:true},JSON.parse(localStorage.getItem('rtk_setcards')||'{}'))}catch(e){return {cleardata:true,password:true}}})();
+function setCardToggle(k){setCards[k]=!setCards[k];try{localStorage.setItem('rtk_setcards',JSON.stringify(setCards))}catch(e){}render();}
+function setCardReset(){setCards={cleardata:true,password:true};try{localStorage.setItem('rtk_setcards',JSON.stringify(setCards))}catch(e){}render();setCardMenu();}
+function setCardEye(k){return '<span style="cursor:pointer;opacity:.45;font-size:12px;margin-left:6px" onclick="setCardToggle(\''+k+'\')" title="ซ่อนการ์ดนี้">🙈</span>';}
+function setCardMenu(){const cols=[['password','🔒 รหัสผ่านเข้าระบบ'],['cleardata','⚠️ ล้างข้อมูล']];modal({title:'👁 ซ่อน/แสดงการ์ดผู้ดูแล',body:'<div class="hint" style="margin-bottom:8px"><span class="i">💡</span><div>ติ๊ก = แสดง · เอาติ๊กออก = ซ่อน (จำเฉพาะเครื่องนี้)</div></div>'+cols.map(c=>`<label style="display:flex;gap:8px;align-items:center;padding:5px 2px;font-size:13.5px"><input type="checkbox" ${setCards[c[0]]!==false?'checked':''} onchange="setCardToggle('${c[0]}')"> ${c[1]}</label>`).join(''),footer:`<button class="btn" onclick="setCardReset()">↺ แสดงทั้งหมด</button><button class="btn pri" onclick="closeModal()">ปิด</button>`});}
 function resetAll(){confirmBox('รีเซ็ตข้อมูลทั้งหมด?','การกระทำนี้ลบเอกสารและความเคลื่อนไหวทั้งหมด คืนค่าเป็นตัวอย่างตั้งต้น',()=>{DB=freshDB();saveDB();closeModal();go('dashboard');toast('รีเซ็ตเรียบร้อย','ok')})}
 function savePass(){ DB.settings.passcode=(document.getElementById('set_pass').value||'').trim(); if(DB.settings.passcode)localStorage.setItem('rtk_pass',DB.settings.passcode); else localStorage.removeItem('rtk_pass'); saveDB(); render(); toast('บันทึกรหัสผ่านแล้ว','ok'); }
 function exportProductsCSV(){
