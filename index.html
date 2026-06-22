@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='ORDFLOW-2026.06.20v';
+const APP_BUILD='POHDR-2026.06.20w';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -3859,7 +3859,7 @@ function addPoLine(){poLines.push({productId:'',name:'',qty:'',bars:'',unit:'Kgs
 function rmPoLine(i){poLines.splice(i,1);renderPoLines()}
 function renderPoLines(){
   const root=document.getElementById('puRoot');if(!root)return;
-  root.innerHTML=`<div style="overflow-x:auto"><table style="font-size:12.5px"><thead><tr><th style="min-width:220px">รายการ (วัตถุดิบ)</th><th style="width:88px">จำนวน (เส้น)</th><th style="width:96px">จำนวน (Kgs.)</th><th style="width:96px">ราคา/หน่วย Kgs.</th><th style="width:100px">จำนวนเงิน</th><th></th></tr></thead><tbody>
+  root.innerHTML=`<div style="overflow-x:auto"><table style="font-size:12.5px"><thead><tr><th style="min-width:220px">รายการ (วัตถุดิบ)</th><th style="width:88px">จำนวน (เส้น)</th><th style="width:96px">จำนวน (KGS./PCS.)</th><th style="width:96px">ราคา/หน่วย (KGS./PCS.)</th><th style="width:100px">จำนวนเงิน</th><th></th></tr></thead><tbody>
   ${poLines.map((l,i)=>`<tr>
     <td><input list="dl_rm3" value="${esc(l.name||'')}" placeholder="พิมพ์/เลือกวัตถุดิบ" oninput="poPick(${i},this.value)" style="padding:6px 8px"></td>
     <td><input type="number" step="any" value="${l.bars||''}" placeholder="เส้น" oninput="poLines[${i}].bars=this.value" style="padding:6px 8px;text-align:right"></td>
