@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='PRODSPEC-2026.06.21d';
+const APP_BUILD='PRODMASTER-2026.06.21e';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -1065,6 +1065,14 @@ function openProductForm(id){
   `,footer:`<button class="btn" onclick="closeModal()">ยกเลิก</button><button class="btn pri" onclick="saveProduct('${id||''}')">บันทึก</button>`});
   setTimeout(()=>{const ts=document.getElementById('f_type');if(!ts)return;ts.onchange=()=>{const fs=document.getElementById('f_flow');if(!fs)return;const t=ts.value;if(t==='SUP')fs.value='วัสดุสิ้นเปลือง';else if(t==='RMC')fs.value='รับแมทลูกค้า';else if(t==='RM')fs.value='ไม่ชุบ';};},10);
 }
+function propagateProduct(id){const p=P(id);if(!p)return;const disp=p.pn+(p.name&&p.name!=='-'?' '+p.name:'');
+  (DB.docs||[]).forEach(d=>{
+    (d.lines||[]).forEach(l=>{if(l.productId===id){if('name' in l)l.name=disp;
+      if(d.status==='pending'){if((d.type==='INV'||d.type==='IV2')&&('price' in l)&&p.salePrice)l.price=p.salePrice;if(d.type==='PRD'&&('price' in l)&&p.prodPrice)l.price=p.prodPrice;}
+    }});
+    if(d.type==='RMC'&&d.productId===id){d.partNo=p.pn;if(p.name&&p.name!=='-')d.partName=p.name;}
+  });
+}
 function saveProduct(id){
   const v=k=>document.getElementById(k);
   const pn=v('f_pn').value.trim();if(!pn){toast('กรุณากรอก Part Number','err');return}
@@ -1079,7 +1087,8 @@ function saveProduct(id){
   {const flow=(v('f_flow')&&v('f_flow').value)||'ไม่ชุบ-QC';p.flow=flow;p.needPlating=(flow==='ชุบ-QC');p.needQC=(flow!=='ไม่ชุบ'&&!isDirectFlow(flow));p.plating=(flow==='ชุบ-QC')?((v('f_plt')&&v('f_plt').value.trim())||'ชุบ'):'';p.custSupplyMat=(type==='FG'&&v('f_csm'))?v('f_csm').checked:false;}
   // register customer
   if(p.customer&&!DB.settings.customers.includes(p.customer))DB.settings.customers.push(p.customer);
-  closeModal();render();toast(id?'บันทึกการแก้ไขแล้ว':'เพิ่มสินค้าใหม่แล้ว','ok');
+  propagateProduct(p.id);
+  closeModal();render();toast(id?'บันทึกการแก้ไขแล้ว (อัปเดตเอกสารที่เกี่ยวข้องตาม MASTER)':'เพิ่มสินค้าใหม่แล้ว','ok');
 }
 
 /* ============================================================
