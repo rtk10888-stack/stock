@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='PRD2WDCM-2026.06.21g';
+const APP_BUILD='WDCMTAG-2026.06.21h';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -4127,7 +4127,7 @@ function openWDForm(edit){
     <div id="wdTotals" style="margin-top:8px"></div>
     <div class="field" style="margin-top:8px"><label>ผู้จ่าย / หมายเหตุ</label><input id="wd_note" value="${edit?esc(edit.note||''):''}"></div>
   `,footer:`<button class="btn" onclick="closeModal()">ยกเลิก</button><button class="btn" onclick="submitWD('pending','${edit?edit.id:''}')">บันทึก (รออนุมัติ)</button><button class="btn pri" onclick="submitWD('approved','${edit?edit.id:''}')">บันทึก + อนุมัติ (ตัดยอด)</button>`});
-  wdLines=edit&&edit.lines?edit.lines.map(l=>({date:l.date||'',matId:l.productId||'',matName:l.matName||'',price:l.price||'',qty:l.qty||'',bars:l.bars||'',unit:l.unit||'Kgs.',poNo:l.poNo||'',prdId:l.prdId||'',fgPn:l.fgPn||'',maker:l.maker||'',ordered:l.ordered||0})):[{date:todayISO(),matId:'',matName:'',price:'',qty:'',bars:'',unit:'Kgs.',poNo:'',prdId:'',fgPn:'',maker:'',ordered:0}];
+  wdLines=edit&&edit.lines?edit.lines.map(l=>({date:l.date||'',matId:l.productId||'',matName:l.matName||'',price:l.price||'',qty:l.qty||'',bars:l.bars||'',unit:l.unit||'Kgs.',poNo:l.poNo||'',prdId:l.prdId||'',fgPn:l.fgPn||'',maker:l.maker||'',ordered:l.ordered||0,custMat:l.custMat||false})):[{date:todayISO(),matId:'',matName:'',price:'',qty:'',bars:'',unit:'Kgs.',poNo:'',prdId:'',fgPn:'',maker:'',ordered:0}];
   setTimeout(renderWdLines,15);
 }
 function addWdLine(){wdLines.push({date:todayISO(),matId:'',matName:'',price:'',qty:'',bars:'',unit:'Kgs.',poNo:'',prdId:'',fgPn:'',maker:'',ordered:0});renderWdLines()}
@@ -4161,7 +4161,7 @@ function wdTotals(){let q=0,amt=0,b=0;wdLines.forEach(l=>{q+=Number(l.qty)||0;b+
 function editWD(id){const d=DB.docs.find(x=>x.id===id);if(d)openWDForm(d);}
 function submitWD(status,editId){
   const v=k=>(document.getElementById(k)||{}).value;
-  const lines=wdLines.filter(l=>(l.matName||l.matId)&&Number(l.qty)>0).map(l=>({productId:l.matId||'',matName:(l.matName||'').trim(),price:Number(l.price)||0,qty:Number(l.qty),bars:Number(l.bars)||0,unit:l.unit||'',poNo:(l.poNo||'').trim(),prdId:l.prdId||'',fgPn:(l.fgPn||'').trim(),maker:(l.maker||'').trim(),date:l.date||'',ordered:l.ordered||0}));
+  const lines=wdLines.filter(l=>(l.matName||l.matId)&&(Number(l.qty)>0||Number(l.bars)>0)).map(l=>({productId:l.matId||'',matName:(l.matName||'').trim(),price:Number(l.price)||0,qty:Number(l.qty),bars:Number(l.bars)||0,unit:l.unit||'',poNo:(l.poNo||'').trim(),prdId:l.prdId||'',fgPn:(l.fgPn||'').trim(),maker:(l.maker||'').trim(),date:l.date||'',ordered:l.ordered||0,custMat:!!l.custMat}));
   if(!lines.length){toast('กรุณาเพิ่มรายการเบิกอย่างน้อย 1 รายการ','err');return}
   let d;
   if(editId){d=DB.docs.find(x=>x.id===editId);if(!d)return;if(d.status==='approved'){reverseDoc(d);d.status='pending';}}else{d={id:uid(),type:'WD',ts:Date.now(),status:'pending'};DB.docs.push(d);}
@@ -4175,7 +4175,7 @@ function submitWD(status,editId){
   closeModal();render();toast((editId?'บันทึกการแก้ไข ':'สร้างใบเบิก ')+d.no,'ok');
 }
 function viewWD(d){
-  const rows=(d.lines||[]).map((l,i)=>`<tr><td style="text-align:center">${i+1}</td><td class="muted">${l.date||''}</td><td>${esc(l.matName||'')}</td><td class="num">${fmt2(l.price)}</td><td class="num">${fmt(l.qty)}</td><td>${esc(l.unit||'')}</td><td class="num">${fmt2(l.price*l.qty)}</td><td class="pn">${esc(l.poNo||'')}</td><td class="pn">${esc(l.fgPn||'')}</td><td>${esc(l.maker||'')}</td></tr>`).join('');
+  const rows=(d.lines||[]).map((l,i)=>`<tr><td style="text-align:center">${i+1}</td><td class="muted">${l.date||''}</td><td>${esc(l.matName||'')}${l.custMat?' <span class="tag" style="background:#9333ea;color:#fff">แมทลูกค้า</span>':''}</td><td class="num">${fmt2(l.price)}</td><td class="num">${fmt(l.bars?l.bars:l.qty)}</td><td>${esc(l.unit||'')}</td><td class="num">${fmt2(l.price*l.qty)}</td><td class="pn">${esc(l.poNo||'')}</td><td class="pn">${esc(l.fgPn||'')}</td><td>${esc(l.maker||'')}</td></tr>`).join('');
   modal({title:'📤 '+d.no,size:'lg',body:`
     <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">${statusTag(d.status)}<span class="tag amber">ใบเบิกวัตถุดิบ</span><span class="tag gray">วันที่ ${d.date}</span>${d.supplier?`<span class="tag gray">Supplier: ${esc(d.supplier)}</span>`:''}</div>
     <div style="overflow-x:auto"><table style="font-size:12px;min-width:820px"><thead><tr><th>#</th><th>วันที่</th><th>รายการเบิก</th><th class="num">ราคา</th><th class="num">จำนวน</th><th>หน่วย</th><th class="num">รวมเงิน</th><th>PO</th><th>PART NUMBER</th><th>MAKER</th></tr></thead><tbody id="planFilterBody">${rows}</tbody></table></div>
@@ -4215,7 +4215,7 @@ function wdRow(d){
   const itemAll=(d.lines||[]).map(l=>l.matName||(l.productId&&P(l.productId)?P(l.productId).pn:'')).filter(Boolean).join(' ').toLowerCase();
   return `<tr data-no="${esc(d.no)}" data-ts="${d.ts||0}" data-amt="${d.totalQty||0}" data-mon="${(d.date||'').slice(0,7)}" data-mk="${esc(mkAll)}" data-item="${esc(itemAll)}">
     <td class="pn linkish" onclick="viewDoc('${d.id}')">${d.no}</td><td class="muted">${d.date}</td>
-    <td>${pos?`<span class="tag violet">PO ${esc(pos)}</span> `:''}${d.supplier?`<span class="tag gray">${esc(d.supplier)}</span> `:''}<span class="muted">${esc(mats)}</span></td>
+    <td>${pos?`<span class="tag violet">PO ${esc(pos)}</span> `:''}${(d.lines||[]).some(l=>l.custMat)?`<span class="tag" style="background:#9333ea;color:#fff">แมทลูกค้า</span> `:''}${d.autoFromPRD?`<span class="tag cyan">อัตโนมัติ</span> `:''}${d.supplier?`<span class="tag gray">${esc(d.supplier)}</span> `:''}<span class="muted">${esc(mats)}</span></td>
     <td class="num">${fmt(d.totalQty||0)}</td><td>${statusTag(d.status)}</td>
     <td style="text-align:right;white-space:nowrap"><button class="btn sm" onclick="viewDoc('${d.id}')">ดู</button> <button class="btn sm" onclick="printWD('${d.id}')">🖨️</button> <button class="btn sm" onclick="editWD('${d.id}')">✏️</button>${d.status==='pending'?` <button class="btn sm ok" onclick="approveDoc('${d.id}')">อนุมัติ</button> <button class="btn sm danger" onclick="deleteDoc('${d.id}')">🗑️ ลบ</button>`:''}${d.status==='approved'?` <button class="btn sm danger" onclick="cancelDoc('${d.id}')">ยกเลิก</button>`:''}${d.status==='cancelled'?` <button class="btn sm danger" onclick="delDocConfirm('${d.id}')">🗑️ ลบ</button>`:''}</td>
   </tr>`;
