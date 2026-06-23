@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='STEELAUTO2-2026.06.21q';
+const APP_BUILD='STEELAUTO3-2026.06.21r';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -4060,7 +4060,7 @@ function renderPoLines(){
   poLines.forEach(l=>{if(!l.wmat&&(l.name||l.productId)){const p=l.productId?P(l.productId):null;const src=(l.name||'')+' '+(p?((p.name||'')+' '+(p.steelUse||'')+' '+(p.dim||'')+' '+(p.material||'')):'');const pa=poParseSteel(src);if(pa){l.wmat=pa.key;l.wk=pa.K;if(pa.d){if(!Number(l.d1))l.d1=pa.d;if(pa.key.indexOf('plate')!==0&&!Number(l.d2))l.d2=pa.d;}if(pa.len&&!Number(l.len))l.len=pa.len;l.wper=(Number(l.d1)||0)*(Number(l.d2)||0)*(Number(l.len)||0)*(Number(l.wk)||0);if(l.wper>0){if(Number(l.bars)>0&&!Number(l.qty))l.qty=Math.round(Number(l.bars)*l.wper*100)/100;else if(Number(l.qty)>0&&!Number(l.bars))l.bars=Math.round(Number(l.qty)/l.wper*100)/100;}}}});
   root.innerHTML=`<div style="overflow-x:auto"><table style="font-size:12.5px;min-width:1080px"><thead><tr><th style="min-width:200px">รายการ (วัตถุดิบ)</th><th style="width:80px">จำนวน (เส้น)</th><th style="width:90px">จำนวน (KGS./PCS.)</th><th style="width:90px">ราคา/หน่วย</th><th style="width:90px">จำนวนเงิน</th><th style="width:150px">หาน้ำหนัก (ชนิด)</th><th style="width:58px">โต1</th><th style="width:58px">โต2</th><th style="width:58px">ยาว(ม.)</th><th style="width:64px">ค่าคงที่</th><th style="width:74px">นน./เส้น</th><th></th></tr></thead><tbody>
   ${poLines.map((l,i)=>`<tr>
-    <td><input list="dl_rm3" value="${esc(l.name||'')}" placeholder="พิมพ์/เลือกวัตถุดิบ" oninput="poPick(${i},this.value)" style="padding:6px 8px"></td>
+    <td><input list="dl_rm3" value="${esc(l.name||'')}" placeholder="พิมพ์/เลือกวัตถุดิบ" oninput="poLines[${i}].name=this.value" onchange="poPick(${i},this.value)" style="padding:6px 8px"></td>
     <td><input id="pobars_${i}" type="number" step="any" value="${l.bars||''}" placeholder="เส้น" oninput="poBarsIn(${i},this.value)" style="padding:6px 8px;text-align:right"></td>
     <td><input id="poqty_${i}" type="number" step="any" value="${l.qty}" placeholder="กก." oninput="poQtyIn(${i},this.value)" style="padding:6px 8px;text-align:right"></td>
     <td><input type="number" step="any" value="${l.price}" placeholder="บาท/กก." oninput="poLines[${i}].price=this.value;poLineCalc(${i})" style="padding:6px 8px;text-align:right"></td>
@@ -4090,13 +4090,12 @@ function poRmOptions(){
   return out.sort((a,b)=>String(a.pn).localeCompare(String(b.pn),undefined,{numeric:true}));
 }
 function poLineCalc(i){const l=poLines[i];const e=document.getElementById('puamt_'+i);if(e)e.textContent=fmt2((Number(l.price)||0)*(Number(l.qty)||0));poTotals();}
-function poPick(i,val){poLines[i].name=val;const pn=(val||'').split(' ')[0];const p=DB.products.find(x=>x.type==='RM'&&(x.pn===pn||x.pn===val));poLines[i].productId=p?p.id:'';
-  if(p){const src=val+' '+(p.name||'')+' '+(p.steelUse||'')+' '+(p.dim||'')+' '+(p.material||'');const parsed=poParseSteel(src);
-    if(parsed){const l=poLines[i];l.wmat=parsed.key;l.wk=parsed.K;if(parsed.d)l.d1=parsed.d;if(parsed.key.indexOf('plate')!==0&&parsed.d)l.d2=parsed.d;if(parsed.len)l.len=parsed.len;
-      l.wper=(Number(l.d1)||0)*(Number(l.d2)||0)*(Number(l.len)||0)*(Number(l.wk)||0);
-      if(Number(l.bars)>0&&l.wper>0)l.qty=Number(l.bars)*l.wper;else if(Number(l.qty)>0&&l.wper>0)l.bars=Math.round(Number(l.qty)/l.wper*100)/100;
-      renderPoLines();}
-  }
+function poPick(i,val){const l=poLines[i];l.name=val;const pn=(val||'').split(' ')[0];const p=DB.products.find(x=>x.type==='RM'&&(x.pn===pn||x.pn===val));l.productId=p?p.id:'';
+  const src=val+' '+(p?((p.name||'')+' '+(p.steelUse||'')+' '+(p.dim||'')+' '+(p.material||'')):'');const parsed=poParseSteel(src);
+  if(parsed){l.wmat=parsed.key;l.wk=parsed.K;if(parsed.d)l.d1=parsed.d;if(parsed.key.indexOf('plate')!==0&&parsed.d)l.d2=parsed.d;if(parsed.len)l.len=parsed.len;
+    l.wper=(Number(l.d1)||0)*(Number(l.d2)||0)*(Number(l.len)||0)*(Number(l.wk)||0);
+    if(Number(l.bars)>0&&l.wper>0)l.qty=Math.round(Number(l.bars)*l.wper*100)/100;else if(Number(l.qty)>0&&l.wper>0)l.bars=Math.round(Number(l.qty)/l.wper*100)/100;}
+  renderPoLines();
 }
 function poTotals(){let sub=0;poLines.forEach(l=>{sub+=(Number(l.qty)||0)*(Number(l.price)||0);});const disc=Number((document.getElementById('pu_disc')||{}).value)||0;const amount=sub-disc;const vat=(document.getElementById('pu_vat')&&document.getElementById('pu_vat').checked)?amount*0.07:0;const grand=amount+vat;const el=document.getElementById('puTotals');if(!el)return;el.innerHTML=`<div class="panel" style="box-shadow:none;margin:0"><div class="panel-b" style="padding:10px 14px"><div class="kv"><span class="k">TOTAL (รวมเป็นเงิน)</span><b>${fmt2(sub)}</b></div>${disc?`<div class="kv"><span class="k">Discount (ส่วนลด)</span><b style="color:var(--red)">-${fmt2(disc)}</b></div>`:''}<div class="kv"><span class="k">AMOUNT</span><b>${fmt2(amount)}</b></div>${vat?`<div class="kv"><span class="k">VAT 7%</span><b>${fmt2(vat)}</b></div>`:''}<div class="kv"><span class="k">GRAND TOTAL (ยอดสุทธิ)</span><b style="color:var(--teal);font-size:15px">${fmt2(grand)} บาท</b></div></div></div>`;}
 function editPurchaseDoc(id){const d=DB.docs.find(x=>x.id===id);if(d)openPurchaseForm(d);}
