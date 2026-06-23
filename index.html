@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='PARTYFILT-2026.06.21n';
+const APP_BUILD='STEELW-2026.06.21o';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -4021,27 +4021,49 @@ function openPurchaseForm(edit){
     <div id="puTotals"></div>
     <div class="field" style="margin-top:8px"><label>หมายเหตุ</label><input id="pu_note" value="${edit?esc(edit.note||''):''}"></div>
   `,footer:`<button class="btn" onclick="closeModal()">ยกเลิก</button><button class="btn" onclick="submitPurchase('pending','${edit?edit.id:''}')">บันทึก (รออนุมัติ)</button><button class="btn pri" onclick="submitPurchase('approved','${edit?edit.id:''}')">บันทึก + อนุมัติ</button>`});
-  poLines=edit&&edit.lines?edit.lines.map(l=>({productId:l.productId||'',name:l.name||'',qty:l.qty||'',bars:l.bars||'',unit:l.unit||'Kgs.',price:l.price||''})):[{productId:'',name:'',qty:'',bars:'',unit:'Kgs.',price:''}];
+  poLines=edit&&edit.lines?edit.lines.map(l=>({productId:l.productId||'',name:l.name||'',qty:l.qty||'',bars:l.bars||'',unit:l.unit||'Kgs.',price:l.price||'',wmat:l.wmat||'',d1:l.d1||'',d2:l.d2||'',len:l.len||'',wk:l.wk||'',wper:l.wper||''})):[{productId:'',name:'',qty:'',bars:'',unit:'Kgs.',price:'',wmat:'',d1:'',d2:'',len:'',wk:'',wper:''}];
   setTimeout(()=>{renderPoLines();puTypeHint();},15);
 }
 function puCodeFill(){const c=((document.getElementById('pu_code')||{}).value||'').trim();if(!c)return;const setF=(id,val)=>{const e=document.getElementById(id);if(e&&val)e.value=val;};const m=makerByCode(c);if(m){setF('pu_sup',m.name||c);setF('pu_tax',m.taxId||'');setF('pu_addr',m.address||'');setF('pu_tel',m.tel||'');setF('pu_contact',m.contact||'');}else{const r=resolveSupplier(c);setF('pu_sup',r.name||c);if(r.taxId)setF('pu_tax',r.taxId);}}
 function puAbbrFill(){const a=((document.getElementById('pu_abbr')||{}).value||'').trim();if(!a)return;const al=a.toLowerCase();const setF=(id,val)=>{const e=document.getElementById(id);if(e&&val)e.value=val;};let m=(DB.settings.makers||[]).find(x=>(x.abbr||'').toLowerCase()===al)||(DB.settings.makers||[]).find(x=>(x.code||'')===a);if(m){setF('pu_sup',m.name||a);setF('pu_tax',m.taxId||'');setF('pu_addr',m.address||'');setF('pu_tel',m.tel||'');setF('pu_contact',m.contact||'');return;}const sp=(DB.settings.supList||[]).find(x=>(x.shortName||'').toLowerCase()===al)||(DB.settings.supList||[]).find(x=>(x.code||'')===a);if(sp){setF('pu_sup',sp.name||a);setF('pu_tax',sp.taxId||'');setF('pu_addr',sp.address||'');setF('pu_tel',sp.tel||'');setF('pu_contact',sp.contact||'');return;}const r=resolveSupplier(a);setF('pu_sup',r.name||a);if(r.taxId)setF('pu_tax',r.taxId);}
 function puSupFill(){const e=document.getElementById('pu_sup');if(!e||!e.value.trim())return;const r=resolveSupplier(e.value);const t=document.getElementById('pu_tax');if(t&&r.taxId&&!t.value)t.value=r.taxId;}
 function puTypeHint(){const el=document.getElementById('puTypeHint');if(!el)return;const t=((document.getElementById('pu_type')||{}).value)||'RM';el.innerHTML=t==='SUP'?'<div class="hint" style="margin:0"><span class="i">🧰</span><div>ประเภท <b>วัสดุสิ้นเปลือง</b>: เมื่อบันทึก ระบบจะส่งรายการเข้าเมนู <b>วัสดุสิ้นเปลือง</b> · เพิ่มยอด <b>คงเหลือ (เข้าทันที)</b> · และส่งเข้า <b>ภาษีซื้อ</b> อัตโนมัติ</div></div>':'';}
-function addPoLine(){poLines.push({productId:'',name:'',qty:'',bars:'',unit:'Kgs.',price:''});renderPoLines()}
+var STEEL_W=[
+ {k:'round_steel',label:'เหล็กกลม',K:0.00617},{k:'round_brass',label:'ทองเหลืองกลม',K:0.00668},{k:'round_sus',label:'สแตนเลสกลม',K:0.00623},{k:'round_alu',label:'อลูมิเนียมกลม',K:0.00212},
+ {k:'hex_steel',label:'เหล็กหกเหลี่ยม',K:0.00680},{k:'hex_brass',label:'ทองเหลืองหกเหลี่ยม',K:0.00736},{k:'hex_sus',label:'สแตนเลสหกเหลี่ยม',K:0.00687},{k:'hex_alu',label:'อลูมิเนียมหกเหลี่ยม',K:0.00234},
+ {k:'sq_steel',label:'เหล็กสี่เหลี่ยม',K:0.00785},{k:'sq_brass',label:'ทองเหลืองสี่เหลี่ยม',K:0.00850},{k:'sq_sus',label:'สแตนเลสสี่เหลี่ยม',K:0.00793},{k:'sq_alu',label:'อลูมิเนียมสี่เหลี่ยม',K:0.00270},
+ {k:'plate_steel',label:'เหล็กแผ่น',K:7.85},{k:'plate_brass',label:'ทองเหลืองแผ่น',K:8.50},{k:'plate_sus',label:'สแตนเลสแผ่น',K:7.93},{k:'plate_alu',label:'อลูมิเนียมแผ่น',K:2.70}
+];
+function steelKByKey(k){const m=STEEL_W.find(x=>x.k===k);return m?m.K:0;}
+function poWmat(i,val){poLines[i].wmat=val;poLines[i].wk=steelKByKey(val);poWcalc(i);}
+function poWcalc(i){const l=poLines[i];const w=(Number(l.d1)||0)*(Number(l.d2)||0)*(Number(l.len)||0)*(Number(l.wk)||0);l.wper=w;
+  const e=document.getElementById('powper_'+i);if(e)e.textContent=w?fmt2(w):'-';
+  const ke=document.getElementById('powk_'+i);if(ke)ke.value=l.wk||'';
+  if(Number(l.bars)>0&&w>0){l.qty=Number(l.bars)*w;const q=document.getElementById('poqty_'+i);if(q)q.value=Math.round(l.qty*100)/100;}
+  poLineCalc(i);}
+function poBarsIn(i,val){poLines[i].bars=val;const w=Number(poLines[i].wper)||0;if(w>0){const kg=(Number(val)||0)*w;poLines[i].qty=kg;const e=document.getElementById('poqty_'+i);if(e)e.value=kg?(Math.round(kg*100)/100):'';}poLineCalc(i);}
+function poQtyIn(i,val){poLines[i].qty=val;const w=Number(poLines[i].wper)||0;if(w>0){const bars=(Number(val)||0)/w;poLines[i].bars=bars?(Math.round(bars*100)/100):'';const e=document.getElementById('pobars_'+i);if(e)e.value=poLines[i].bars;}poLineCalc(i);}
+function addPoLine(){poLines.push({productId:'',name:'',qty:'',bars:'',unit:'Kgs.',price:'',wmat:'',d1:'',d2:'',len:'',wk:'',wper:''});renderPoLines()}
 function rmPoLine(i){poLines.splice(i,1);renderPoLines()}
 function renderPoLines(){
   const root=document.getElementById('puRoot');if(!root)return;
-  root.innerHTML=`<div style="overflow-x:auto"><table style="font-size:12.5px"><thead><tr><th style="min-width:220px">รายการ (วัตถุดิบ)</th><th style="width:88px">จำนวน (เส้น)</th><th style="width:96px">จำนวน (KGS./PCS.)</th><th style="width:96px">ราคา/หน่วย (KGS./PCS.)</th><th style="width:100px">จำนวนเงิน</th><th></th></tr></thead><tbody>
+  root.innerHTML=`<div style="overflow-x:auto"><table style="font-size:12.5px;min-width:1080px"><thead><tr><th style="min-width:200px">รายการ (วัตถุดิบ)</th><th style="width:80px">จำนวน (เส้น)</th><th style="width:90px">จำนวน (KGS./PCS.)</th><th style="width:90px">ราคา/หน่วย</th><th style="width:90px">จำนวนเงิน</th><th style="width:150px">หาน้ำหนัก (ชนิด)</th><th style="width:58px">โต1</th><th style="width:58px">โต2</th><th style="width:58px">ยาว(ม.)</th><th style="width:64px">ค่าคงที่</th><th style="width:74px">นน./เส้น</th><th></th></tr></thead><tbody>
   ${poLines.map((l,i)=>`<tr>
     <td><input list="dl_rm3" value="${esc(l.name||'')}" placeholder="พิมพ์/เลือกวัตถุดิบ" oninput="poPick(${i},this.value)" style="padding:6px 8px"></td>
-    <td><input type="number" step="any" value="${l.bars||''}" placeholder="เส้น" oninput="poLines[${i}].bars=this.value" style="padding:6px 8px;text-align:right"></td>
-    <td><input type="number" step="any" value="${l.qty}" placeholder="กก." oninput="poLines[${i}].qty=this.value;poLineCalc(${i})" style="padding:6px 8px;text-align:right"></td>
+    <td><input id="pobars_${i}" type="number" step="any" value="${l.bars||''}" placeholder="เส้น" oninput="poBarsIn(${i},this.value)" style="padding:6px 8px;text-align:right"></td>
+    <td><input id="poqty_${i}" type="number" step="any" value="${l.qty}" placeholder="กก." oninput="poQtyIn(${i},this.value)" style="padding:6px 8px;text-align:right"></td>
     <td><input type="number" step="any" value="${l.price}" placeholder="บาท/กก." oninput="poLines[${i}].price=this.value;poLineCalc(${i})" style="padding:6px 8px;text-align:right"></td>
     <td class="num" id="puamt_${i}" style="font-weight:600">${fmt2((Number(l.qty)||0)*(Number(l.price)||0))}</td>
+    <td><select onchange="poWmat(${i},this.value)" style="padding:5px;width:100%"><option value="">— เลือก —</option>${STEEL_W.map(m=>`<option value="${m.k}" ${l.wmat===m.k?'selected':''}>${m.label}</option>`).join('')}</select></td>
+    <td><input type="number" step="any" value="${l.d1||''}" placeholder="มม." oninput="poLines[${i}].d1=this.value;poWcalc(${i})" style="padding:6px 4px;text-align:right"></td>
+    <td><input type="number" step="any" value="${l.d2||''}" placeholder="มม." oninput="poLines[${i}].d2=this.value;poWcalc(${i})" style="padding:6px 4px;text-align:right"></td>
+    <td><input type="number" step="any" value="${l.len||''}" placeholder="ม." oninput="poLines[${i}].len=this.value;poWcalc(${i})" style="padding:6px 4px;text-align:right"></td>
+    <td><input id="powk_${i}" value="${l.wk||''}" readonly style="padding:6px 4px;text-align:right;background:var(--panel2)"></td>
+    <td class="num" id="powper_${i}" style="font-weight:700;color:var(--brand)">${l.wper?fmt2(l.wper):'-'}</td>
     <td><div class="rm-x" style="height:32px" onclick="rmPoLine(${i})">✕</div></td>
   </tr>`).join('')}
   </tbody></table></div>
+  <div class="hint" style="margin-top:6px"><span class="i">⚖️</span><div>เลือกชนิดวัสดุ → ใส่ โต1×โต2×ยาว(ม.) ระบบคูณค่าคงที่ได้ <b>น้ำหนัก/เส้น</b> · เคาะ <b>เส้น</b> → คำนวณ กก. · เคาะ <b>กก.</b> → คำนวณ เส้น · กลม/หกเหลี่ยม/สี่เหลี่ยม: โต1=โต2=ขนาด(มม.) · แผ่น: โต1=หนา(มม.) โต2=กว้าง(ม.)</div></div>
   <datalist id="dl_rm3">${poRmOptions().slice(0,1200).map(p=>`<option value="${esc(p.pn+(p.name&&p.name!=='-'?' '+p.name:''))}">`).join('')}</datalist>`;
   poTotals();
 }
@@ -4064,7 +4086,7 @@ function submitPurchase(status,editId){
   const v=k=>(document.getElementById(k)||{}).value;
   const sup=(v('pu_sup')||'').trim();if(!sup){toast('กรุณาระบุผู้ขาย','err');return}
   const no=(v('pu_no')||'').trim();if(!no){toast('กรุณากรอกเลขที่','err');return}
-  const lines=poLines.filter(l=>(l.name||l.productId)&&Number(l.qty)>0).map(l=>({productId:l.productId||'',name:(l.name||'').trim(),qty:Number(l.qty),bars:Number(l.bars)||0,unit:l.unit||'',price:Number(l.price)||0}));
+  const lines=poLines.filter(l=>(l.name||l.productId)&&Number(l.qty)>0).map(l=>({productId:l.productId||'',name:(l.name||'').trim(),qty:Number(l.qty),bars:Number(l.bars)||0,unit:l.unit||'',price:Number(l.price)||0,wmat:l.wmat||'',d1:Number(l.d1)||0,d2:Number(l.d2)||0,len:Number(l.len)||0,wper:Number(l.wper)||0}));
   if(!lines.length){toast('กรุณาเพิ่มรายการอย่างน้อย 1 บรรทัด','err');return}
   const poType=(v('pu_type')||'RM');
   const vendorCode=(v('pu_code')||'').trim(),supplierAbbr=(v('pu_abbr')||'').trim();
