@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='STEELW-2026.06.21o';
+const APP_BUILD='STEELAUTO-2026.06.21p';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -4035,6 +4035,16 @@ var STEEL_W=[
  {k:'plate_steel',label:'เหล็กแผ่น',K:7.85},{k:'plate_brass',label:'ทองเหลืองแผ่น',K:8.50},{k:'plate_sus',label:'สแตนเลสแผ่น',K:7.93},{k:'plate_alu',label:'อลูมิเนียมแผ่น',K:2.70}
 ];
 function steelKByKey(k){const m=STEEL_W.find(x=>x.k===k);return m?m.K:0;}
+function poParseSteel(text){
+  text=String(text||'');const t=text.toLowerCase();
+  const metal=/สแตนเลส|สเตนเลส|stainless|\bsus\b/.test(t)?'sus':/ทองเหลือง|brass/.test(t)?'brass':/อลูมิ|อลู|alu/.test(t)?'alu':'steel';
+  const shape=/หกเหลี่ยม|hex/.test(t)?'hex':/สี่เหลี่ยม|square/.test(t)?'sq':/แผ่น|plate|sheet/.test(t)?'plate':/กลม|round/.test(t)?'round':'';
+  if(!shape)return null;
+  const key=shape+'_'+metal;
+  let d=0;const md=text.match(/([\d.,]+)\s*(?:มม\.?|มิล|mm)/);if(md)d=parseFloat(md[1].replace(/,/g,''))||0;
+  let len=0;const parts=text.split(/[x×X]/);if(parts.length>1){const after=parts.slice(1).join(' ');const ml=after.match(/([\d.,]+)\s*(มม\.?|มิล|mm|ม\.?|เมตร|m)/i);if(ml){let n=parseFloat(ml[1].replace(/,/g,''))||0;const isMM=/มม|มิล|mm/i.test(ml[2]);len=isMM?n/1000:(n>=1000?n/1000:n);}}
+  return {key:key,d:d,len:len,K:steelKByKey(key)};
+}
 function poWmat(i,val){poLines[i].wmat=val;poLines[i].wk=steelKByKey(val);poWcalc(i);}
 function poWcalc(i){const l=poLines[i];const w=(Number(l.d1)||0)*(Number(l.d2)||0)*(Number(l.len)||0)*(Number(l.wk)||0);l.wper=w;
   const e=document.getElementById('powper_'+i);if(e)e.textContent=w?fmt2(w):'-';
@@ -4079,7 +4089,14 @@ function poRmOptions(){
   return out.sort((a,b)=>String(a.pn).localeCompare(String(b.pn),undefined,{numeric:true}));
 }
 function poLineCalc(i){const l=poLines[i];const e=document.getElementById('puamt_'+i);if(e)e.textContent=fmt2((Number(l.price)||0)*(Number(l.qty)||0));poTotals();}
-function poPick(i,val){poLines[i].name=val;const pn=(val||'').split(' ')[0];const p=DB.products.find(x=>x.type==='RM'&&(x.pn===pn||x.pn===val));poLines[i].productId=p?p.id:'';}
+function poPick(i,val){poLines[i].name=val;const pn=(val||'').split(' ')[0];const p=DB.products.find(x=>x.type==='RM'&&(x.pn===pn||x.pn===val));poLines[i].productId=p?p.id:'';
+  if(p){const src=val+' '+(p.name||'')+' '+(p.steelUse||'')+' '+(p.dim||'')+' '+(p.material||'');const parsed=poParseSteel(src);
+    if(parsed){const l=poLines[i];l.wmat=parsed.key;l.wk=parsed.K;if(parsed.d)l.d1=parsed.d;if(parsed.key.indexOf('plate')!==0&&parsed.d)l.d2=parsed.d;if(parsed.len)l.len=parsed.len;
+      l.wper=(Number(l.d1)||0)*(Number(l.d2)||0)*(Number(l.len)||0)*(Number(l.wk)||0);
+      if(Number(l.bars)>0&&l.wper>0)l.qty=Number(l.bars)*l.wper;else if(Number(l.qty)>0&&l.wper>0)l.bars=Math.round(Number(l.qty)/l.wper*100)/100;
+      renderPoLines();}
+  }
+}
 function poTotals(){let sub=0;poLines.forEach(l=>{sub+=(Number(l.qty)||0)*(Number(l.price)||0);});const disc=Number((document.getElementById('pu_disc')||{}).value)||0;const amount=sub-disc;const vat=(document.getElementById('pu_vat')&&document.getElementById('pu_vat').checked)?amount*0.07:0;const grand=amount+vat;const el=document.getElementById('puTotals');if(!el)return;el.innerHTML=`<div class="panel" style="box-shadow:none;margin:0"><div class="panel-b" style="padding:10px 14px"><div class="kv"><span class="k">TOTAL (รวมเป็นเงิน)</span><b>${fmt2(sub)}</b></div>${disc?`<div class="kv"><span class="k">Discount (ส่วนลด)</span><b style="color:var(--red)">-${fmt2(disc)}</b></div>`:''}<div class="kv"><span class="k">AMOUNT</span><b>${fmt2(amount)}</b></div>${vat?`<div class="kv"><span class="k">VAT 7%</span><b>${fmt2(vat)}</b></div>`:''}<div class="kv"><span class="k">GRAND TOTAL (ยอดสุทธิ)</span><b style="color:var(--teal);font-size:15px">${fmt2(grand)} บาท</b></div></div></div>`;}
 function editPurchaseDoc(id){const d=DB.docs.find(x=>x.id===id);if(d)openPurchaseForm(d);}
 function submitPurchase(status,editId){
