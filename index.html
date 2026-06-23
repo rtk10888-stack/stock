@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='PLTAG-2026.06.21l';
+const APP_BUILD='PLTAGSPLIT-2026.06.21m';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -1750,9 +1750,15 @@ function openPlTagDialog(docId,idx){
       <div class="field"><label>รับ / จำนวนชิ้น</label><input id="pt_rq" type="number" value="${recv||''}" oninput="plTagKg()"></div>
       <div class="field"><label>รับ / กิโลกรัม</label><input id="pt_rk" type="number" step="any" value="${wfg&&recv?r2(wfg*recv):''}"></div>
     </div>
+    <div class="row c2">
+      <div class="field"><label>จำนวนชิ้น/ลัง (แบ่ง TAG) <span class="req">*</span></label><input id="pt_per" type="number" value="${sent||100}" oninput="plTagCalc()"></div>
+      <div class="field"><label>จำนวน TAG ที่จะพิมพ์</label><input id="pt_cnt" readonly value="1" style="background:var(--panel2);font-weight:700;color:var(--brand)"></div>
+    </div>
     <input type="hidden" id="pt_wfg" value="${wfg}">
   `,footer:`<button class="btn" onclick="closeModal()">ปิด</button><button class="btn" onclick="printPlTag(true)">👁️ ดูตัวอย่าง</button><button class="btn pri" onclick="printPlTag(false)">🖨️ พิมพ์ TAG</button>`});
+  setTimeout(plTagCalc,20);
 }
+function plTagCalc(){const sq=Number((document.getElementById('pt_sq')||{}).value)||0;const per=Number((document.getElementById('pt_per')||{}).value)||0;const n=per>0?Math.max(1,Math.ceil(sq/per)):1;const e=document.getElementById('pt_cnt');if(e)e.value=fmt(n);return n;}
 function plTagKg(){const wfg=Number((document.getElementById('pt_wfg')||{}).value)||0;if(!wfg)return;const sq=Number((document.getElementById('pt_sq')||{}).value)||0;const rq=Number((document.getElementById('pt_rq')||{}).value)||0;const r2=x=>Math.round(x*100)/100;const sk=document.getElementById('pt_sk'),rk=document.getElementById('pt_rk');if(sk)sk.value=sq?r2(wfg*sq):'';if(rk)rk.value=rq?r2(wfg*rq):'';}
 function plTagOne(t){
   return '<div class="mvtag"><table>'
@@ -1767,8 +1773,21 @@ function plTagOne(t){
    +'</table></div>';}
 function printPlTag(preview){
   const v=k=>((document.getElementById(k)||{}).value||'').trim();
-  const t={date:v('pt_date'),po:v('pt_po'),pno:v('pt_pno'),lot:v('pt_lot'),vendor:v('pt_vendor'),maker:v('pt_maker'),plate:v('pt_plate'),step:v('pt_step'),sq:Number(v('pt_sq'))||0,sk:v('pt_sk'),rq:Number(v('pt_rq'))||0,rk:v('pt_rk')};
-  const tags=plTagOne(t);
+  const base={date:v('pt_date'),po:v('pt_po'),pno:v('pt_pno'),lot:v('pt_lot'),vendor:v('pt_vendor'),maker:v('pt_maker'),plate:v('pt_plate'),step:v('pt_step')};
+  const wfg=Number(v('pt_wfg'))||0;
+  const sq=Number(v('pt_sq'))||0,rq=Number(v('pt_rq'))||0;
+  const skT=Number(v('pt_sk'))||0,rkT=Number(v('pt_rk'))||0;
+  const per=Number(v('pt_per'))||0;
+  const n=per>0?Math.max(1,Math.ceil(sq/per)):1;
+  const r2=x=>Math.round(x*100)/100;
+  let tags='';
+  for(let i=0;i<n;i++){
+    const sBox=per>0?Math.max(0,Math.min(per,sq-per*i)):sq;
+    const rBox=per>0?Math.max(0,Math.min(per,rq-per*i)):rq;
+    const sk=sBox?(wfg>0?r2(wfg*sBox):(sq>0?r2(skT*sBox/sq):'')):'';
+    const rk=rBox?(wfg>0?r2(wfg*rBox):(rq>0?r2(rkT*rBox/rq):'')):'';
+    tags+=plTagOne(Object.assign({sq:sBox,rq:rBox,sk:sk,rk:rk},base));
+  }
   const css="@page{size:A4;margin:7mm}*{box-sizing:border-box;font-family:'Tahoma',sans-serif}body{margin:0}.sheet{font-size:0}"
    +".mvtag{display:inline-block;vertical-align:top;width:95mm;height:45mm;border:1.6px solid #1b3a8f;page-break-inside:avoid;margin:0 1mm 1mm 0;overflow:hidden}"
    +".mvtag table{width:100%;height:100%;border-collapse:collapse;table-layout:fixed}"
@@ -1782,7 +1801,7 @@ function printPlTag(preview){
    +"@media print{.noprint{display:none}}";
   const auto=preview?'':'setTimeout(function(){window.print();},250);';
   const html='<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"><title>TAG ส่งชุบ/รับชุบ</title><style>'+css+'</style></head><body>'
-   +'<div class="noprint" style="text-align:center;padding:8px;font-family:Tahoma"><b>TAG ส่งชุบ / รับชุบ</b> (A4 = 12 ดวง/แผ่น) &nbsp; <button onclick="window.print()" style="padding:6px 18px;cursor:pointer">🖨️ พิมพ์</button></div>'
+   +'<div class="noprint" style="text-align:center;padding:8px;font-family:Tahoma"><b>TAG ส่งชุบ / รับชุบ '+fmt(n)+' ดวง</b> (A4 = 12 ดวง/แผ่น) &nbsp; <button onclick="window.print()" style="padding:6px 18px;cursor:pointer">🖨️ พิมพ์</button></div>'
    +'<div class="sheet">'+tags+'</div><scr'+'ipt>'+auto+'</scr'+'ipt></body></html>';
   const w=window.open('','_blank');if(!w){toast('เบราว์เซอร์บล็อก popup','err');return}w.document.write(html);w.document.close();
 }
