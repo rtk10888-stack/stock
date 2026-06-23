@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='PORMCLEAN-2026.06.21c';
+const APP_BUILD='PRODSPEC-2026.06.21d';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -669,18 +669,19 @@ function recentMovesTable(n){
    INVENTORY
    ============================================================ */
 let invFilter={q:'',type:'all',cust:'',plating:'',cond:'',sort:''};
-var invCols=(function(){try{return Object.assign({date:true,salePrice:true,prodPrice:true,plating:true,cond:true,flow:true,qtime:true,adj:true,tin:true,tout:true,ng:true,atp:true,rcv:true},JSON.parse(localStorage.getItem('rtk_invcols')||'{}'))}catch(e){return {date:true,salePrice:true,prodPrice:true,plating:true,cond:true,flow:true,qtime:true,adj:true,tin:true,tout:true,ng:true,atp:true,rcv:true}}})();
+var INV_COL_DEF={date:true,shape:true,grade:true,dim:true,steel:true,perbar:true,harden:true,color:true,salePrice:true,prodPrice:true,plating:true,cond:true,flow:true,qtime:true,adj:true,tin:true,tout:true,ng:true,atp:true,rcv:true};
+var invCols=(function(){try{return Object.assign({},INV_COL_DEF,JSON.parse(localStorage.getItem('rtk_invcols')||'{}'))}catch(e){return Object.assign({},INV_COL_DEF)}})();
 function invColToggle(k){invCols[k]=!invCols[k];try{localStorage.setItem('rtk_invcols',JSON.stringify(invCols))}catch(e){}renderInvTable();}
 var ivShowFlow=(function(){try{return localStorage.getItem('rtk_ivflow')!=='0'}catch(e){return true}})();
 function ivFlowColToggle(){ivShowFlow=!ivShowFlow;try{localStorage.setItem('rtk_ivflow',ivShowFlow?'1':'0')}catch(e){}viewDocs('INV');}
 function invColEye(k){return '<span onclick="event.stopPropagation();invColToggle(\''+k+'\')" style="cursor:pointer;opacity:.55;font-size:11px;margin-left:3px" title="ซ่อนคอลัมน์นี้">🙈</span>';}
-function invColReset(){invCols={date:true,salePrice:true,prodPrice:true,plating:true,cond:true,flow:true,qtime:true,adj:true,tin:true,tout:true,ng:true,atp:true,rcv:true};try{localStorage.setItem('rtk_invcols',JSON.stringify(invCols))}catch(e){}renderInvTable();openColMenu();}
+function invColReset(){invCols=Object.assign({},INV_COL_DEF);try{localStorage.setItem('rtk_invcols',JSON.stringify(invCols))}catch(e){}renderInvTable();openColMenu();}
 var dashCols=(function(){try{return Object.assign({tax:true,taxsale:true,vat:true,wht:true,nc:true,plate:true,sales:true,kpi:true},JSON.parse(localStorage.getItem('rtk_dashcols')||'{}'))}catch(e){return {tax:true,taxsale:true,vat:true,wht:true,nc:true,plate:true,sales:true,kpi:true}}})();
 function dashColToggle(k){dashCols[k]=!dashCols[k];try{localStorage.setItem('rtk_dashcols',JSON.stringify(dashCols))}catch(e){}render();}
 function dashColReset(){dashCols={tax:true,taxsale:true,vat:true,wht:true,nc:true,plate:true,sales:true,kpi:true};try{localStorage.setItem('rtk_dashcols',JSON.stringify(dashCols))}catch(e){}render();openDashColMenu();}
 function dashEye(k){return '<span style="position:absolute;top:5px;right:7px;cursor:pointer;opacity:.45;font-size:11px" onclick="event.stopPropagation();dashColToggle(\''+k+'\')" title="ซ่อนการ์ดนี้">🙈</span>';}
 function openDashColMenu(){const cols=[['tax','ภาษีซื้อ'],['taxsale','ภาษีขาย'],['vat','VAT สุทธิ'],['wht','หัก ณ ที่จ่าย'],['nc','งานเสีย NC'],['plate','ส่งชุบคงค้าง'],['sales','ยอดขายปีนี้'],['kpi','KPI']];modal({title:'👁 เลือกการ์ดสรุปที่แสดง',body:'<div class="hint" style="margin-bottom:8px"><span class="i">💡</span><div>ติ๊กแสดง/ซ่อนการ์ด (จำเฉพาะเครื่องนี้)</div></div>'+cols.map(c=>`<label style="display:flex;gap:8px;align-items:center;padding:5px 2px;font-size:13.5px"><input type="checkbox" ${dashCols[c[0]]!==false?'checked':''} onchange="dashColToggle('${c[0]}')"> ${c[1]}</label>`).join(''),footer:`<button class="btn" onclick="dashColReset()">↺ แสดงทั้งหมด</button><button class="btn pri" onclick="closeModal()">ปิด</button>`});}
-function openColMenu(){const cols=[['date','วันที่'],['salePrice','ราคาขาย'],['prodPrice','ราคาผลิต'],['plating','การชุบ'],['cond','เงื่อนไขวัตถุดิบ'],['flow','สถานะการไหล'],['qtime','Q-Time (พักงานรอคัดแยก)'],['adj','ปรับยอด'],['tin','รวมรับ'],['tout','รวมจ่าย'],['ng','NG'],['atp','ชุบ (อยู่ระหว่างชุบ)'],['rcv','รอรับเข้า (คัดผ่าน)']];modal({title:'👁 เลือกคอลัมน์ที่แสดง',body:'<div class="hint" style="margin-bottom:8px"><span class="i">💡</span><div>ติ๊กเพื่อแสดง/ซ่อนคอลัมน์ (จำเฉพาะเครื่องนี้) · หรือกด 🙈 ที่หัวคอลัมน์เพื่อซ่อนเร็ว</div></div>'+cols.map(c=>`<label style="display:flex;gap:8px;align-items:center;padding:6px 2px;font-size:13.5px"><input type="checkbox" ${invCols[c[0]]!==false?'checked':''} onchange="invColToggle('${c[0]}')"> ${c[1]}</label>`).join(''),footer:`<button class="btn" onclick="invColReset()">↺ แสดงทั้งหมด</button><button class="btn pri" onclick="closeModal()">ปิด</button>`});}
+function openColMenu(){const cols=[['date','วันที่'],['shape','แบบ/รูป'],['grade','เกรดเหล็ก'],['dim','งานโตxยาว'],['steel','ใช้เหล็ก'],['perbar','1 เส้น/ชิ้นงาน'],['harden','ชุบแข็ง'],['color','ชุบสี'],['salePrice','ราคาขาย'],['prodPrice','ราคาผลิต'],['plating','การชุบ'],['cond','เงื่อนไขวัตถุดิบ'],['flow','สถานะการไหล'],['qtime','Q-Time (พักงานรอคัดแยก)'],['adj','ปรับยอด'],['tin','รวมรับ'],['tout','รวมจ่าย'],['ng','NG'],['atp','ชุบ (อยู่ระหว่างชุบ)'],['rcv','รอรับเข้า (คัดผ่าน)']];modal({title:'👁 เลือกคอลัมน์ที่แสดง',body:'<div class="hint" style="margin-bottom:8px"><span class="i">💡</span><div>ติ๊กเพื่อแสดง/ซ่อนคอลัมน์ (จำเฉพาะเครื่องนี้) · หรือกด 🙈 ที่หัวคอลัมน์เพื่อซ่อนเร็ว</div></div>'+cols.map(c=>`<label style="display:flex;gap:8px;align-items:center;padding:6px 2px;font-size:13.5px"><input type="checkbox" ${invCols[c[0]]!==false?'checked':''} onchange="invColToggle('${c[0]}')"> ${c[1]}</label>`).join(''),footer:`<button class="btn" onclick="invColReset()">↺ แสดงทั้งหมด</button><button class="btn pri" onclick="closeModal()">ปิด</button>`});}
 function flowRefToggle(){const b=document.getElementById('flowRefBody');if(!b)return;const s=b.style.display==='none';b.style.display=s?'':'none';const t=document.getElementById('flowRefBtn');if(t)t.textContent=s?'▲ ซ่อนเงื่อนไข':'▼ ดู/ปรับเงื่อนไขการไหล';}
 function flowRefHTML(open){
   const cell='style="border:1px solid var(--line);padding:6px"';
@@ -929,7 +930,7 @@ function renderInvTable(){
   const tAdj=list.reduce((s,p)=>s+(mg(p).adj||0),0),tTin=list.reduce((s,p)=>s+(mg(p).tin||0),0),tTout=list.reduce((s,p)=>s+(mg(p).tout||0),0),tNg=list.reduce((s,p)=>s+(mg(p).ng||0),0);
   const tQt=list.reduce((s,p)=>{const v=qtOf(p);return s+(v||0);},0);
   wrap.innerHTML=`<div class="tbl-wrap"><table><thead><tr>
-    <th>ประเภท</th>${invCols.date!==false?`<th>วันที่${invColEye('date')}</th>`:''}<th>Part Number</th><th>ชื่อ</th><th>ลูกค้า</th><th class="num">MOQ</th>${invCols.salePrice?`<th class="num">ราคาขาย${invColEye('salePrice')}</th>`:''}${invCols.prodPrice?`<th class="num">ราคาผลิต${invColEye('prodPrice')}</th>`:''}${invCols.plating?`<th>การชุบ${invColEye('plating')}</th>`:''}${invCols.cond?`<th>เงื่อนไขวัตถุดิบ${invColEye('cond')}</th>`:''}${invCols.flow!==false?`<th>สถานะการไหล${invColEye('flow')}</th>`:''}${invCols.adj!==false?`<th class="num">ปรับยอด${invColEye('adj')}</th>`:''}${invCols.tin!==false?`<th class="num">รวมรับ${invColEye('tin')}</th>`:''}${invCols.tout!==false?`<th class="num">รวมจ่าย${invColEye('tout')}</th>`:''}${invCols.ng!==false?`<th class="num">NG${invColEye('ng')}</th>`:''}
+    <th>ประเภท</th>${invCols.date!==false?`<th>วันที่${invColEye('date')}</th>`:''}<th>Part Number</th><th>ชื่อ</th>${invCols.shape!==false?`<th>แบบ/รูป${invColEye('shape')}</th>`:''}${invCols.grade!==false?`<th>เกรดเหล็ก${invColEye('grade')}</th>`:''}${invCols.dim!==false?`<th>งานโตxยาว${invColEye('dim')}</th>`:''}${invCols.steel!==false?`<th>ใช้เหล็ก${invColEye('steel')}</th>`:''}${invCols.perbar!==false?`<th class="num">1 เส้น/ชิ้นงาน${invColEye('perbar')}</th>`:''}${invCols.harden!==false?`<th>ชุบแข็ง${invColEye('harden')}</th>`:''}${invCols.color!==false?`<th>ชุบสี${invColEye('color')}</th>`:''}<th>ลูกค้า</th><th class="num">MOQ</th>${invCols.salePrice?`<th class="num">ราคาขาย${invColEye('salePrice')}</th>`:''}${invCols.prodPrice?`<th class="num">ราคาผลิต${invColEye('prodPrice')}</th>`:''}${invCols.plating?`<th>การชุบ${invColEye('plating')}</th>`:''}${invCols.cond?`<th>เงื่อนไขวัตถุดิบ${invColEye('cond')}</th>`:''}${invCols.flow!==false?`<th>สถานะการไหล${invColEye('flow')}</th>`:''}${invCols.adj!==false?`<th class="num">ปรับยอด${invColEye('adj')}</th>`:''}${invCols.tin!==false?`<th class="num">รวมรับ${invColEye('tin')}</th>`:''}${invCols.tout!==false?`<th class="num">รวมจ่าย${invColEye('tout')}</th>`:''}${invCols.ng!==false?`<th class="num">NG${invColEye('ng')}</th>`:''}
     <th class="num">คงเหลือ</th><th class="num">WIP</th>${invCols.qtime!==false?`<th class="num">Q-Time${invColEye('qtime')}</th>`:''}${invCols.atp!==false?`<th class="num">ชุบ${invColEye('atp')}</th>`:''}${invCols.rcv!==false?`<th class="num">รอรับเข้า${invColEye('rcv')}</th>`:''}<th></th>
   </tr></thead><tbody>
   ${list.map(p=>{
@@ -945,6 +946,13 @@ function renderInvTable(){
       ${invCols.date!==false?`<td class="muted" style="font-size:11.5px">${esc(pDate(p))||'<span class="muted">-</span>'}</td>`:''}
       <td><span class="pn linkish" onclick="openProduct('${p.id}')">${p.pn}</span></td>
       <td>${p.name}</td>
+      ${invCols.shape!==false?`<td>${p.shapeImg?`<img src="${p.shapeImg}" style="height:34px;border-radius:4px;cursor:pointer" onclick="prodImgView('${p.id}')" title="คลิกดูรูป">`:'<span class="muted">—</span>'}</td>`:''}
+      ${invCols.grade!==false?`<td class="muted" style="font-size:11.5px">${esc(p.steelGrade||'')||'-'}</td>`:''}
+      ${invCols.dim!==false?`<td class="muted" style="font-size:11px">${esc(p.dim||'')||'-'}</td>`:''}
+      ${invCols.steel!==false?`<td class="muted" style="font-size:11px">${esc(p.steelUse||'')||'-'}</td>`:''}
+      ${invCols.perbar!==false?(()=>{const pb=perBar(p);return `<td class="num ${pb?'':'muted'}">${pb?fmt(pb):'-'}</td>`;})():''}
+      ${invCols.harden!==false?`<td class="muted" style="font-size:11.5px">${esc(p.hardenPlate||'')||'-'}</td>`:''}
+      ${invCols.color!==false?`<td class="muted" style="font-size:11.5px">${esc(p.colorPlate||'')||'-'}</td>`:''}
       <td>${p.customer==='ไม่ระบุ'?'<span class="muted">—</span>':p.customer}</td>
       <td class="num ${moq?'':'muted'}">${fmt(moq)}</td>
       ${invCols.salePrice?`<td class="num">${p.salePrice>0?fmt2(p.salePrice):'<span class="muted">—</span>'}</td>`:''}
@@ -961,7 +969,7 @@ function renderInvTable(){
       <td style="text-align:right;white-space:nowrap"><button class="btn sm" onclick="openProduct('${p.id}')">ดู</button> <button class="btn sm" onclick="printProductCard('${p.id}')" title="พิมพ์บัตรสินค้า">🖨️</button> <button class="btn sm" onclick="openProductForm('${p.id}')">✏️ แก้ไข</button> <button class="btn sm danger" onclick="delProduct('${p.id}')">🗑️ ลบ</button></td>
     </tr>`}).join('')}
   </tbody><tfoot><tr style="font-weight:700;background:var(--panel2);border-top:2px solid var(--line)">
-    <td colspan="${invCols.date!==false?5:4}">SUBTOTAL — ${list.length} รายการ</td>
+    <td colspan="${(invCols.date!==false?5:4)+['shape','grade','dim','steel','perbar','harden','color'].filter(k=>invCols[k]!==false).length}">SUBTOTAL — ${list.length} รายการ</td>
     <td class="num">${fmt(tMoq)}</td>${invCols.salePrice?`<td class="num">${fmt2(tPrice)}</td>`:''}${invCols.prodPrice?`<td></td>`:''}${invCols.plating?`<td></td>`:''}${invCols.cond?`<td></td>`:''}${invCols.flow!==false?`<td></td>`:''}${invCols.adj!==false?`<td class="num">${(tAdj>0?'+':'')+fmt(tAdj)}</td>`:''}${invCols.tin!==false?`<td class="num">${fmt(tTin)}</td>`:''}${invCols.tout!==false?`<td class="num">${fmt(tTout)}</td>`:''}${invCols.ng!==false?`<td class="num">${fmt(tNg)}</td>`:''}
     <td class="num">${fmt(tOn)}</td><td class="num">${fmt(tWip)}</td>${invCols.qtime!==false?`<td class="num">${fmt(tQt)}</td>`:''}${invCols.atp!==false?`<td class="num">${fmt(tPl)}</td>`:''}${invCols.rcv!==false?`<td class="num">${fmt(tQC)}</td>`:''}<td></td>
   </tr></tfoot></table></div>`;
@@ -992,6 +1000,14 @@ function openProduct(id){
 }
 
 /* product form */
+function parseSegMM(s){const seg=String(s||'').split(/[x×X]/).pop();const m=seg.match(/([\d,]+(?:\.\d+)?)/);if(!m)return 0;let v=parseFloat(m[1].replace(/,/g,''))||0;if(/มม|mm/i.test(seg))return v;if(/ม|m/i.test(seg))return v*1000;return v;}
+function perBar(p){if(!p)return 0;const bar=parseSegMM(p.steelUse),cut=parseSegMM(p.dim);if(bar>0&&cut>0)return Math.floor(bar/cut);return 0;}
+function prodPerBar(){const v=k=>((document.getElementById(k)||{}).value||'');const bar=parseSegMM(v('f_steel')),cut=parseSegMM(v('f_dim'));const e=document.getElementById('f_perbar');if(e)e.value=(bar>0&&cut>0)?Math.floor(bar/cut):'';}
+function prodImgSet(dataUrl){const h=document.getElementById('f_img');if(h)h.value=dataUrl||'';const w=document.getElementById('f_imgwrap');if(w)w.innerHTML=dataUrl?'<img src="'+dataUrl+'" style="max-height:130px;border-radius:6px"><br><button class="btn sm danger" style="margin-top:6px" onclick="prodImgClear()">🗑️ ลบรูป</button>':'<span class="muted">คลิกที่นี่แล้วกด Ctrl+V เพื่อวางรูป หรือเลือกไฟล์ด้านบน</span>';}
+function prodImgClear(){prodImgSet('');}
+function prodImgPick(input){const f=input.files&&input.files[0];if(!f)return;const r=new FileReader();r.onload=e=>prodImgSet(e.target.result);r.readAsDataURL(f);}
+function prodImgPaste(ev){const items=(ev.clipboardData||{}).items||[];for(const it of items){if(it.type&&it.type.indexOf('image')===0){const f=it.getAsFile();if(f){const r=new FileReader();r.onload=e=>prodImgSet(e.target.result);r.readAsDataURL(f);ev.preventDefault();return;}}}}
+function prodImgView(id){const p=P(id);if(!p||!p.shapeImg)return;modal({title:'🖼️ แบบ/รูป — '+esc(p.pn),body:`<div style="text-align:center"><img src="${p.shapeImg}" style="max-width:100%;max-height:70vh"></div>`,footer:`<button class="btn pri" onclick="closeModal()">ปิด</button>`});}
 function openProductForm(id){
   const p=id?P(id):null;const isEdit=!!p;const fl=prodFlow(p)||'ไม่ชุบ-QC';
   const cust=DB.settings.customers,plt=DB.settings.platings,sup=DB.settings.suppliers;
@@ -1018,6 +1034,24 @@ function openProductForm(id){
       <div class="field"><label>ราคาซื้อ/ต้นทุน</label><input type="number" step="0.01" id="f_buy" value="${p?p.buyPrice:0}"></div>
     </div>
     <div class="field"><label>ราคาผลิต/หน่วย (Production Price)</label><input type="number" step="0.01" id="f_prodprice" value="${p?(p.prodPrice||0):0}"></div>
+    <div style="border-top:1px solid var(--line);margin:6px 0 4px;padding-top:6px;font-size:12px;color:var(--ink2);font-weight:600">📐 ข้อมูลการผลิต</div>
+    <div class="row c2">
+      <div class="field"><label>เกรดเหล็ก</label><input id="f_grade" value="${p?esc(p.steelGrade||''):''}" placeholder="เช่น SS400, SWCH12A"></div>
+      <div class="field"><label>งานโต x ยาว</label><input id="f_dim" value="${p?esc(p.dim||''):''}" placeholder="เช่น เหล็กกลม 6 มม. x 35 มม." oninput="prodPerBar()"></div>
+    </div>
+    <div class="row c2">
+      <div class="field"><label>ใช้เหล็ก</label><input id="f_steel" value="${p?esc(p.steelUse||''):''}" placeholder="เช่น เหล็กกลม 6 มม. x 6 ม." oninput="prodPerBar()"></div>
+      <div class="field"><label>1 เส้น/ชิ้นงาน (อัตโนมัติ = ใช้เหล็ก ÷ โตxยาว)</label><input id="f_perbar" readonly value="${p?(perBar(p)||''):''}" style="background:var(--panel2)"></div>
+    </div>
+    <div class="row c2">
+      <div class="field"><label>ชุบแข็ง</label><input id="f_harden" value="${p?esc(p.hardenPlate||''):''}" placeholder="เช่น HRC 40-45"></div>
+      <div class="field"><label>ชุบสี</label><input id="f_color" value="${p?esc(p.colorPlate||''):''}" placeholder="เช่น MFZn8-Cf"></div>
+    </div>
+    <div class="field"><label>แบบ/รูป (เลือกไฟล์ หรือคลิกกรอบแล้ว Ctrl+V วางรูป)</label>
+      <input type="file" id="f_imgfile" accept="image/*" onchange="prodImgPick(this)">
+      <div id="f_imgwrap" tabindex="0" onpaste="prodImgPaste(event)" style="margin-top:6px;border:1px dashed var(--line);border-radius:8px;padding:10px;min-height:54px;text-align:center;outline:none">${p&&p.shapeImg?'<img src="'+p.shapeImg+'" style="max-height:130px;border-radius:6px"><br><button class="btn sm danger" style="margin-top:6px" onclick="prodImgClear()">🗑️ ลบรูป</button>':'<span class="muted">คลิกที่นี่แล้วกด Ctrl+V เพื่อวางรูป หรือเลือกไฟล์ด้านบน</span>'}</div>
+      <input type="hidden" id="f_img" value="${p?esc(p.shapeImg||''):''}">
+    </div>
     <div id="fgOnly">
       <div class="row c2">
         <div class="field"><label>การชุบ / QC (เงื่อนไขการไหลของสต๊อค)</label><select id="f_flow">${flowList().map(fo=>`<option value="${esc(fo.name)}" ${fl===fo.name?'selected':''}>${esc(fo.name)}${fo.direct?' — เข้าคงเหลือทันที':' — ผ่านขั้นตอนก่อน'}</option>`).join('')}${flowList().some(fo=>fo.name===fl)?'':`<option value="${esc(fl)}" selected>${esc(fl)}</option>`}</select></div>
@@ -1041,6 +1075,7 @@ function saveProduct(id){
   p.type=type;p.pn=pn;p.name=v('f_name').value.trim()||'-';p.customer=v('f_cust').value.trim()||'ไม่ระบุ';if(v('f_date'))p.date=v('f_date').value||p.date||todayISO();
   p.material=v('f_mat').value.trim();p.reorder=Number(v('f_reorder').value)||0;
   p.salePrice=Number(v('f_sale').value)||0;p.buyPrice=Number(v('f_buy').value)||0;p.prodPrice=Number((v('f_prodprice')||{}).value)||0;p.remark=v('f_remark').value.trim();
+  {const g=k=>((document.getElementById(k)||{}).value||'').trim();p.steelGrade=g('f_grade');p.dim=g('f_dim');p.steelUse=g('f_steel');p.hardenPlate=g('f_harden');p.colorPlate=g('f_color');p.shapeImg=(document.getElementById('f_img')||{}).value||'';}
   {const flow=(v('f_flow')&&v('f_flow').value)||'ไม่ชุบ-QC';p.flow=flow;p.needPlating=(flow==='ชุบ-QC');p.needQC=(flow!=='ไม่ชุบ'&&!isDirectFlow(flow));p.plating=(flow==='ชุบ-QC')?((v('f_plt')&&v('f_plt').value.trim())||'ชุบ'):'';p.custSupplyMat=(type==='FG'&&v('f_csm'))?v('f_csm').checked:false;}
   // register customer
   if(p.customer&&!DB.settings.customers.includes(p.customer))DB.settings.customers.push(p.customer);
