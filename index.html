@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='STEELAUTO-2026.06.21p';
+const APP_BUILD='STEELAUTO2-2026.06.21q';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -4057,6 +4057,7 @@ function addPoLine(){poLines.push({productId:'',name:'',qty:'',bars:'',unit:'Kgs
 function rmPoLine(i){poLines.splice(i,1);renderPoLines()}
 function renderPoLines(){
   const root=document.getElementById('puRoot');if(!root)return;
+  poLines.forEach(l=>{if(!l.wmat&&(l.name||l.productId)){const p=l.productId?P(l.productId):null;const src=(l.name||'')+' '+(p?((p.name||'')+' '+(p.steelUse||'')+' '+(p.dim||'')+' '+(p.material||'')):'');const pa=poParseSteel(src);if(pa){l.wmat=pa.key;l.wk=pa.K;if(pa.d){if(!Number(l.d1))l.d1=pa.d;if(pa.key.indexOf('plate')!==0&&!Number(l.d2))l.d2=pa.d;}if(pa.len&&!Number(l.len))l.len=pa.len;l.wper=(Number(l.d1)||0)*(Number(l.d2)||0)*(Number(l.len)||0)*(Number(l.wk)||0);if(l.wper>0){if(Number(l.bars)>0&&!Number(l.qty))l.qty=Math.round(Number(l.bars)*l.wper*100)/100;else if(Number(l.qty)>0&&!Number(l.bars))l.bars=Math.round(Number(l.qty)/l.wper*100)/100;}}}});
   root.innerHTML=`<div style="overflow-x:auto"><table style="font-size:12.5px;min-width:1080px"><thead><tr><th style="min-width:200px">รายการ (วัตถุดิบ)</th><th style="width:80px">จำนวน (เส้น)</th><th style="width:90px">จำนวน (KGS./PCS.)</th><th style="width:90px">ราคา/หน่วย</th><th style="width:90px">จำนวนเงิน</th><th style="width:150px">หาน้ำหนัก (ชนิด)</th><th style="width:58px">โต1</th><th style="width:58px">โต2</th><th style="width:58px">ยาว(ม.)</th><th style="width:64px">ค่าคงที่</th><th style="width:74px">นน./เส้น</th><th></th></tr></thead><tbody>
   ${poLines.map((l,i)=>`<tr>
     <td><input list="dl_rm3" value="${esc(l.name||'')}" placeholder="พิมพ์/เลือกวัตถุดิบ" oninput="poPick(${i},this.value)" style="padding:6px 8px"></td>
