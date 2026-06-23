@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='PRODMASTER-2026.06.21e';
+const APP_BUILD='PRD2WD-2026.06.21f';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -3774,6 +3774,25 @@ function prdTotals(){
   </div></div>`;
 }
 function editPRD(id){const d=DB.docs.find(x=>x.id===id);if(d)openPRDForm(d);}
+function prodBuffer(q){q=Number(q)||0;if(q<=0)return 0;if(q<100)return q+5;if(q<=1000)return Math.round(q*1.10);if(q<=5000)return Math.round(q*1.05);if(q<=10000)return Math.round(q*1.03);if(q<=100000)return Math.round(q*1.005);if(q<=500000)return Math.round(q*1.001);return q;}
+function genWDfromPRD(prd){
+  if(!prd||!Array.isArray(prd.lines))return;
+  const wlines=[];
+  prd.lines.forEach(l=>{const fg=l.fgId?P(l.fgId):null;if(!fg)return;const ordered=Number(l.qty)||0;if(ordered<=0)return;
+    const buffered=prodBuffer(ordered);const pb=perBar(fg);const isBar=pb>0;
+    const matName=((fg.steelUse||fg.material||fg.steelGrade||'').trim())||(fg.pn+' (วัตถุดิบ)');
+    const rm=findProdByName(matName,'RM')||findProdByName((fg.steelGrade||'').trim(),'RM');const matId=rm?rm.id:'';
+    let bars=0,qty=0,unit;if(isBar){bars=Math.ceil(buffered/pb);unit='เส้น';}else{qty=buffered;unit='Pcs.';}
+    wlines.push({productId:matId,matName:matName,price:rm?(rm.buyPrice||0):0,qty:qty,bars:bars,unit:unit,poNo:prd.no,prdId:prd.id,fgPn:fg.pn,maker:prd.maker||'',date:prd.date||todayISO(),ordered:ordered});
+  });
+  if(!wlines.length)return;
+  let wd=DB.docs.find(x=>x.type==='WD'&&x.autoFromPRD===prd.id);
+  if(wd&&wd.status==='approved')return;
+  if(!wd){wd={id:uid(),type:'WD',ts:Date.now()+1,status:'pending',autoFromPRD:prd.id,no:nextNo('WD')};DB.docs.push(wd);}
+  wd.date=prd.date||todayISO();wd.supplier=prd.maker||'';wd.lines=wlines;
+  wd.subtotal=wlines.reduce((s,l)=>s+l.price*l.qty,0);wd.totalQty=wlines.reduce((s,l)=>s+(l.qty||l.bars||0),0);
+  wd.note='สร้างอัตโนมัติจากใบสั่งผลิต '+prd.no+' (เผื่อสูญเสียตามเกณฑ์ · เหล็กเส้นแปลงเป็นจำนวนเส้น)';
+}
 function submitPRD(status,editId){
   const v=k=>(document.getElementById(k)||{}).value;
   const no=(v('po_no')||'').trim();if(!no){toast('กรุณากรอกเลขที่ PO','err');return}
@@ -3792,7 +3811,8 @@ function submitPRD(status,editId){
   commitPONo(no);
   if(!makerByCode(maker))DB.settings.makers.push({code:maker,name:'',taxId:'',address:'',tel:''});
   if(status==='approved'){d.status='approved';d.approvedAt=new Date().toLocaleString('th-TH');}
-  closeModal();render();toast((editId?'บันทึกการแก้ไข ':'สร้างใบสั่งผลิต ')+d.no,'ok');
+  genWDfromPRD(d);
+  closeModal();render();toast((editId?'บันทึกการแก้ไข ':'สร้างใบสั่งผลิต ')+d.no+' · ส่งใบเบิกวัตถุดิบอัตโนมัติแล้ว','ok');
 }
 function viewPO(d){
   const mk=d.makerInfo||makerByCode(d.maker)||{code:d.maker};
