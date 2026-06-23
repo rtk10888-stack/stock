@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='PRD2WDFIX-2026.06.21i';
+const APP_BUILD='IMGPASTE-2026.06.21j';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -1047,9 +1047,9 @@ function openProductForm(id){
       <div class="field"><label>ชุบแข็ง</label><input id="f_harden" value="${p?esc(p.hardenPlate||''):''}" placeholder="เช่น HRC 40-45"></div>
       <div class="field"><label>ชุบสี</label><input id="f_color" value="${p?esc(p.colorPlate||''):''}" placeholder="เช่น MFZn8-Cf"></div>
     </div>
-    <div class="field"><label>แบบ/รูป (เลือกไฟล์ หรือคลิกกรอบแล้ว Ctrl+V วางรูป)</label>
+    <div class="field"><label>แบบ/รูป (เลือกไฟล์ · หรือ ตัดภาพ Shift+Win+S แล้ว Ctrl+V วาง)</label>
       <input type="file" id="f_imgfile" accept="image/*" onchange="prodImgPick(this)">
-      <div id="f_imgwrap" tabindex="0" onpaste="prodImgPaste(event)" style="margin-top:6px;border:1px dashed var(--line);border-radius:8px;padding:10px;min-height:54px;text-align:center;outline:none">${p&&p.shapeImg?'<img src="'+p.shapeImg+'" style="max-height:130px;border-radius:6px"><br><button class="btn sm danger" style="margin-top:6px" onclick="prodImgClear()">🗑️ ลบรูป</button>':'<span class="muted">คลิกที่นี่แล้วกด Ctrl+V เพื่อวางรูป หรือเลือกไฟล์ด้านบน</span>'}</div>
+      <div id="f_imgwrap" tabindex="0" onpaste="prodImgPaste(event)" style="margin-top:6px;border:1px dashed var(--line);border-radius:8px;padding:10px;min-height:54px;text-align:center;outline:none">${p&&p.shapeImg?'<img src="'+p.shapeImg+'" style="max-height:130px;border-radius:6px"><br><button class="btn sm danger" style="margin-top:6px" onclick="prodImgClear()">🗑️ ลบรูป</button>':'<span class="muted">ตัดภาพด้วย Shift+Win+S แล้วกด Ctrl+V ตรงนี้ (หรือเลือกไฟล์ด้านบน)</span>'}</div>
       <input type="hidden" id="f_img" value="${p?esc(p.shapeImg||''):''}">
     </div>
     <div id="fgOnly">
@@ -1063,7 +1063,9 @@ function openProductForm(id){
     <div class="field"><label>หมายเหตุ</label><input id="f_remark" value="${p?esc(p.remark):''}"></div>
     ${isEdit?'<div class="hint"><span class="i">ℹ️</span> ยอดคงเหลือปรับผ่านเอกสาร (รับเข้า/เบิก/ปรับยอด) เพื่อให้มีการอนุมัติและบันทึกประวัติ</div>':'<div class="field"><label>ยอดยกมา (สต๊อคตั้งต้น)</label><input type="number" id="f_open" value="0"></div>'}
   `,footer:`<button class="btn" onclick="closeModal()">ยกเลิก</button><button class="btn pri" onclick="saveProduct('${id||''}')">บันทึก</button>`});
-  setTimeout(()=>{const ts=document.getElementById('f_type');if(!ts)return;ts.onchange=()=>{const fs=document.getElementById('f_flow');if(!fs)return;const t=ts.value;if(t==='SUP')fs.value='วัสดุสิ้นเปลือง';else if(t==='RMC')fs.value='รับแมทลูกค้า';else if(t==='RM')fs.value='ไม่ชุบ';};},10);
+  setTimeout(()=>{const ts=document.getElementById('f_type');if(ts)ts.onchange=()=>{const fs=document.getElementById('f_flow');if(!fs)return;const t=ts.value;if(t==='SUP')fs.value='วัสดุสิ้นเปลือง';else if(t==='RMC')fs.value='รับแมทลูกค้า';else if(t==='RM')fs.value='ไม่ชุบ';};
+    if(!window.__prodPasteBound){window.__prodPasteBound=true;document.addEventListener('paste',function(ev){if(document.getElementById('f_img'))prodImgPaste(ev);});}
+  },10);
 }
 function propagateProduct(id){const p=P(id);if(!p)return;const disp=p.pn+(p.name&&p.name!=='-'?' '+p.name:'');
   (DB.docs||[]).forEach(d=>{
