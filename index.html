@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='PRD2WD-2026.06.21f';
+const APP_BUILD='PRD2WDCM-2026.06.21g';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -3779,11 +3779,19 @@ function genWDfromPRD(prd){
   if(!prd||!Array.isArray(prd.lines))return;
   const wlines=[];
   prd.lines.forEach(l=>{const fg=l.fgId?P(l.fgId):null;if(!fg)return;const ordered=Number(l.qty)||0;if(ordered<=0)return;
-    const buffered=prodBuffer(ordered);const pb=perBar(fg);const isBar=pb>0;
-    const matName=((fg.steelUse||fg.material||fg.steelGrade||'').trim())||(fg.pn+' (วัตถุดิบ)');
-    const rm=findProdByName(matName,'RM')||findProdByName((fg.steelGrade||'').trim(),'RM');const matId=rm?rm.id:'';
-    let bars=0,qty=0,unit;if(isBar){bars=Math.ceil(buffered/pb);unit='เส้น';}else{qty=buffered;unit='Pcs.';}
-    wlines.push({productId:matId,matName:matName,price:rm?(rm.buyPrice||0):0,qty:qty,bars:bars,unit:unit,poNo:prd.no,prdId:prd.id,fgPn:fg.pn,maker:prd.maker||'',date:prd.date||todayISO(),ordered:ordered});
+    const custMat=!!fg.custSupplyMat||fg.type==='RMC';
+    let matId='',matName='',bars=0,qty=0,unit='Pcs.',price=0;
+    if(custMat){
+      const rmc=DB.products.find(x=>x.type==='RMC'&&pnNorm(x.pn)===pnNorm(fg.pn))||(fg.type==='RMC'?fg:null);
+      matId=rmc?rmc.id:'';matName=rmc?(rmc.pn+(rmc.name&&rmc.name!=='-'?' '+rmc.name:'')):(fg.pn+' (แมทลูกค้า)');
+      qty=ordered;unit='Pcs.'; // แมทลูกค้า: จ่ายตามใบสั่งผลิต ไม่เผื่อ
+    } else {
+      const buffered=prodBuffer(ordered);const pb=perBar(fg);const isBar=pb>0;
+      matName=((fg.steelUse||fg.material||fg.steelGrade||'').trim())||(fg.pn+' (วัตถุดิบ)');
+      const rm=findProdByName(matName,'RM')||findProdByName((fg.steelGrade||'').trim(),'RM');matId=rm?rm.id:'';price=rm?(rm.buyPrice||0):0;
+      if(isBar){bars=Math.ceil(buffered/pb);unit='เส้น';}else{qty=buffered;unit='Pcs.';}
+    }
+    wlines.push({productId:matId,matName:matName,price:price,qty:qty,bars:bars,unit:unit,poNo:prd.no,prdId:prd.id,fgPn:fg.pn,maker:prd.maker||'',date:prd.date||todayISO(),ordered:ordered,custMat:custMat});
   });
   if(!wlines.length)return;
   let wd=DB.docs.find(x=>x.type==='WD'&&x.autoFromPRD===prd.id);
