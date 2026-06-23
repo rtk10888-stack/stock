@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='WDCMTAG-2026.06.21h';
+const APP_BUILD='PRD2WDFIX-2026.06.21i';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -3778,7 +3778,7 @@ function prodBuffer(q){q=Number(q)||0;if(q<=0)return 0;if(q<100)return q+5;if(q<
 function genWDfromPRD(prd){
   if(!prd||!Array.isArray(prd.lines))return;
   const wlines=[];
-  prd.lines.forEach(l=>{const fg=l.fgId?P(l.fgId):null;if(!fg)return;const ordered=Number(l.qty)||0;if(ordered<=0)return;
+  prd.lines.forEach(l=>{let fg=l.fgId?P(l.fgId):null;if(!fg&&l.name){fg=findProdByName(l.name,'FG')||findProdByName(l.name,'RMC')||DB.products.find(x=>pnNorm(x.pn)===pnNorm((l.name||'').split(' ')[0]));}if(!fg)return;const ordered=Number(l.qty)||0;if(ordered<=0)return;
     const custMat=!!fg.custSupplyMat||fg.type==='RMC';
     let matId='',matName='',bars=0,qty=0,unit='Pcs.',price=0;
     if(custMat){
