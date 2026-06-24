@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='QCCOLS-2026.06.21u';
+const APP_BUILD='QCDEFCAT-2026.06.21v';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -2696,6 +2696,25 @@ function doPrintSIMonth(mon){
 var qcLines=[];
 var DEFAULT_QC_DEFECTS=['ชุบสีเสีย TPI','ชุบสีเสีย MAWIN','ชุบสีเสีย ITP','ชุบสีเสีย NLD','ชุบสีเสีย PAKER','ชิ้นงานสั้น','รอยวัตถุดิบ','สนิม/คราบ','ชี้นงานหัวเล็ก','ครีบในรู','สนิม/คราบ','ไม่จีกรอ่ง','ไม่ลบเหลี่ยม','ไม่ลบC','รอยบุม','ลบCมาก','รอยที่หัว','รอยจับ','ปั้มไม่เข้า Jig','ปั้ม เสียรูป','หมุนไม่เข้า','ปั้ม หลุด','ไม่ปั้ม R / HEX.','รูใหญ่ เล็ก','รูใหญ่ ตื้น','รูใหญ่ ไม่เจาะ','รูใหญ่ หนา-บาง','รูใหญ่ ลึก','รูเล็ก เล็ก','รูเล็ก ไม่เจาะ','รูเล็ก ใหญ่','รูเล็ก เบี้ยว','รูเล็ก เป็นครีบ','กลึงสั้น','ผิวเล็ก','ผิวใหญ่','ประกอบปะปน','เกลี่ยวเสี่ยรูป','เกลียว ใหญ่หมุนติด','เกลียวเล็กรูด','เกลียวเป็นครีบ','หมุนหัวไม่เข้า','ลายรีดสั้น','เหลี่ยมไม่ลบ','เหลี่ยมลบน้อย','เหลี่ยมลบมาก','WASHER เป็นรอย','WASHER ผิวโต','WASHER ชุบสี่ไม่ดี','แหวน สียรูป/รอย','แหวนผิวโต','แหวนผิวเล็ก','แอดจัทเสียรูป/รอย','แอดจัทเกลียวเสีย','แอดจัดชุบสีไม่ดี','นัทเสียรูป/รอย','ปัญหาอื่น ๆ'];
 function qcDefectList(){return (DB.settings&&DB.settings.qcDefects&&DB.settings.qcDefects.length)?DB.settings.qcDefects:DEFAULT_QC_DEFECTS;}
+function qcDefCat(name){const s=String(name||'').toLowerCase();
+  if(/ชุบสี|ชุบสี่/.test(s))return 'ชุบ/สี';
+  if(/เกลียว|เกลี่ยว|หมุน|ลายรีด/.test(s))return 'เกลียว/หมุน';
+  if(/รู/.test(s))return 'รู/เจาะ';
+  if(/เหลี่ยม|ลบc|ครีบ|จีกร/.test(s))return 'ลบเหลี่ยม/C/ครีบ';
+  if(/washer|แหวน/.test(s))return 'WASHER/แหวน';
+  if(/นัท|แอดจั/.test(s))return 'นัท/แอดจัท';
+  if(/ปั้ม|เสียรูป|รอย|บุม|สั้น|หัวเล็ก|กลึง|ผิว|ปะปน|ประกอบ/.test(s))return 'รูปทรง/ผิว/รอย';
+  return 'อื่นๆ';}
+function qcDefectGroups(list){const order=['ชุบ/สี','รู/เจาะ','เกลียว/หมุน','ลบเหลี่ยม/C/ครีบ','รูปทรง/ผิว/รอย','WASHER/แหวน','นัท/แอดจัท','อื่นๆ'];const map={};list.forEach((d,idx)=>{const c=qcDefCat(d);(map[c]=map[c]||[]).push({name:d,idx:idx});});return order.filter(c=>map[c]).map(c=>({cat:c,items:map[c]}));}
+function qcDefFilter(){const q=((document.getElementById('qcd_search')||{}).value||'').trim().toLowerCase();document.querySelectorAll('#qcd_wrap .qcd-card').forEach(c=>{c.style.display=(!q||(c.dataset.name||'').includes(q))?'':'none';});document.querySelectorAll('#qcd_wrap .qcd-cat').forEach(cat=>{const any=[...cat.querySelectorAll('.qcd-card')].some(c=>c.style.display!=='none');cat.style.display=any?'':'none';});}
+var DEFAULT_QC_POINTS=['สภาพทั่วไป','ขนาด/มิติ','เกลียว','รู/เจาะ','ผิว/สี','ความยาว','ความแข็ง','การประกอบ'];
+var DEFAULT_QC_TOOLS=['สายตา','เวอร์เนีย','เกจ','ไมโครมิเตอร์','เกจวัดเกลียว','เกจวัดรู','ตาชั่ง'];
+function qcPointList(){return (DB.settings&&DB.settings.qcPoints&&DB.settings.qcPoints.length)?DB.settings.qcPoints:DEFAULT_QC_POINTS;}
+function qcToolList(){return (DB.settings&&DB.settings.qcTools&&DB.settings.qcTools.length)?DB.settings.qcTools:DEFAULT_QC_TOOLS;}
+function qcListMgr(kind){ensureSettings();const isP=kind==='point';const key=isP?'qcPoints':'qcTools';const def=isP?DEFAULT_QC_POINTS:DEFAULT_QC_TOOLS;if(!DB.settings[key]||!DB.settings[key].length)DB.settings[key]=def.slice();const arr=DB.settings[key];
+  modal({title:(isP?'📍 บันทึกจุดตรวจ':'🛠️ บันทึกเครื่องมือ'),body:'<div class="hint" style="margin-bottom:8px"><span class="i">💡</span><div>เพิ่ม/ลบรายการ เพื่อเลือกได้รวดเร็วในใบตรวจ</div></div><div style="display:flex;gap:7px;margin-bottom:10px"><input id="qcl_new" placeholder="พิมพ์รายการใหม่ แล้วกด Enter" style="flex:1;padding:7px" onkeydown="if(event.key===\'Enter\')qcListAdd(\''+kind+'\')"><button class="btn pri" onclick="qcListAdd(\''+kind+'\')">+ เพิ่ม</button></div><div style="display:flex;flex-wrap:wrap;gap:6px">'+arr.map((c,i)=>'<span class="tag gray" style="padding:5px 10px;font-size:13px">'+esc(c)+' <span style="cursor:pointer;color:var(--red);margin-left:4px" onclick="qcListDel(\''+kind+'\','+i+')">✕</span></span>').join('')+'</div>',footer:'<button class="btn pri" onclick="closeModal()">ปิด</button>'});}
+function qcListAdd(kind){const key=kind==='point'?'qcPoints':'qcTools';ensureSettings();if(!DB.settings[key])DB.settings[key]=(kind==='point'?DEFAULT_QC_POINTS:DEFAULT_QC_TOOLS).slice();const v=((document.getElementById('qcl_new')||{}).value||'').trim();if(!v)return;if(DB.settings[key].indexOf(v)<0)DB.settings[key].push(v);saveDB();try{renderQcLines();}catch(e){}qcListMgr(kind);}
+function qcListDel(kind,i){const key=kind==='point'?'qcPoints':'qcTools';if(DB.settings[key])DB.settings[key].splice(i,1);saveDB();try{renderQcLines();}catch(e){}qcListMgr(kind);}
 function qcBlank(){return {date:todayISO(),poNo:'',prdId:'',productId:'',name:'',inspector:'',maker:'',cust:'',point:'สภาพทั่วไป',tool:'สายตา',total:'',ok:'',ng:'',defects:[]};}
 function qcToggle(force){const b=document.getElementById('qcFormBody');if(!b)return;const show=force!==undefined?force:(b.style.display==='none');b.style.display=show?'':'none';const t=document.getElementById('qcToggleBtn');if(t)t.textContent=show?'▲ ซ่อนฟอร์ม':'▼ เปิดฟอร์มบันทึก';}
 function qcOpenNew(){qcToggle(true);qcClear();try{window.scrollTo({top:0,behavior:'smooth'})}catch(e){}}
@@ -2740,7 +2759,7 @@ function renderQcLines(){
   const root=document.getElementById('qcRoot');if(!root)return;const bd='1px solid var(--line)';
   root.innerHTML=`<div style="overflow-x:auto"><table style="font-size:11px;min-width:1600px;border-collapse:collapse">
    <thead><tr style="background:var(--panel2)">
-    <th style="width:104px;border:${bd};padding:4px">วันที่</th><th style="width:96px;border:${bd};padding:4px">PO ผลิต</th><th style="width:80px;border:${bd};padding:4px">ผู้ตรวจ</th><th style="width:84px;border:${bd};padding:4px">Maker</th><th style="min-width:150px;border:${bd};padding:4px">Part</th><th style="width:80px;border:${bd};padding:4px">ลูกค้า</th><th style="width:120px;border:${bd};padding:4px">จุดตรวจ</th><th style="width:70px;border:${bd};padding:4px">เครื่องมือ</th><th style="width:74px;border:${bd};padding:4px">รวมยอด</th><th style="width:70px;border:${bd};padding:4px">OK</th><th style="width:70px;border:${bd};padding:4px">NG</th><th style="min-width:150px;border:${bd};padding:4px">ปัญหา (NG)</th><th style="width:28px;border:${bd}"></th>
+    <th style="width:104px;border:${bd};padding:4px">วันที่</th><th style="width:96px;border:${bd};padding:4px">PO ผลิต</th><th style="width:80px;border:${bd};padding:4px">ผู้ตรวจ</th><th style="width:84px;border:${bd};padding:4px">Maker</th><th style="min-width:150px;border:${bd};padding:4px">Part</th><th style="width:80px;border:${bd};padding:4px">ลูกค้า</th><th style="width:120px;border:${bd};padding:4px">จุดตรวจ <span style="cursor:pointer" onclick="qcListMgr('point')" title="บันทึก/จัดการจุดตรวจ">✏️</span></th><th style="width:80px;border:${bd};padding:4px">เครื่องมือ <span style="cursor:pointer" onclick="qcListMgr('tool')" title="บันทึก/จัดการเครื่องมือ">✏️</span></th><th style="width:74px;border:${bd};padding:4px">รวมยอด</th><th style="width:70px;border:${bd};padding:4px">OK</th><th style="width:70px;border:${bd};padding:4px">NG</th><th style="min-width:150px;border:${bd};padding:4px">ปัญหา (NG)</th><th style="width:28px;border:${bd}"></th>
    </tr></thead><tbody>
    ${qcLines.map((l,i)=>{const ngsum=(l.defects||[]).reduce((s,d)=>s+(Number(d.qty)||0),0);const chips=(l.defects||[]).map(d=>esc(d.type)+'×'+fmt(d.qty)).join(', ');return `<tr>
     <td style="border:${bd};padding:2px"><input type="date" value="${l.date}" oninput="qcLines[${i}].date=this.value" style="padding:4px;width:100%"></td>
@@ -2749,7 +2768,7 @@ function renderQcLines(){
     <td style="border:${bd};padding:2px"><input list="dl_qcmkr" value="${esc(l.maker||'')}" placeholder="Maker" oninput="qcLines[${i}].maker=this.value" style="padding:4px;width:100%"></td>
     <td style="border:${bd};padding:2px"><input list="dl_qcfg" value="${esc(l.name||'')}" placeholder="(ดึงจาก PO)" onchange="qcMatchName(${i},this.value)" oninput="qcLines[${i}].name=this.value" style="padding:4px;width:100%"></td>
     <td style="border:${bd};padding:2px"><input value="${esc(l.cust||'')}" placeholder="ลูกค้า" oninput="qcLines[${i}].cust=this.value" style="padding:4px;width:100%"></td>
-    <td style="border:${bd};padding:2px"><input value="${esc(l.point||'')}" oninput="qcLines[${i}].point=this.value" style="padding:4px;width:100%"></td>
+    <td style="border:${bd};padding:2px"><input list="dl_qcpoint" value="${esc(l.point||'')}" oninput="qcLines[${i}].point=this.value" style="padding:4px;width:100%"></td>
     <td style="border:${bd};padding:2px"><input list="dl_qctool" value="${esc(l.tool||'')}" oninput="qcLines[${i}].tool=this.value" style="padding:4px;width:100%"></td>
     <td style="border:${bd};padding:2px"><input type="number" value="${l.total}" oninput="qcLines[${i}].total=this.value;qcRecalc(${i})" style="padding:4px;width:100%;text-align:right"></td>
     <td style="border:${bd};padding:2px"><input type="number" value="${l.ok}" oninput="qcLines[${i}].ok=this.value;qcTotals()" style="padding:4px;width:100%;text-align:right"></td>
@@ -2770,20 +2789,24 @@ function renderQcLines(){
   <datalist id="dl_qcfg">${DB.products.filter(p=>p.type==='FG').slice(0,1800).map(p=>`<option value="${esc(p.pn+(p.name&&p.name!=='-'?' '+p.name:''))}">`).join('')}</datalist>
   <datalist id="dl_qcmkr">${[...new Set(DB.docs.filter(x=>x.type==='QC').flatMap(d=>(d.lines||[]).map(l=>l.maker)).filter(Boolean))].map(s=>`<option value="${esc(s)}">`).join('')}</datalist>
   <datalist id="dl_qcinsp">${[...new Set(DB.docs.filter(x=>x.type==='QC').flatMap(d=>(d.lines||[]).map(l=>l.inspector)).filter(Boolean))].map(s=>`<option value="${esc(s)}">`).join('')}</datalist>
-  <datalist id="dl_qctool"><option value="สายตา"><option value="เวอร์เนีย"><option value="เกจ"><option value="ไมโครมิเตอร์"></datalist>`;
+  <datalist id="dl_qcpoint">${qcPointList().map(s=>`<option value="${esc(s)}">`).join('')}</datalist>
+  <datalist id="dl_qctool">${qcToolList().map(s=>`<option value="${esc(s)}">`).join('')}</datalist>`;
   qcTotals();
 }
 function qcMatchName(i,val){qcLines[i].name=val;const pp=findProdByName(val,'FG');if(pp){qcLines[i].productId=pp.id;if(!qcLines[i].cust)qcLines[i].cust=pp.customer||'';}}
 function qcDefectModal(i){
   const l=qcLines[i];const cur={};(l.defects||[]).forEach(d=>{cur[d.type]=d.qty;});
   const list=qcDefectList();
+  const groups=qcDefectGroups(list);
   modal({title:'🩹 บันทึกของเสีย (NG) — รายการที่ '+(i+1),size:'lg',body:`
     <div class="hint"><span class="i">ℹ️</span><div>ใส่จำนวนเฉพาะชนิดที่พบ · NG รวม = ผลรวมทุกช่อง · OK = รวมยอด − NG</div></div>
-    <div style="max-height:50vh;overflow:auto"><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
-    ${list.map((d,di)=>`<div style="display:flex;gap:6px;align-items:center;border:1px solid var(--line);border-radius:7px;padding:4px 8px"><span style="flex:1;font-size:12px">${esc(d)}</span><input type="number" id="qcd_${di}" value="${cur[d]||''}" placeholder="0" style="width:64px;text-align:right;padding:4px"></div>`).join('')}
-    </div></div>
+    <input id="qcd_search" placeholder="🔍 ค้นหาปัญหา (พิมพ์คำ เช่น รู, เกลียว, ชุบ)" oninput="qcDefFilter()" style="width:100%;padding:9px 12px;margin-bottom:8px;border:1px solid var(--line);border-radius:8px;font-size:13.5px">
+    <div id="qcd_wrap" style="max-height:50vh;overflow:auto">
+    ${groups.map(g=>`<div class="qcd-cat"><div style="font-weight:700;font-size:11.5px;color:#fff;background:#2456b8;padding:3px 9px;border-radius:6px;margin:8px 0 6px;position:sticky;top:0">${esc(g.cat)} <span style="opacity:.75">(${g.items.length})</span></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">${g.items.map(it=>`<div class="qcd-card" data-name="${esc(it.name.toLowerCase())}" style="display:flex;gap:6px;align-items:center;border:1px solid var(--line);border-radius:7px;padding:4px 8px"><span style="flex:1;font-size:12px">${esc(it.name)}</span><input type="number" id="qcd_${it.idx}" value="${cur[it.name]||''}" placeholder="0" style="width:60px;text-align:right;padding:4px"></div>`).join('')}</div></div>`).join('')}
+    </div>
     <div class="row c2" style="margin-top:8px"><div class="field"><label>ปัญหาอื่น ๆ (พิมพ์เพิ่ม)</label><input id="qcd_custom" placeholder="ระบุปัญหา"></div><div class="field"><label>จำนวน</label><input type="number" id="qcd_customqty" placeholder="0"></div></div>
   `,footer:`<button class="btn" onclick="closeModal()">ยกเลิก</button><button class="btn pri" onclick="qcSaveDefects(${i})">บันทึกของเสีย</button>`});
+  setTimeout(()=>{const s=document.getElementById('qcd_search');if(s)s.focus();},30);
 }
 function qcSaveDefects(i){
   const list=qcDefectList();const defs=[];
