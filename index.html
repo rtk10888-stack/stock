@@ -223,7 +223,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.24f (maker-abbr typeable)';
+const APP_BUILD='SEMIQC-2026.06.24g (prd-autofill)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -3943,6 +3943,12 @@ function addPrdLine(){prdLines.push({fgId:'',name:'',qty:'',price:'',due:'',work
 function rmPrdLine(i){prdLines.splice(i,1);renderPrdLines()}
 function renderPrdLines(){
   const root=document.getElementById('prdRoot');if(!root)return;
+  /* ดึงงานยาว/เส้นยาว/รวมใช้ จากสินค้าคงคลังอัตโนมัติ ถ้าช่องยังว่าง (รวมถึงตอนแก้ไขใบเดิม) */
+  prdLines.forEach(function(l){
+    var p=l.fgId?P(l.fgId):null; if(!p&&l.name){var pn=(l.name||'').split(' ')[0];p=DB.products.find(function(x){return x.type==='FG'&&x.pn===pn;});if(p)l.fgId=p.id;}
+    if(p){ if(l.workLen===''||l.workLen==null){l.workLen=parseSegMM(p.dim)||'';} if(l.barLen===''||l.barLen==null){var blmm=parseSegMM(p.steelUse)||0;l.barLen=blmm?Math.round(blmm/10)/100:'';} }
+    if(l.bars===''||l.bars==null){var wl=Number(l.workLen)||0,bmm=(Number(l.barLen)||0)*1000,q=Number(l.qty)||0,per=(wl>0&&bmm>0)?Math.floor(bmm/wl):0;if(per>0&&q>0)l.bars=Math.ceil(q/per);}
+  });
   root.innerHTML=`<div style="overflow-x:auto"><table style="font-size:12.5px"><thead><tr>
     <th style="min-width:200px">รายการ (Part)</th><th style="width:80px">จำนวนสั่ง</th><th style="width:80px">ราคา</th><th style="width:95px">รวมเงิน</th><th style="width:140px">กำหนดส่ง</th><th style="width:72px">งานยาว/มม.</th><th style="width:72px">เส้นยาว/ม.</th><th style="width:78px">รวมใช้/เส้น</th><th></th></tr></thead><tbody>
   ${prdLines.map((l,i)=>`<tr>
