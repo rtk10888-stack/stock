@@ -223,7 +223,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.24-fix (perf+quota)';
+const APP_BUILD='SEMIQC-2026.06.24b (perf+quota+semi-cols)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -5377,7 +5377,7 @@ function viewQck(kind){
   const tNg=docs.reduce((s,d)=>s+(d.lines||[]).reduce((a,l)=>a+(Number(l.ng)||0),0),0);
   const el=document.getElementById('content');
   el.innerHTML=`
-  <div class="hint"><span class="i">💡</span><div>เคาะ <b>เลขที่ ${esc(cf.srcLabel)}</b> → ดึง Part/ผู้ขาย/จำนวน · กรอก OK/NG + ปัญหา NG → อนุมัติแล้วตัด WIP เป็น <b>คัดผ่าน(OK)</b> และ <b>ของเสีย(NG)</b> · พิมพ์ 🏷️ NC TAG / NG TAG ได้</div></div>
+  <div class="hint"><span class="i">💡</span><div>เคาะ <b>เลขที่ ${esc(cf.srcLabel)}</b> → ดึง Part/ผู้ขาย/จำนวน · กรอก OK/NG + ปัญหา NG → อนุมัติแล้วตัด WIP เป็น <b>คัดผ่าน(OK)</b> และ <b>ของเสีย(NG)</b> · พิมพ์ 🏷️ NG TAG / ป้าย NG ได้</div></div>
   <div class="cards">
     <div class="card"><div class="lbl"><span class="dot d-brand">🔎</span>รายการ</div><div class="val">${fmt(docs.length)}</div></div>
     <div class="card"><div class="lbl"><span class="dot d-teal">✅</span>OK รวม</div><div class="val" style="color:var(--teal)">${fmt(tOk)}</div></div>
@@ -5386,15 +5386,15 @@ function viewQck(kind){
   <div class="panel"><div class="panel-h" style="flex-wrap:wrap;gap:8px"><h2>${cf.label}</h2><div class="desc">${docs.length} เอกสาร</div>
     <div class="right" style="display:flex;gap:6px;flex-wrap:wrap"><div class="searchbox"><input id="qckQ" placeholder="ค้นหา เลขที่/PO/Part/ผู้ขาย" oninput="filterQckList()"></div><button class="btn pri" onclick="openQckForm('${kind}')">+ คัดแยกใหม่</button></div>
   </div><div class="panel-b nopad">
-    ${docs.length?`<div class="tbl-wrap"><table style="white-space:nowrap;font-size:12px"><thead><tr><th>เลขที่</th><th>วันที่</th><th>PO เลขที่</th><th>Part</th><th>ผู้ผลิต/ผู้ขาย</th><th>ลูกค้า</th><th class="num">รวมตรวจ</th><th class="num">OK</th><th class="num">NG</th><th>TAG</th><th>สถานะ</th><th></th></tr></thead><tbody id="qckRows">${docs.map(d=>qckRow(d,kind)).join('')}</tbody></table></div>`:`<div class="empty"><div class="big">${cf.ico}</div><div class="t">ยังไม่มีรายการ${esc(cf.label)}</div><div>กด "+ คัดแยกใหม่"</div></div>`}
+    ${docs.length?`<div class="tbl-wrap"><table style="white-space:nowrap;font-size:12px"><thead><tr><th>เลขที่</th><th>วันที่</th><th>PO เลขที่</th><th>Part</th><th>ผู้ผลิต/ผู้ขาย</th><th>ลูกค้า</th><th>ผู้ตรวจ</th><th>จุดตรวจ</th><th>เครื่องมือ</th><th class="num">รวมตรวจ</th><th class="num">OK</th><th class="num">NG</th><th>TAG</th><th>สถานะ</th><th></th></tr></thead><tbody id="qckRows">${docs.map(d=>qckRow(d,kind)).join('')}</tbody></table></div>`:`<div class="empty"><div class="big">${cf.ico}</div><div class="t">ยังไม่มีรายการ${esc(cf.label)}</div><div>กด "+ คัดแยกใหม่"</div></div>`}
   </div></div>`;
 }
 function filterQckList(){const q=((document.getElementById('qckQ')||{}).value||'').trim().toLowerCase();document.querySelectorAll('#qckRows tr').forEach(tr=>{tr.style.display=(!q||tr.textContent.toLowerCase().includes(q))?'':'none';});}
 function qckRow(d,kind){
   const l=(d.lines&&d.lines[0])||{};const p=l.productId?P(l.productId):null;const pn=p?p.pn:((l.name||'').split(' ')[0]||l.name||'');
   const ok=Number(l.ok)||0,ng=Number(l.ng)||0,tot=ok+ng;
-  return `<tr><td class="pn linkish" onclick="openQckForm('${kind}',DB.docs.find(x=>x.id==='${d.id}'))">${esc(d.no)}</td><td class="muted">${esc(d.date||'')}</td><td><span class="tag violet">${esc(l.poNo||'-')}</span></td><td><b>${esc(pn)}</b></td><td><span class="tag amber">${esc(l.maker||'-')}</span></td><td>${esc(l.cust||'')}</td><td class="num">${fmt(tot)}</td><td class="num"><b style="color:var(--teal)">${fmt(ok)}</b></td><td class="num"><b style="color:var(--red)">${fmt(ng)}</b></td>
-   <td style="white-space:nowrap">${ok>0?`<button class="btn sm" onclick="openTagDialog('${d.id}')" title="OK TAG">🏷️OK</button> `:''}<button class="btn sm" onclick="printNCTag(qckTagObj('${d.id}'))" title="NC TAG">🏷️NC</button> ${ng>0?`<button class="btn sm" onclick="openNgTagDialog('${d.id}')" title="NG TAG">🏷️NG</button>`:''}</td>
+  return `<tr><td class="pn linkish" onclick="openQckForm('${kind}',DB.docs.find(x=>x.id==='${d.id}'))">${esc(d.no)}</td><td class="muted">${esc(d.date||'')}</td><td><span class="tag violet">${esc(l.poNo||'-')}</span></td><td><b>${esc(pn)}</b></td><td><span class="tag amber">${esc(l.maker||'-')}</span></td><td>${esc(l.cust||'')}</td><td class="muted">${esc(l.inspector||'')||'-'}</td><td class="muted">${esc(l.point||'')||'-'}</td><td class="muted">${esc(l.tool||'')||'-'}</td><td class="num">${fmt(tot)}</td><td class="num"><b style="color:var(--teal)">${fmt(ok)}</b></td><td class="num"><b style="color:var(--red)">${fmt(ng)}</b></td>
+   <td style="white-space:nowrap">${ok>0?`<button class="btn sm" onclick="openTagDialog('${d.id}')" title="OK TAG">🏷️OK</button> `:''}<button class="btn sm" onclick="printNCTag(qckTagObj('${d.id}'))" title="พิมพ์ NG TAG (ฟอร์ม FM-QC-12)">🏷️NG</button> ${ng>0?`<button class="btn sm" onclick="openNgTagDialog('${d.id}')" title="พิมพ์ป้าย NG ติดถุง">🏷️ป้าย</button>`:''}</td>
    <td>${statusTag(d.status)}</td>
    <td style="white-space:nowrap"><button class="btn sm" onclick="printQckOne('${d.id}')" title="พิมพ์ใบคัดแยก">🖨️</button> <button class="btn sm" onclick="openQckForm('${kind}',DB.docs.find(x=>x.id==='${d.id}'))">✏️</button> ${d.status==='approved'?`<button class="btn sm danger" onclick="cancelDoc('${d.id}')">ยกเลิก</button>`:d.status==='cancelled'?`<button class="btn sm danger" onclick="delDocConfirm('${d.id}')">🗑️</button>`:`<button class="btn sm ok" onclick="approveDoc('${d.id}')">อนุมัติ</button> <button class="btn sm danger" onclick="deleteDoc('${d.id}')">ลบ</button>`}</td></tr>`;
 }
@@ -5412,7 +5412,7 @@ function printQckOne(id){
    +'<scr'+'ipt>setTimeout(function(){window.print()},400)</scr'+'ipt></body></html>';
   const w=window.open('','_blank');if(!w){toast('popup ถูกบล็อก','err');return}w.document.write(html);w.document.close();
 }
-function qckTagObj(id){const d=DB.docs.find(x=>x.id===id);if(!d)return {};const l=(d.lines&&d.lines[0])||{};const p=l.productId?P(l.productId):null;return {part:p?p.pn:(l.name||''),po:l.poNo||'',customer:l.cust||'',maker:l.maker||'',lot:l.lot||d.date||'',qty:(Number(l.ok)||0)+(Number(l.ng)||0),ng:Number(l.ng)||0,defect:(l.defects||[]).map(x=>x.type+'×'+x.qty).join(', ')||'',reporter:l.inspector||'',date:d.date||'',loc:''};}
+function qckTagObj(id){const d=DB.docs.find(x=>x.id===id);if(!d)return {};const l=(d.lines&&d.lines[0])||{};const p=l.productId?P(l.productId):null;return {tagTitle:'NG TAG',part:p?p.pn:(l.name||''),po:l.poNo||'',customer:l.cust||'',maker:l.maker||'',lot:l.lot||d.date||'',qty:(Number(l.ok)||0)+(Number(l.ng)||0),ng:Number(l.ng)||0,defect:(l.defects||[]).map(x=>x.type+'×'+x.qty).join(', ')||'',reporter:l.inspector||'',date:d.date||'',loc:''};}
 function openQckForm(kind,edit){
   const cf=QCK[kind];ensureSettings();const e=edit||{};const l0=(e.lines&&e.lines[0])||{};window.__qckKind=kind;
   qckDefs=(l0.defects||[]).map(x=>({type:x.type||'',qty:Number(x.qty)||0}));
@@ -5692,7 +5692,8 @@ function printNC(){
 }
 function printNCTag(id){
   const d=(id&&typeof id==='object')?id:DB.docs.find(x=>x.id===id);if(!d)return;ensureSettings();const b='□';
-  const html='<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"><title>NC TAG '+esc(d.part||'')+'</title><style>'
+  const TT=(d&&d.tagTitle)||'NC TAG';
+  const html='<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"><title>'+TT+' '+esc(d.part||'')+'</title><style>'
    +"@page{size:A4;margin:8mm}*{font-family:'Tahoma',sans-serif;box-sizing:border-box}body{margin:0}"
    +".nctag{width:7cm;height:9cm;border:1.5px solid #000;overflow:hidden}"
    +".nctag table{width:100%;height:100%;border-collapse:collapse;table-layout:fixed}"
@@ -5703,7 +5704,7 @@ function printNCTag(id){
    +".nctag .l{font-weight:700}.nctag .red{color:#c0202e;font-weight:700}.nctag .sec{background:#eee;font-weight:700;text-align:center;font-size:8.5px}.nctag .fm{text-align:right;font-size:6.5px;color:#333}"
    +"@media print{.noprint{display:none}}</style></head><body>"
    +'<div class="nctag"><table>'
-   +'<tr><td class="lg" rowspan="2">RTK</td><td class="hh">NC TAG</td></tr>'
+   +'<tr><td class="lg" rowspan="2">RTK</td><td class="hh">'+TT+'</td></tr>'
    +'<tr><td class="sub">ป้ายแสดงชิ้นส่วนบกพร่อง</td></tr>'
    +'<tr><td class="l">PO. '+esc(d.po||'')+'</td><td class="l">P/NO. '+esc(d.part||'')+'</td></tr>'
    +'<tr><td class="l">LOT/DATE '+esc(d.lot||d.date||'')+'</td><td class="l">CUSTOMER '+esc(d.customer||'')+'</td></tr>'
@@ -5717,7 +5718,7 @@ function printNCTag(id){
    +'<tr><td colspan="2">'+b+' เปลี่ยนชิ้นส่วน/Rework&nbsp; '+b+' ขอใช้ชั่วคราว&nbsp; '+b+' ซ่อมแซม/Repair&nbsp; '+b+' จัดเก็บรอสรุปผล&nbsp; '+b+' ตรวจสอบ 100%&nbsp; '+b+' เคลม</td></tr>'
    +'<tr><td colspan="2" class="fm">FM-QC-12 REV.01</td></tr>'
    +'</table></div>'
-   +'<div class="noprint" style="margin-top:10px"><button onclick="window.print()" style="padding:8px 22px;cursor:pointer">🖨️ พิมพ์ NC TAG</button></div>'
+   +'<div class="noprint" style="margin-top:10px"><button onclick="window.print()" style="padding:8px 22px;cursor:pointer">🖨️ พิมพ์ '+TT+'</button></div>'
    +'<scr'+'ipt>setTimeout(function(){window.print()},300)</scr'+'ipt></body></html>';
   const w=window.open('','_blank');if(!w){toast('popup ถูกบล็อก','err');return}w.document.write(html);w.document.close();
 }
