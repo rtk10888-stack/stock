@@ -222,7 +222,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='QCDEFCAT-2026.06.21v';
+const APP_BUILD='SEMIQC-2026.06.21w';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -668,7 +668,8 @@ function recentMovesTable(n){
 /* ============================================================
    INVENTORY
    ============================================================ */
-let invFilter={q:'',type:'all',cust:'',plating:'',cond:'',sort:'',wfgN:100};
+const INV_PAGE=200;
+let invFilter={q:'',type:'all',cust:'',plating:'',cond:'',sort:'',wfgN:100,limit:INV_PAGE};
 var INV_COL_DEF={date:true,shape:true,grade:true,dim:true,steel:true,perbar:true,harden:true,color:true,wfg:true,wfgtot:true,salePrice:true,prodPrice:true,plating:true,cond:true,flow:true,qtime:true,adj:true,tin:true,tout:true,ng:true,atp:true,rcv:true};
 var invCols=(function(){try{return Object.assign({},INV_COL_DEF,JSON.parse(localStorage.getItem('rtk_invcols')||'{}'))}catch(e){return Object.assign({},INV_COL_DEF)}})();
 function invColToggle(k){invCols[k]=!invCols[k];try{localStorage.setItem('rtk_invcols',JSON.stringify(invCols))}catch(e){}renderInvTable();}
@@ -820,7 +821,9 @@ function viewInventory(el){
   </div>`;
   renderInvTable();
 }
-function invSet(t){invFilter.type=t;document.querySelectorAll('#invSeg button').forEach((b,i)=>b.classList.toggle('on',['all','FG','RM','RMC','SUP'][i]===t));renderInvTable()}
+function invSet(t){invFilter.type=t;invFilter.limit=INV_PAGE;document.querySelectorAll('#invSeg button').forEach((b,i)=>b.classList.toggle('on',['all','FG','RM','RMC','SUP'][i]===t));renderInvTable()}
+function invShowMore(){invFilter.limit=(invFilter.limit||INV_PAGE)+INV_PAGE;renderInvTable();}
+function invShowAll(){invFilter.limit=Infinity;renderInvTable();}
 function setProdPrice(id,val){const p=P(id);if(!p)return;p.prodPrice=Number(val)||0;saveDB();toast('บันทึกราคาผลิต '+p.pn+' = '+fmt2(p.prodPrice),'ok');}
 function invFilteredList(){
   const q=(invFilter.q||'').trim().toLowerCase();let list;
@@ -929,11 +932,14 @@ function renderInvTable(){
   const ma=invMoveAgg();const mg=p=>ma[p.id]||{adj:0,tin:0,tout:0,ng:0};
   const tAdj=list.reduce((s,p)=>s+(mg(p).adj||0),0),tTin=list.reduce((s,p)=>s+(mg(p).tin||0),0),tTout=list.reduce((s,p)=>s+(mg(p).tout||0),0),tNg=list.reduce((s,p)=>s+(mg(p).ng||0),0);
   const tQt=list.reduce((s,p)=>{const v=qtOf(p);return s+(v||0);},0);
-  wrap.innerHTML=`<div class="tbl-wrap"><table><thead><tr>
+  const _full=list; const _capped=(invFilter.limit&&invFilter.limit<_full.length);
+  const shown=_capped?_full.slice(0,invFilter.limit):_full;
+  const moreBar=_capped?`<div class="hint" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:8px 12px;background:var(--panel2);border-bottom:1px solid var(--line)">📋 แสดง ${fmt(shown.length)} จาก ${fmt(_full.length)} รายการ <span class="muted">(จำกัดการแสดงผลเพื่อไม่ให้ค้าง)</span> <button class="btn sm" onclick="invShowMore()">⬇️ โหลดเพิ่ม +${fmt(INV_PAGE)}</button> <button class="btn sm" onclick="invShowAll()">แสดงทั้งหมด (${fmt(_full.length)})</button></div>`:'';
+  wrap.innerHTML=`${moreBar}<div class="tbl-wrap"><table><thead><tr>
     <th>ประเภท</th>${invCols.date!==false?`<th>วันที่${invColEye('date')}</th>`:''}<th>Part Number</th><th>ชื่อ</th>${invCols.shape!==false?`<th>แบบ/รูป${invColEye('shape')}</th>`:''}${invCols.grade!==false?`<th>เกรดเหล็ก${invColEye('grade')}</th>`:''}${invCols.dim!==false?`<th>งานโตxยาว${invColEye('dim')}</th>`:''}${invCols.steel!==false?`<th>ใช้เหล็ก${invColEye('steel')}</th>`:''}${invCols.perbar!==false?`<th class="num">1 เส้น/ชิ้นงาน${invColEye('perbar')}</th>`:''}${invCols.harden!==false?`<th>ชุบแข็ง${invColEye('harden')}</th>`:''}${invCols.color!==false?`<th>ชุบสี${invColEye('color')}</th>`:''}${invCols.wfg!==false?`<th class="num">W/FG${invColEye('wfg')}</th>`:''}${invCols.wfgtot!==false?`<th class="num">น้ำหนัก/${invFilter.wfgN||100}ชิ้น${invColEye('wfgtot')}</th>`:''}<th>ลูกค้า</th><th class="num">MOQ</th>${invCols.salePrice?`<th class="num">ราคาขาย${invColEye('salePrice')}</th>`:''}${invCols.prodPrice?`<th class="num">ราคาผลิต${invColEye('prodPrice')}</th>`:''}${invCols.plating?`<th>การชุบ${invColEye('plating')}</th>`:''}${invCols.cond?`<th>เงื่อนไขวัตถุดิบ${invColEye('cond')}</th>`:''}${invCols.flow!==false?`<th>สถานะการไหล${invColEye('flow')}</th>`:''}${invCols.adj!==false?`<th class="num">ปรับยอด${invColEye('adj')}</th>`:''}${invCols.tin!==false?`<th class="num">รวมรับ${invColEye('tin')}</th>`:''}${invCols.tout!==false?`<th class="num">รวมจ่าย${invColEye('tout')}</th>`:''}${invCols.ng!==false?`<th class="num">NG${invColEye('ng')}</th>`:''}
     <th class="num">คงเหลือ</th><th class="num">WIP</th>${invCols.qtime!==false?`<th class="num">Q-Time${invColEye('qtime')}</th>`:''}${invCols.atp!==false?`<th class="num">ชุบ${invColEye('atp')}</th>`:''}${invCols.rcv!==false?`<th class="num">รอรับเข้า${invColEye('rcv')}</th>`:''}<th></th>
   </tr></thead><tbody>
-  ${list.map(p=>{
+  ${shown.map(p=>{
     const low=p.onHand<=(p.reorder||0)&&(p.reorder>0||p.onHand===0);
     const moq=p.moq||p.reorder||0;
     const fl=prodFlow(p);
@@ -5387,7 +5393,7 @@ function qckRow(d,kind){
   const l=(d.lines&&d.lines[0])||{};const p=l.productId?P(l.productId):null;const pn=p?p.pn:((l.name||'').split(' ')[0]||l.name||'');
   const ok=Number(l.ok)||0,ng=Number(l.ng)||0,tot=ok+ng;
   return `<tr><td class="pn linkish" onclick="openQckForm('${kind}',DB.docs.find(x=>x.id==='${d.id}'))">${esc(d.no)}</td><td class="muted">${esc(d.date||'')}</td><td><span class="tag violet">${esc(l.poNo||'-')}</span></td><td><b>${esc(pn)}</b></td><td><span class="tag amber">${esc(l.maker||'-')}</span></td><td>${esc(l.cust||'')}</td><td class="num">${fmt(tot)}</td><td class="num"><b style="color:var(--teal)">${fmt(ok)}</b></td><td class="num"><b style="color:var(--red)">${fmt(ng)}</b></td>
-   <td style="white-space:nowrap"><button class="btn sm" onclick="printNCTag(qckTagObj('${d.id}'))" title="NC TAG">🏷️NC</button> ${ng>0?`<button class="btn sm" onclick="openNgTagDialog('${d.id}')" title="NG TAG">🏷️NG</button>`:''}</td>
+   <td style="white-space:nowrap">${ok>0?`<button class="btn sm" onclick="openTagDialog('${d.id}')" title="OK TAG">🏷️OK</button> `:''}<button class="btn sm" onclick="printNCTag(qckTagObj('${d.id}'))" title="NC TAG">🏷️NC</button> ${ng>0?`<button class="btn sm" onclick="openNgTagDialog('${d.id}')" title="NG TAG">🏷️NG</button>`:''}</td>
    <td>${statusTag(d.status)}</td>
    <td style="white-space:nowrap"><button class="btn sm" onclick="printQckOne('${d.id}')" title="พิมพ์ใบคัดแยก">🖨️</button> <button class="btn sm" onclick="openQckForm('${kind}',DB.docs.find(x=>x.id==='${d.id}'))">✏️</button> ${d.status==='approved'?`<button class="btn sm danger" onclick="cancelDoc('${d.id}')">ยกเลิก</button>`:d.status==='cancelled'?`<button class="btn sm danger" onclick="delDocConfirm('${d.id}')">🗑️</button>`:`<button class="btn sm ok" onclick="approveDoc('${d.id}')">อนุมัติ</button> <button class="btn sm danger" onclick="deleteDoc('${d.id}')">ลบ</button>`}</td></tr>`;
 }
@@ -5398,7 +5404,7 @@ function printQckOne(id){
   const html='<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"><title>ใบคัดแยก '+esc(d.no)+'</title><style>'
    +"@page{size:A4 portrait;margin:12mm}*{font-family:'Tahoma',sans-serif;box-sizing:border-box}body{margin:0;font-size:12px;color:#111}.hd{text-align:center;border-bottom:2px solid #111;padding-bottom:5px}.hd h1{font-size:15px;margin:0}.ttl{text-align:center;font-size:17px;font-weight:700;margin:8px 0}table{width:100%;border-collapse:collapse;margin-top:8px}td,th{border:1px solid #888;padding:5px 8px}td.k{background:#eef2f7;font-weight:700;width:32%}th{background:#eee}.sign{display:flex;justify-content:space-between;margin-top:40px;text-align:center;font-size:12px}.sign div{width:30%}.sign .line{border-top:1px dotted #555;margin-top:28px;padding-top:3px}@media print{.noprint{display:none}}</style></head><body>"
    +'<div class="hd"><h1>'+esc(co.name||co.thName||'')+'</h1></div><div class="ttl">ใบคัดแยก OK / NG'+(d.type!=='QC'?' ('+esc((QCK[Object.keys(QCK).find(k=>QCK[k].type===d.type)]||{}).label||'')+')':'')+'</div>'
-   +'<table>'+kv('เลขที่',esc(d.no))+kv('วันที่',esc(d.date||''))+kv('เลขที่ PO',esc(l.poNo||''))+kv('Part Number',esc(pn))+kv('ลูกค้า',esc(l.cust||''))+kv('ผู้ผลิต/ผู้ขาย',esc(l.maker||''))+kv('ผู้ตรวจ',esc(l.inspector||''))+kv('รวมตรวจ',fmt(ok+ng))+kv('OK',fmt(ok))+kv('NG',fmt(ng))+'</table>'
+   +'<table>'+kv('เลขที่',esc(d.no))+kv('วันที่',esc(d.date||''))+kv('เลขที่ PO',esc(l.poNo||''))+kv('Part Number',esc(pn))+kv('ลูกค้า',esc(l.cust||''))+kv('ผู้ผลิต/ผู้ขาย',esc(l.maker||''))+kv('ผู้ตรวจ',esc(l.inspector||''))+kv('จุดตรวจ',esc(l.point||''))+kv('เครื่องมือ',esc(l.tool||''))+kv('รวมตรวจ',fmt(ok+ng))+kv('OK',fmt(ok))+kv('NG',fmt(ng))+'</table>'
    +'<div style="margin-top:8px;font-weight:700">สรุปปัญหา NG</div><table><thead><tr><th>ปัญหา</th><th style="width:120px">จำนวน</th></tr></thead><tbody>'+defs+'</tbody></table>'
    +'<div class="sign"><div><div class="line">ผู้ตรวจ</div></div><div><div class="line">หัวหน้างาน</div></div><div><div class="line">อนุมัติ</div></div></div>'
    +'<div class="noprint" style="text-align:center;margin-top:14px"><button onclick="window.print()" style="padding:8px 22px;cursor:pointer">🖨️ พิมพ์ / PDF</button></div>'
@@ -5425,9 +5431,13 @@ function openQckForm(kind,edit){
       <div class="field"><label>รวมตรวจทั้งหมด</label><input type="number" id="qck_total" value="${esc(l0.total||'')}" oninput="qckRecalc()"></div>
       <div class="field"><label>OK <span class="muted" style="font-size:11px">(=รวม−NG)</span></label><input type="number" id="qck_ok" value="${esc(l0.ok||'')}"></div>
     </div>
+    <div class="row c2">
+      <div class="field"><label>จุดตรวจ <span style="cursor:pointer;color:var(--brand);font-size:11px" onclick="qcListMgr('point')" title="เพิ่ม/ลบจุดตรวจ">✏️ บันทึกจุดตรวจ</span></label><input id="qck_point" list="dl_qckpoint" value="${esc(l0.point||'')}" placeholder="เลือก/พิมพ์จุดตรวจ"><datalist id="dl_qckpoint">${qcPointList().map(s=>`<option value="${esc(s)}">`).join('')}</datalist></div>
+      <div class="field"><label>เครื่องมือ <span style="cursor:pointer;color:var(--brand);font-size:11px" onclick="qcListMgr('tool')" title="เพิ่ม/ลบเครื่องมือ">✏️ บันทึกเครื่องมือ</span></label><input id="qck_tool" list="dl_qcktool" value="${esc(l0.tool||'')}" placeholder="เลือก/พิมพ์เครื่องมือ"><datalist id="dl_qcktool">${qcToolList().map(s=>`<option value="${esc(s)}">`).join('')}</datalist></div>
+    </div>
     <label style="font-size:12.5px;color:var(--ink2);font-weight:600;margin:6px 0 2px;display:block">ปัญหา NG (แต่ละชนิดแยกจำนวน) · NG รวม = <b id="qck_ngsum" style="color:var(--red)">0</b></label>
     <div id="qck_deflist"></div>
-    <button class="btn sm" style="margin-top:6px" onclick="qckDefAdd()">+ เพิ่มปัญหา NG</button>
+    <div style="display:flex;gap:6px;margin-top:6px"><button class="btn sm" onclick="qckDefAdd()">+ เพิ่มปัญหา NG</button><button class="btn sm pri" onclick="qckDefModal()">🩹 บันทึกของเสีย (จัดหมวด)</button></div>
     <div class="field" style="margin-top:8px"><label>หมายเหตุ</label><input id="qck_note" value="${esc(e.note||'')}"></div>
   `,footer:`<button class="btn" onclick="closeModal()">ยกเลิก</button><button class="btn" onclick="submitQck('${kind}','${edit?edit.id:''}','pending')">บันทึก (รออนุมัติ)</button><button class="btn pri" onclick="submitQck('${kind}','${edit?edit.id:''}','approved')">บันทึก + อนุมัติ</button>`});
   setTimeout(()=>{renderQckDefs();qckRecalc();},20);
@@ -5438,6 +5448,24 @@ function renderQckDefs(){const root=document.getElementById('qck_deflist');if(!r
   root.innerHTML='<table style="width:100%;font-size:12.5px"><thead><tr><th style="text-align:left">ปัญหา NG</th><th style="width:110px">จำนวน</th><th style="width:32px"></th></tr></thead><tbody>'
    +ds.map((x,i)=>`<tr><td style="padding:2px"><input list="dl_qckdef" value="${esc(x.type||'')}" placeholder="เช่น รอยขีดข่วน" oninput="qckDefs[${i}].type=this.value" style="width:100%;padding:5px 8px"></td><td style="padding:2px"><input type="number" value="${x.qty||''}" oninput="qckDefs[${i}].qty=Number(this.value)||0;qckRecalc()" style="width:100%;padding:5px 8px;text-align:right"></td><td style="text-align:center"><span class="rm-x" style="height:30px" onclick="qckDefDel(${i})">✕</span></td></tr>`).join('')
    +'</tbody></table><datalist id="dl_qckdef">'+qcDefectList().map(t=>'<option value="'+esc(t)+'">').join('')+'</datalist>';}
+var QCK_DEF_CATS=['ชุบ/สี','รู/เจาะ','เกลียว/หมุน','ลบเหลี่ยม/C/ครีบ','รูปทรง/ผิว/รอย','WASHER/แหวน','นัท/แอดจัท','อื่นๆ'];
+function qckDefCatOf(d){return d.cat||qcDefCat(d.type||'')||'อื่นๆ';}
+function qckDefModal(){
+  qckDefs.forEach(d=>{if(!d.cat)d.cat=qckDefCatOf(d);});
+  const body='<div class="hint" style="margin-bottom:8px"><span class="i">💡</span><div>เลือกหมวดหลัก แล้วกด <b>"+ เพิ่มหัวข้อ"</b> พิมพ์ชื่อของเสีย + จำนวนเอง (พนักงานเพิ่มหัวข้อได้เอง) · ค้นหาด้านบนได้</div></div>'
+   +'<input id="qckdef_search" oninput="qckDefFilterModal()" placeholder="🔍 ค้นหาหัวข้อของเสีย" style="width:100%;padding:9px 12px;margin-bottom:8px;border:1px solid var(--line);border-radius:8px;font-size:13.5px">'
+   +'<div id="qckdef_wrap" style="max-height:52vh;overflow:auto">'
+   +QCK_DEF_CATS.map((c,ci)=>{const items=qckDefs.map((d,i)=>({d:d,i:i})).filter(o=>qckDefCatOf(o.d)===c);
+     return '<div class="qckdef-cat"><div style="font-weight:700;font-size:11.5px;color:#fff;background:#2456b8;padding:4px 9px;border-radius:6px;margin:8px 0 5px;display:flex;justify-content:space-between;align-items:center"><span>'+esc(c)+'</span><span style="cursor:pointer;font-size:11px;background:rgba(255,255,255,.22);padding:2px 9px;border-radius:5px" onclick="qckDefAddCat('+ci+')">+ เพิ่มหัวข้อ</span></div>'
+      +(items.length?items.map(o=>'<div class="qckdef-row" data-name="'+esc((o.d.type||'').toLowerCase())+'" style="display:flex;gap:6px;margin-bottom:5px"><input value="'+esc(o.d.type||'')+'" placeholder="พิมพ์หัวข้อของเสีย" oninput="qckDefs['+o.i+'].type=this.value" style="flex:1;padding:6px 8px"><input type="number" value="'+(o.d.qty||'')+'" placeholder="0" oninput="qckDefs['+o.i+'].qty=Number(this.value)||0" style="width:84px;text-align:right;padding:6px 8px"><span class="rm-x" style="height:32px" onclick="qckDefDelModal('+o.i+')">✕</span></div>').join(''):'<div class="muted" style="font-size:11px;padding:0 4px 4px">— ยังไม่มีหัวข้อ —</div>')
+      +'</div>';}).join('')
+   +'</div>';
+  modal({title:'🩹 บันทึกของเสีย (เลือกหมวด → เพิ่มหัวข้อเอง)',size:'lg',body:body,footer:'<button class="btn pri" onclick="qckDefSaveModal()">เสร็จ</button>'});
+}
+function qckDefAddCat(ci){const c=QCK_DEF_CATS[ci]||'อื่นๆ';qckDefs.push({type:'',qty:0,cat:c});qckDefModal();setTimeout(()=>{const ins=document.querySelectorAll('#qckdef_wrap .qckdef-row input');if(ins.length>=2)ins[ins.length-2].focus();},30);}
+function qckDefDelModal(i){qckDefs.splice(i,1);qckDefModal();}
+function qckDefFilterModal(){const q=((document.getElementById('qckdef_search')||{}).value||'').trim().toLowerCase();document.querySelectorAll('#qckdef_wrap .qckdef-row').forEach(r=>{r.style.display=(!q||(r.dataset.name||'').includes(q))?'':'none';});}
+function qckDefSaveModal(){qckDefs=qckDefs.filter(d=>(d.type||'').trim()||Number(d.qty)>0);closeModal();renderQckDefs();qckRecalc();}
 function qckRecalc(){const ng=qckDefs.reduce((s,d)=>s+(Number(d.qty)||0),0);const e=document.getElementById('qck_ngsum');if(e)e.textContent=fmt(ng);const tot=Number((document.getElementById('qck_total')||{}).value)||0;const ok=document.getElementById('qck_ok');if(ok&&tot)ok.value=Math.max(0,tot-ng);}
 function qckPoFill(kind){
   const cf=QCK[kind];const no=((document.getElementById('qck_po')||{}).value||'').trim();if(!no)return;
@@ -5454,7 +5482,7 @@ function submitQck(kind,editId,status){
   const ng=qckDefs.reduce((s,d)=>s+(Number(d.qty)||0),0);const total=Number(v('qck_total'))||0;let ok=Number(v('qck_ok'))||0;if(!ok&&total)ok=Math.max(0,total-ng);
   if(!name){toast('กรุณาระบุ Part','err');return;}
   if((ok+ng)<=0){toast('กรุณาระบุยอดตรวจ OK/NG','err');return;}
-  const line={productId:p?p.id:'',name:name,poNo:v('qck_po'),maker:v('qck_maker'),cust:v('qck_cust'),inspector:v('qck_insp'),lot:v('qck_date'),total:ok+ng,ok:ok,ng:ng,defects:qckDefs.filter(x=>Number(x.qty)>0)};
+  const line={productId:p?p.id:'',name:name,poNo:v('qck_po'),maker:v('qck_maker'),cust:v('qck_cust'),inspector:v('qck_insp'),point:v('qck_point'),tool:v('qck_tool'),lot:v('qck_date'),total:ok+ng,ok:ok,ng:ng,defects:qckDefs.filter(x=>Number(x.qty)>0).map(x=>({type:x.type,qty:Number(x.qty)||0,cat:x.cat||''}))};
   let d;if(editId){d=DB.docs.find(x=>x.id===editId);if(!d)return;if(d.status==='approved')reverseDoc(d);}else{d={id:uid(),type:cf.type,ts:Date.now(),status:'pending'};DB.docs.push(d);}
   if(!d.no)d.no=nextNo(cf.type);
   d.date=v('qck_date')||todayISO();d.note=v('qck_note');d.maker=v('qck_maker');d.lines=[line];d.totalQty=ok+ng;
