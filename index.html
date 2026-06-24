@@ -223,7 +223,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.24e (maker-abbr+dedup)';
+const APP_BUILD='SEMIQC-2026.06.24f (maker-abbr typeable)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -3926,14 +3926,18 @@ function openPRDForm(edit,prefill){
 }
 function prdMakerFill(src){
   const codeEl=document.getElementById('po_makercode'),nameEl=document.getElementById('po_maker');
-  let m=null;
-  if(src==='name'&&nameEl){const n=(nameEl.value||'').trim();if(n){const nl=n.toLowerCase();const ms=DB.settings.makers||[];m=ms.find(x=>String(x.code)===n)||ms.find(x=>(x.abbr||'').toLowerCase()===nl)||ms.find(x=>(x.name||'').toLowerCase()===nl)||ms.find(x=>(x.name||'').toLowerCase().includes(nl));}}
-  else if(codeEl){const c=(codeEl.value||'').trim();if(c)m=makerByCode(c);}
-  if(!m)return;
+  const ms=DB.settings.makers||[];
   const set=(id,v)=>{const e=document.getElementById(id);if(e&&v!=null&&v!=='')e.value=v;};
-  if(codeEl&&m.code)codeEl.value=m.code;
-  if(nameEl&&m.abbr)nameEl.value=m.abbr;
-  set('po_makerfull',m.name||'');set('po_makertax',m.taxId||'');set('po_makertel',m.tel||'');set('po_makeraddr',m.address||'');set('po_makercontact',m.contact||'');
+  const fill=(m)=>{set('po_makerfull',m.name||'');set('po_makertax',m.taxId||'');set('po_makertel',m.tel||'');set('po_makeraddr',m.address||'');set('po_makercontact',m.contact||'');};
+  if(src==='name'){
+    const n=((nameEl||{}).value||'').trim();if(!n)return;const nl=n.toLowerCase();
+    /* จับคู่แบบตรงตัวเท่านั้น และห้ามทับช่องที่กำลังพิมพ์ */
+    const m=ms.find(x=>(x.abbr||'').trim().toLowerCase()===nl)||ms.find(x=>String(x.code)===n)||ms.find(x=>(x.name||'').trim().toLowerCase()===nl);
+    if(m){ if(codeEl&&m.code)codeEl.value=m.code; fill(m); }
+    return;
+  }
+  const c=((codeEl||{}).value||'').trim();if(!c)return;const m=makerByCode(c);
+  if(m){ if(nameEl)nameEl.value=m.abbr||m.name||''; fill(m); }
 }
 function addPrdLine(){prdLines.push({fgId:'',name:'',qty:'',price:'',due:'',workLen:'',barLen:'',bars:''});renderPrdLines()}
 function rmPrdLine(i){prdLines.splice(i,1);renderPrdLines()}
