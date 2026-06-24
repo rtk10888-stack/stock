@@ -209,6 +209,7 @@ td.num,th.num{text-align:right;font-family:'Inter',sans-serif;font-variant-numer
    RTK STORE CONTROL — Inventory Control App (single file)
    ============================================================ */
 const LS_KEY='rtk_inv_v2';
+function lsSet(k,v){try{localStorage.setItem(k,v);return true;}catch(e){console.warn('localStorage set failed (quota?)',e&&e.name);return false;}}
 /* ===== Cloud sync (Supabase) ===== */
 const SUPA_URL='https://boksyxrvquqgercpjuyj.supabase.co';
 const SUPA_KEY='sb_publishable_b_6QwQt2oKzv79_3SSIVbg_NDCSkkPG';
@@ -222,7 +223,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.21w';
+const APP_BUILD='SEMIQC-2026.06.24-fix (perf+quota)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -234,7 +235,7 @@ function loadLocal(){
 }
 async function loadDB(){
   DB=loadLocal();
-  if(!supa){ if(!DB){DB=freshDB();localStorage.setItem(LS_KEY,JSON.stringify(DB));} return; }
+  if(!supa){ if(!DB){DB=freshDB();lsSet(LS_KEY,JSON.stringify(DB));} return; }
   try{
     const {data,error}=await supa.from('app_state').select('data,updated_at,client_id').eq('id',ROW_ID).maybeSingle();
     if(error)throw error;
@@ -242,7 +243,7 @@ async function loadDB(){
     if(data&&data.data){ DB=data.data; lastRemoteUpdated=new Date(data.updated_at).getTime(); }
     else { if(!DB)DB=freshDB(); await pushCloud(true); }
   }catch(e){ cloudOK=false; if(!DB)DB=freshDB(); }
-  localStorage.setItem(LS_KEY,JSON.stringify(DB));
+  lsSet(LS_KEY,JSON.stringify(DB));
   lastSyncedJSON=JSON.stringify(DB);
 }
 function freshDB(){
@@ -305,7 +306,7 @@ function mkProduct(type,p){
     reorder: type==='FG'?(p.moq||0):0};
 }
 function saveDB(){
-  try{const cur=JSON.stringify(DB);if(!_histLock){if(_lastSnap!==null&&cur!==_lastSnap){_undoStack.push(_lastSnap);if(_undoStack.length>40)_undoStack.shift();_redoStack.length=0;}_lastSnap=cur;}localStorage.setItem(LS_KEY,cur);}catch(e){localStorage.setItem(LS_KEY,JSON.stringify(DB));}
+  try{const cur=JSON.stringify(DB);if(!_histLock){if(_lastSnap!==null&&cur!==_lastSnap){_undoStack.push(_lastSnap);if(_undoStack.length>40)_undoStack.shift();_redoStack.length=0;}_lastSnap=cur;}lsSet(LS_KEY,cur);}catch(e){}
   scheduleSync();updateUndoBtns();
 }
 function updateUndoBtns(){const u=document.getElementById('undoBtn'),r=document.getElementById('redoBtn');if(u)u.disabled=!_undoStack.length;if(r)r.disabled=!_redoStack.length;}
@@ -329,7 +330,7 @@ async function reloadFromCloud(){
   if(!supa)return;
   try{
     const {data}=await supa.from('app_state').select('data,updated_at').eq('id',ROW_ID).maybeSingle();
-    if(data&&data.data){ applyingRemote=true; DB=data.data; lastRemoteUpdated=new Date(data.updated_at).getTime(); lastSyncedJSON=JSON.stringify(DB); localStorage.setItem(LS_KEY,lastSyncedJSON); render(); applyingRemote=false; setSyncStatus('synced'); }
+    if(data&&data.data){ applyingRemote=true; DB=data.data; lastRemoteUpdated=new Date(data.updated_at).getTime(); lastSyncedJSON=JSON.stringify(DB); lsSet(LS_KEY,lastSyncedJSON); render(); applyingRemote=false; setSyncStatus('synced'); }
   }catch(e){}
 }
 function subscribeRealtime(){
@@ -340,7 +341,7 @@ function subscribeRealtime(){
       if(row&&row.client_id===CLIENT_ID)return;
       const t=row&&row.updated_at?new Date(row.updated_at).getTime():0;
       if(t&&t<=lastRemoteUpdated)return;
-      if(row&&row.data){ applyingRemote=true; DB=row.data; lastRemoteUpdated=t; lastSyncedJSON=JSON.stringify(DB); localStorage.setItem(LS_KEY,lastSyncedJSON); render(); applyingRemote=false; toast('🔄 ข้อมูลอัปเดตจากอุปกรณ์อื่น','ok'); }
+      if(row&&row.data){ applyingRemote=true; DB=row.data; lastRemoteUpdated=t; lastSyncedJSON=JSON.stringify(DB); lsSet(LS_KEY,lastSyncedJSON); render(); applyingRemote=false; toast('🔄 ข้อมูลอัปเดตจากอุปกรณ์อื่น','ok'); }
       else reloadFromCloud();
     }).subscribe();
   }catch(e){}
