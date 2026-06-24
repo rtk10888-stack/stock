@@ -223,7 +223,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.24b (perf+quota+semi-cols)';
+const APP_BUILD='SEMIQC-2026.06.24c (perf+quota+semi-cols+ngtag)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -5377,7 +5377,7 @@ function viewQck(kind){
   const tNg=docs.reduce((s,d)=>s+(d.lines||[]).reduce((a,l)=>a+(Number(l.ng)||0),0),0);
   const el=document.getElementById('content');
   el.innerHTML=`
-  <div class="hint"><span class="i">💡</span><div>เคาะ <b>เลขที่ ${esc(cf.srcLabel)}</b> → ดึง Part/ผู้ขาย/จำนวน · กรอก OK/NG + ปัญหา NG → อนุมัติแล้วตัด WIP เป็น <b>คัดผ่าน(OK)</b> และ <b>ของเสีย(NG)</b> · พิมพ์ 🏷️ NG TAG / ป้าย NG ได้</div></div>
+  <div class="hint"><span class="i">💡</span><div>เคาะ <b>เลขที่ ${esc(cf.srcLabel)}</b> → ดึง Part/ผู้ขาย/จำนวน · กรอก OK/NG + ปัญหา NG → อนุมัติแล้วตัด WIP เป็น <b>คัดผ่าน(OK)</b> และ <b>ของเสีย(NG)</b> · พิมพ์ 🏷️ NG TAG ได้</div></div>
   <div class="cards">
     <div class="card"><div class="lbl"><span class="dot d-brand">🔎</span>รายการ</div><div class="val">${fmt(docs.length)}</div></div>
     <div class="card"><div class="lbl"><span class="dot d-teal">✅</span>OK รวม</div><div class="val" style="color:var(--teal)">${fmt(tOk)}</div></div>
@@ -5394,7 +5394,7 @@ function qckRow(d,kind){
   const l=(d.lines&&d.lines[0])||{};const p=l.productId?P(l.productId):null;const pn=p?p.pn:((l.name||'').split(' ')[0]||l.name||'');
   const ok=Number(l.ok)||0,ng=Number(l.ng)||0,tot=ok+ng;
   return `<tr><td class="pn linkish" onclick="openQckForm('${kind}',DB.docs.find(x=>x.id==='${d.id}'))">${esc(d.no)}</td><td class="muted">${esc(d.date||'')}</td><td><span class="tag violet">${esc(l.poNo||'-')}</span></td><td><b>${esc(pn)}</b></td><td><span class="tag amber">${esc(l.maker||'-')}</span></td><td>${esc(l.cust||'')}</td><td class="muted">${esc(l.inspector||'')||'-'}</td><td class="muted">${esc(l.point||'')||'-'}</td><td class="muted">${esc(l.tool||'')||'-'}</td><td class="num">${fmt(tot)}</td><td class="num"><b style="color:var(--teal)">${fmt(ok)}</b></td><td class="num"><b style="color:var(--red)">${fmt(ng)}</b></td>
-   <td style="white-space:nowrap">${ok>0?`<button class="btn sm" onclick="openTagDialog('${d.id}')" title="OK TAG">🏷️OK</button> `:''}<button class="btn sm" onclick="printNCTag(qckTagObj('${d.id}'))" title="พิมพ์ NG TAG (ฟอร์ม FM-QC-12)">🏷️NG</button> ${ng>0?`<button class="btn sm" onclick="openNgTagDialog('${d.id}')" title="พิมพ์ป้าย NG ติดถุง">🏷️ป้าย</button>`:''}</td>
+   <td style="white-space:nowrap">${ok>0?`<button class="btn sm" onclick="openTagDialog('${d.id}')" title="OK TAG">🏷️OK</button> `:''}<button class="btn sm" onclick="openNgTagDialog('${d.id}')" title="พิมพ์ NG TAG ใส่ถุง">🏷️ NG</button></td>
    <td>${statusTag(d.status)}</td>
    <td style="white-space:nowrap"><button class="btn sm" onclick="printQckOne('${d.id}')" title="พิมพ์ใบคัดแยก">🖨️</button> <button class="btn sm" onclick="openQckForm('${kind}',DB.docs.find(x=>x.id==='${d.id}'))">✏️</button> ${d.status==='approved'?`<button class="btn sm danger" onclick="cancelDoc('${d.id}')">ยกเลิก</button>`:d.status==='cancelled'?`<button class="btn sm danger" onclick="delDocConfirm('${d.id}')">🗑️</button>`:`<button class="btn sm ok" onclick="approveDoc('${d.id}')">อนุมัติ</button> <button class="btn sm danger" onclick="deleteDoc('${d.id}')">ลบ</button>`}</td></tr>`;
 }
