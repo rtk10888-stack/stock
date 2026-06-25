@@ -223,7 +223,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.24v (PL clean junk)';
+const APP_BUILD='SEMIQC-2026.06.24w (PL clean junk by poNo)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -3156,11 +3156,13 @@ var plLines=[];
 function plBlank(){return {date:todayISO(),poNo:'',prdId:'',productId:'',name:'',maker:'',sentQty:'',recvDate:'',recvQty:'',pending:'',dueDate:'',pstatus:'',vendor:''};}
 function plToggle(force){const b=document.getElementById('plFormBody');if(!b)return;const show=force!==undefined?force:(b.style.display==='none');b.style.display=show?'':'none';const t=document.getElementById('plToggleBtn');if(t)t.textContent=show?'▲ ซ่อนฟอร์ม':'▼ เปิดฟอร์มบันทึก';}
 function plOpenNew(){plToggle(true);plClear();try{window.scrollTo({top:0,behavior:'smooth'})}catch(e){}}
+function plPoNo(d){ try{ if(d&&d.lines&&d.lines.length){ for(var i=0;i<d.lines.length;i++){ if(d.lines[i]&&String(d.lines[i].poNo||'').trim())return String(d.lines[i].poNo).trim(); } } }catch(e){} return String((d&&(d.poNo||''))||'').trim(); }
 function plCleanJunk(){
-  const junk=(DB.docs||[]).filter(d=>d.type==='PL'&&!/^PO\d/i.test(String(d.no||'').trim()));
+  /* ตัดสินจาก "เลขที่ใบสั่ง" (poNo) ที่แสดงในตาราง — เก็บเฉพาะที่ขึ้นต้น PO+ตัวเลข */
+  const junk=(DB.docs||[]).filter(d=>d.type==='PL'&&!/^PO\d/i.test(plPoNo(d)));
   if(!junk.length){toast('ไม่มีรายการที่ต้องล้าง (ทุกใบขึ้นต้นด้วย PO อยู่แล้ว)','ok');return;}
-  const sample=junk.slice(0,8).map(d=>esc(d.no||'(ไม่มีเลข)')).join(', ')+(junk.length>8?' ...':'');
-  confirmBox('🧹 ล้างรายการที่ไม่เกี่ยวข้อง?','พบ '+junk.length+' รายการที่เลขที่ไม่ได้ขึ้นต้นด้วย PO+ตัวเลข (เช่น '+sample+') — จะลบออกถาวร โดยเก็บเฉพาะใบ PO ไว้ ดำเนินการต่อ?',()=>{
+  const sample=junk.slice(0,8).map(d=>esc(plPoNo(d)||'(ไม่มีเลขใบสั่ง)')).join(', ')+(junk.length>8?' ...':'');
+  confirmBox('🧹 ล้างรายการที่ไม่เกี่ยวข้อง?','พบ '+junk.length+' รายการที่ "เลขที่ใบสั่ง" ไม่ได้ขึ้นต้นด้วย PO+ตัวเลข (เช่น '+sample+') — จะลบออกถาวร โดยเก็บเฉพาะใบ PO ไว้ · เหลือ '+((DB.docs||[]).filter(d=>d.type==='PL').length-junk.length)+' ใบ ดำเนินการต่อ?',()=>{
     const ids=new Set(junk.map(d=>d.id));
     DB.docs=DB.docs.filter(d=>!ids.has(d.id));
     saveDB();render();toast('ล้าง '+junk.length+' รายการที่ไม่เกี่ยวข้องแล้ว','ok');
