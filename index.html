@@ -223,7 +223,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.24p (NC→TQM link+tag)';
+const APP_BUILD='SEMIQC-2026.06.24q (TQM filter+backlink)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -7393,6 +7393,8 @@ function tryGate(){
   render();
   subscribeRealtime();
   setSyncStatus(cloudOK?'synced':'offline');
+  /* ลิงก์ย้อนกลับจาก RTK-TQM: #ncsrc=<id> → เปิดดู NC ต้นทาง */
+  try{ var _m=(location.hash||'').match(/ncsrc=([^&]+)/); if(_m){ var _id=decodeURIComponent(_m[1]); route='nc'; render(); setTimeout(function(){ try{ if(typeof viewNCDoc==='function')viewNCDoc(_id); }catch(e){} },400); if(history.replaceState)history.replaceState(null,'',location.pathname+location.search); } }catch(e){}
 })();
 </script>
 </body>
