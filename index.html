@@ -223,7 +223,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.24n (slip paste Ctrl+V)';
+const APP_BUILD='SEMIQC-2026.06.24o (NC→TQM link)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -5665,7 +5665,7 @@ function ncRowHtml(r){
     <td class="c"><button class="btn sm" onclick="printNCTag('${r.id}')" title="พิมพ์ NC TAG (FM-QC-12)">🏷️ TAG</button></td>
     <td class="muted" style="max-width:220px;overflow:hidden;text-overflow:ellipsis">${esc(r.method||'')}</td>
     <td class="num"><b style="color:var(--red)">${r.ng?fmt(r.ng):'-'}</b></td>
-    <td style="white-space:nowrap"><button class="btn sm" onclick="viewNCDoc('${r.id}')">ดู</button> <button class="btn sm" onclick="openNCTag('${r.id}')" title="พิมพ์ NG TAG">🏷️</button> <button class="btn sm" onclick="printNCOne('${r.id}')">🖨️</button> <button class="btn sm" onclick="openNCForm(DB.docs.find(x=>x.id==='${r.id}'))">✏️</button> <button class="btn sm danger" onclick="delNC('${r.id}')">ลบ</button></td>
+    <td style="white-space:nowrap">${r.tqmId?`<span class="tag green" title="ส่งเข้า RTK-TQM แล้ว">➡️ ${esc(r.tqmId)}</span> `:`<button class="btn sm" onclick="ncToTQM('${r.id}')" title="ส่งเข้า RTK-TQM (QCDMS) — สร้าง Item อัตโนมัติ">➡️ TQM</button> `}<button class="btn sm" onclick="viewNCDoc('${r.id}')">ดู</button> <button class="btn sm" onclick="openNCTag('${r.id}')" title="พิมพ์ NG TAG">🏷️</button> <button class="btn sm" onclick="printNCOne('${r.id}')">🖨️</button> <button class="btn sm" onclick="openNCForm(DB.docs.find(x=>x.id==='${r.id}'))">✏️</button> <button class="btn sm danger" onclick="delNC('${r.id}')">ลบ</button></td>
   </tr>`;
 }
 function ncDistinct(field){const set=new Set();DB.docs.filter(d=>d.type==='NC').forEach(d=>{let v=field==='po'?d.po:field==='part'?d.part:field==='cust'?d.customer:field==='maker'?d.maker:'';if(v)set.add(String(v));});return [...set].sort();}
@@ -5767,6 +5767,28 @@ function submitNC(editId){
   saveDB();closeModal();render();toast('บันทึกรายการ NC แล้ว','ok');
 }
 function delNC(id){confirmBox('ลบรายการนี้?','',()=>{DB.docs=DB.docs.filter(x=>x.id!==id);saveDB();closeModal();render();toast('ลบแล้ว','ok');});}
+/* ===== เชื่อมโยง NC → RTK-TQM (QCDMS) : สร้าง Item อัตโนมัติ (แชร์ localStorage โดเมนเดียวกัน) ===== */
+const TQM_SK='QCDMS_DATA_V3';
+function ncToTQM(id){
+  const r=DB.docs.find(x=>x.id===id&&x.type==='NC'); if(!r){toast('ไม่พบรายการ NC','err');return;}
+  let tdb=null; try{tdb=JSON.parse(localStorage.getItem(TQM_SK)||'null');}catch(e){tdb=null;}
+  if(!tdb||typeof tdb!=='object')tdb={items:[],meetings:[],snrs:[],rcas:[],capas:[]};
+  if(!Array.isArray(tdb.items))tdb.items=[];
+  if(r.tqmId&&tdb.items.some(it=>it.id===r.tqmId)){toast('รายการนี้ส่งเข้า TQM แล้ว: '+r.tqmId,'ok');return;}
+  const y=new Date().getFullYear();
+  const ns=tdb.items.map(x=>{const m=String(x.id||'').match(new RegExp('ITM-'+y+'-(\\d+)'));return m?parseInt(m[1],10):0;});
+  const nid='ITM-'+y+'-'+String((ns.length?Math.max.apply(null,ns):0)+1).padStart(3,'0');
+  const ng=Number(r.ng)||0, qty=Number(r.qty)||0;
+  const item={id:nid,mid:'',date:r.date||todayISO(),no:0,part:(r.part||'')+(r.partName?(' '+r.partName):''),tqm:'Q',dept:'QA',loc:r.loc||'',maker:r.maker||'',
+    pain:r.defect||'',rca_sum:'',action:r.method||'',temp:'',resp:r.reporter||'',start:r.date||todayISO(),due:'',finish:'',
+    status:'Pending',priority:(ng>=100?'High':'Medium'),
+    remark:'จาก Store Control NC '+(r.no||'')+(r.customer?(' · ลูกค้า '+r.customer):'')+(r.po?(' · PO '+r.po):''),
+    total:qty,ok:Math.max(0,qty-ng),ng:ng,img_ok:'',img_ng:'',img_tag:'',snr_id:'',rca_id:'',capa_id:''};
+  tdb.items.push(item);
+  try{localStorage.setItem(TQM_SK,JSON.stringify(tdb));}catch(e){toast('พื้นที่ไม่พอ ส่งเข้า TQM ไม่สำเร็จ','err');return;}
+  r.tqmId=nid; saveDB(); render();
+  modal({title:'✅ ส่งเข้า RTK-TQM แล้ว',body:`<div class="kv"><span class="k">Item ID</span><b style="color:var(--teal)">${esc(nid)}</b></div><div class="kv"><span class="k">Part</span>${esc(item.part)}</div><div class="kv"><span class="k">ปัญหา (Pain Point)</span>${esc(item.pain)}</div><div class="kv"><span class="k">ผู้ผลิต</span>${esc(item.maker||'-')}</div><div class="kv"><span class="k">NG</span><b style="color:var(--red)">${fmt(ng)}</b></div><div class="hint" style="margin-top:10px"><span class="i">ℹ️</span><div>สร้าง Item ในระบบ RTK-TQM (QCDMS) แล้ว — เปิดแอป TQM (โดเมนเดียวกัน) จะเห็นรายการนี้ทันที แล้วทำ RCA/CAPA/S&R ต่อได้</div></div>`,footer:`<button class="btn pri" onclick="closeModal()">ตกลง</button>`});
+}
 function importNC(input){
   const f=input.files[0];if(!f)return;input.value='';const r=new FileReader();
   r.onload=ev=>{
