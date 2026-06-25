@@ -191,7 +191,7 @@ td.num,th.num{text-align:right;font-family:'Inter',sans-serif;font-variant-numer
     <div class="topbar">
       <div><h1 id="pageTitle">แดชบอร์ด</h1><div class="crumb" id="pageCrumb"></div></div>
       <div class="right">
-        <button id="undoBtn" class="btn sm" title="ย้อนกลับ (Ctrl+Z)" onclick="undoAction()" disabled style="margin-right:4px">↶ ย้อนกลับ</button><button id="redoBtn" class="btn sm" title="ไปข้างหน้า (Ctrl+Shift+Z)" onclick="redoAction()" disabled style="margin-right:8px">↷ ไปหน้า</button><span id="buildTag" style="font-size:10px;color:var(--ink3);margin-right:8px;white-space:nowrap"></span><span id="syncChip" style="font-size:12px;font-weight:600;margin-right:6px;white-space:nowrap;color:var(--ink3)">…</span>
+        <button id="undoBtn" class="btn sm" title="ย้อนกลับ (Ctrl+Z)" onclick="undoAction()" disabled style="margin-right:4px">↶ ย้อนกลับ</button><button id="redoBtn" class="btn sm" title="ไปข้างหน้า (Ctrl+Shift+Z)" onclick="redoAction()" disabled style="margin-right:8px">↷ ไปหน้า</button><span id="buildTag" style="font-size:10px;color:var(--ink3);margin-right:8px;white-space:nowrap"></span><span id="syncChip" onclick="forceCloudSync()" title="คลิกเพื่อลองเชื่อมคลาวด์ใหม่ / ดันข้อมูลขึ้นคลาวด์" style="font-size:12px;font-weight:600;margin-right:6px;white-space:nowrap;color:var(--ink3);cursor:pointer">…</span>
         <button class="btn sm ghost" onclick="exportData()">⬇ สำรองข้อมูล</button>
         <button class="btn sm ghost" onclick="document.getElementById('importFile').click()">⬆ นำเข้า</button>
         <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(this)">
@@ -223,7 +223,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.24x (instant boot)';
+const APP_BUILD='SEMIQC-2026.06.24y (cloud retry/push)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -355,6 +355,16 @@ async function pushCloud(force){
     if(error)throw error;
     lastSyncedJSON=json; lastRemoteUpdated=new Date(now).getTime(); cloudOK=true; setSyncStatus('synced');
   }catch(e){ cloudOK=false; setSyncStatus('offline'); }
+}
+async function forceCloudSync(){
+  if(!supa){toast('ยังไม่ได้ตั้งค่าคลาวด์','err');return;}
+  try{if(typeof migrateSlipsLocal==='function')migrateSlipsLocal();}catch(e){}
+  setSyncStatus('saving'); toast('⏳ กำลังเชื่อม/ดันข้อมูลขึ้นคลาวด์...','ok');
+  try{
+    await pushCloud(true);
+    if(cloudOK){ toast('☁️ เชื่อมคลาวด์สำเร็จ — ซิงก์แล้ว','ok'); try{subscribeRealtime();}catch(e){} render(); }
+    else { setSyncStatus('offline'); toast('ยังเชื่อมคลาวด์ไม่ได้ — Supabase อาจยังโหลดหนัก รออีกสักครู่แล้วลองใหม่','err'); }
+  }catch(e){ setSyncStatus('offline'); toast('ซิงก์ไม่สำเร็จ: '+((e&&e.message)||e),'err'); }
 }
 async function reloadFromCloud(){
   if(!supa)return;
