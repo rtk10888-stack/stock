@@ -216,6 +216,51 @@ const SUPA_KEY='sb_publishable_b_6QwQt2oKzv79_3SSIVbg_NDCSkkPG';
 const ROW_ID='main';
 let supa=null, CLIENT_ID=Math.random().toString(36).slice(2)+Date.now().toString(36);
 let lastSyncedJSON='', lastRemoteUpdated=0, applyingRemote=false, syncTimer=null, cloudOK=false;
+/* ===== LAN sync (เครื่องแม่ข่ายในออฟฟิศ) — ใช้คู่กับคลาวด์ ===== */
+let lanMode=false, lanOK=false, lanCloud=false, lanBase='', lanLastUpdated=0, lanPoll=null;
+async function lanProbe(){
+  try{ lanBase=location.origin;
+    if(/github\.io$/i.test(location.hostname)||location.protocol==='file:')return false;
+    const r=await fetch(lanBase+'/api/ping',{cache:'no-store'});
+    if(r.ok){ const j=await r.json(); if(j&&j.lan){ lanMode=true; return true; } }
+  }catch(e){}
+  lanMode=false; return false;
+}
+async function lanLoad(){
+  try{ const r=await fetch(lanBase+'/api/state',{cache:'no-store'}); if(!r.ok)throw 0;
+    const j=await r.json(); lanOK=true;
+    if(j&&j.data&&j.data.products){ DB=j.data; lanLastUpdated=j.updated_at?new Date(j.updated_at).getTime():0; }
+    else { if(!DB)DB=freshDB(); await lanPush(true); }
+  }catch(e){ lanOK=false; if(!DB)DB=freshDB(); }
+  lsSet(LS_KEY,JSON.stringify(DB)); lastSyncedJSON=JSON.stringify(DB);
+}
+async function lanPush(force){
+  const json=JSON.stringify(DB);
+  if(!force && json===lastSyncedJSON)return;
+  setSyncStatus('saving');
+  try{
+    const now=new Date().toISOString();
+    const r=await fetch(lanBase+'/api/state',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({data:DB,client_id:CLIENT_ID,updated_at:now})});
+    if(!r.ok)throw 0;
+    const j=await r.json().catch(()=>({}));
+    lastSyncedJSON=json; lanLastUpdated=new Date(now).getTime(); lanOK=true; lanCloud=!!(j&&j.cloud);
+    setSyncStatus(lanCloud?'lan_cloud':'lan_only');
+  }catch(e){ lanOK=false; setSyncStatus('offline'); }
+}
+function lanStartPoll(){
+  if(lanPoll)return;
+  lanPoll=setInterval(async()=>{
+    if(applyingRemote)return;
+    try{ const r=await fetch(lanBase+'/api/state?meta=1',{cache:'no-store'}); if(!r.ok)throw 0;
+      const j=await r.json(); const t=j.updated_at?new Date(j.updated_at).getTime():0;
+      if(t>lanLastUpdated && j.client_id!==CLIENT_ID){
+        const full=await (await fetch(lanBase+'/api/state',{cache:'no-store'})).json();
+        if(full&&full.data&&full.data.products){ applyingRemote=true; DB=full.data; lanLastUpdated=t; lastSyncedJSON=JSON.stringify(DB); lsSet(LS_KEY,lastSyncedJSON); render(); applyingRemote=false; toast('🔄 ข้อมูลอัปเดตจากเครื่องอื่นในออฟฟิศ','ok'); }
+      }
+      lanOK=true; lanCloud=!!j.cloud;
+    }catch(e){ lanOK=false; }
+  },8000);
+}
 const SEED={
 "fg":[{"pn":"40051848","name":"SHAFT (L.25)","cust":"AMPAS","moq":3000,"mat":"","plating":"","stock":1547},{"pn":"01572-21219","name":"SEAT","cust":"A.T.T.","moq":100,"mat":"","plating":"","stock":213},{"pn":"01572-21225","name":"SEAT","cust":"A.T.T.","moq":2000,"mat":"","plating":"","stock":2},{"pn":"12310-ZE3-7910","name":"JOINT BREATHER TUBE","cust":"CNN","moq":0,"mat":"","plating":"","stock":3},{"pn":"13061-0673","name":"BOSS","cust":"CYF","moq":0,"mat":"","plating":"","stock":28},{"pn":"14672-035-3000","name":"BUSH","cust":"A.A.A.","moq":0,"mat":"S35C","plating":"","stock":1398},{"pn":"14672-KWBA-6000","name":"BUSH","cust":"A.A.A.","moq":0,"mat":"","plating":"","stock":9041},{"pn":"172B03-83220","name":"BOSS","cust":"A.T.T.","moq":360,"mat":"","plating":"","stock":134},{"pn":"172B03-83230","name":"BOSS","cust":"A.T.T.","moq":400,"mat":"","plating":"","stock":422},{"pn":"17561-W0040-C","name":"SUPPORT NO.1 (L105)","cust":"A.A.A.","moq":0,"mat":"","plating":"","stock":12000},{"pn":"175-862-4240","name":"SEAT","cust":"A.T.T.","moq":1200,"mat":"","plating":"","stock":567},{"pn":"22P-53-23A10","name":"SEAT","cust":"A.T.T.","moq":8000,"mat":"S45C","plating":"MFZn8-Cf","stock":3690},{"pn":"236-46-23920","name":"SEAT","cust":"A.T.T.","moq":1200,"mat":"","plating":"","stock":965},{"pn":"2A5-53-28651","name":"BRACKET","cust":"A.T.T.","moq":0,"mat":"","plating":"","stock":903},{"pn":"303-0953-01","name":"TAPPING BLOCK","cust":"A.T.T.","moq":0,"mat":"","plating":"","stock":84},{"pn":"31051291","name":"INSERT BOLT 0205","cust":"AMPAS","moq":0,"mat":"","plating":"","stock":930},{"pn":"3C081-2780","name":"BOLT","cust":"ไม่ระบุ","moq":500,"mat":"","plating":"","stock":1346},{"pn":"3C081-2972","name":"PIN","cust":"A.T.T.","moq":500,"mat":"SS400","plating":"MFZn8-Kf","stock":1205},{"pn":"3J065-96920","name":"PIVOT","cust":"C.B. PARTS","moq":0,"mat":"SS400","plating":"","stock":7064},{"pn":"40045530","name":"WEIGHT","cust":"AMPAS","moq":0,"mat":"","plating":"","stock":4603},{"pn":"40050709","name":"BRACKET MIRROR 0511","cust":"AMPAS","moq":0,"mat":"","plating":"","stock":550},{"pn":"40051248","name":"INSERT NUT M8x1.25","cust":"AMPAS","moq":0,"mat":"","plating":"","stock":3016},{"pn":"40051251","name":"STAY JCM","cust":"AMPAS","moq":0,"mat":"","plating":"","stock":230},{"pn":"40051545","name":"CUSHION, ASSIST GRIP","cust":"AMPAS","moq":2000,"mat":"","plating":"","stock":312768},{"pn":"40051578A","name":"CUSHION ASSIST GRIP","cust":"AMPAS","moq":0,"mat":"","plating":"","stock":47994},{"pn":"40051607","name":"COLLAR 9.5x14","cust":"AMPAS","moq":0,"mat":"","plating":"","stock":7015},{"pn":"40051608","name":"COLLAR 9.5x21","cust":"AMPAS","moq":0,"mat":"","plating":"","stock":6308},{"pn":"40051621","name":"PIN BACK MIRROR B0BA","cust":"AMPAS","moq":0,"mat":"","plating":"","stock":4092},{"pn":"40051795","name":"Stay Comp Mirror","cust":"AMPAS","moq":0,"mat":"","plating":"","stock":626},{"pn":"40051802","name":"COLLAR","cust":"AMPAS","moq":0,"mat":"","plating":"MFZn8-B","stock":84306},{"pn":"40051826","name":"PLATED, NUT","cust":"AMPAS","moq":2000,"mat":"","plating":"MFZn8-Cf","stock":4083},{"pn":"40051830","name":"PLATE, RETAINER","cust":"AMPAS","moq":2000,"mat":"","plating":"","stock":40455},{"pn":"40051832","name":"BOLT, ADPT 10mm","cust":"AMPAS","moq":2000,"mat":"","plating":"","stock":2017},{"pn":"40051833","name":"SOCKET BOLT 10x25","cust":"AMPAS","moq":5000,"mat":"","plating":"","stock":2192},{"pn":"40051851","name":"LEAF WASHER B3L1","cust":"AMPAS","moq":5000,"mat":"","plating":"","stock":13317}],
 "rm":[{"pn":"AT2T001F0-F","name":"FORGH (วัตถุดิบ)","mat":"6R","stock":7813},{"pn":"AY5E006F0-F","name":"FORGH (วัตถุดิบ)","mat":"6R","stock":14000},{"pn":"GA043840A-F","name":"FORGH (วัตถุดิบ)","mat":"6R","stock":7495},{"pn":"HEX.8x2000-SS400","name":"STEEL HEXAGON","mat":"SS400","stock":374},{"pn":"AM30057P0-N","name":"NUT_SL","mat":"","stock":0},{"pn":"AM51059P0-N","name":"NUT ADJUST","mat":"","stock":0},{"pn":"AC0T03100-F","name":"FORGH (วัตถุดิบ)","mat":"","stock":0},{"pn":"AJ1T001F0-F","name":"FORGH (วัตถุดิบ)","mat":"","stock":0},{"pn":"AL0232900-F","name":"FORGH (วัตถุดิบ)","mat":"","stock":0},{"pn":"GC21089F0-F","name":"FORGH (วัตถุดิบ)","mat":"","stock":0}]
@@ -223,7 +268,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.25a (report จ่ายออก/คงเหลือ)';
+const APP_BUILD='SEMIQC-2026.06.25b (LAN+Cloud sync)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -343,7 +388,7 @@ function updateUndoBtns(){const u=document.getElementById('undoBtn'),r=document.
 function undoAction(){if(!_undoStack.length){toast('ไม่มีรายการให้ย้อนกลับ','err');return;}_redoStack.push(JSON.stringify(DB));const prev=_undoStack.pop();_histLock=true;DB=JSON.parse(prev);_lastSnap=prev;localStorage.setItem(LS_KEY,prev);scheduleSync();_histLock=false;render();updateUndoBtns();toast('↶ ย้อนกลับแล้ว','ok');}
 function redoAction(){if(!_redoStack.length){toast('ไม่มีรายการให้ไปข้างหน้า','err');return;}_undoStack.push(JSON.stringify(DB));const nxt=_redoStack.pop();_histLock=true;DB=JSON.parse(nxt);_lastSnap=nxt;localStorage.setItem(LS_KEY,nxt);scheduleSync();_histLock=false;render();updateUndoBtns();toast('↷ ไปข้างหน้าแล้ว','ok');}
 document.addEventListener('keydown',e=>{if(!(e.ctrlKey||e.metaKey))return;const tag=((e.target&&e.target.tagName)||'').toLowerCase();if(tag==='input'||tag==='textarea'||tag==='select'||(e.target&&e.target.isContentEditable))return;const k=(e.key||'').toLowerCase();if(k==='z'){e.preventDefault();e.shiftKey?redoAction():undoAction();}else if(k==='y'){e.preventDefault();redoAction();}});
-function scheduleSync(){ if(applyingRemote||!supa)return; clearTimeout(syncTimer); syncTimer=setTimeout(()=>pushCloud(false),3000); }
+function scheduleSync(){ if(applyingRemote)return; if(lanMode){ clearTimeout(syncTimer); syncTimer=setTimeout(()=>lanPush(false),1500); return; } if(!supa)return; clearTimeout(syncTimer); syncTimer=setTimeout(()=>pushCloud(false),3000); }
 async function pushCloud(force){
   if(!supa)return;
   const json=JSON.stringify(DB);
@@ -357,6 +402,7 @@ async function pushCloud(force){
   }catch(e){ cloudOK=false; setSyncStatus('offline'); }
 }
 async function forceCloudSync(){
+  if(lanMode){ try{if(typeof migrateSlipsLocal==='function')migrateSlipsLocal();}catch(e){} toast('⏳ กำลังซิงก์ผ่าน LAN...','ok'); await lanPush(true); if(lanOK){toast(lanCloud?'🖧 ซิงก์ LAN สำเร็จ + สำรองขึ้นคลาวด์แล้ว':'🖧 ซิงก์ LAN สำเร็จ (คลาวด์รอเน็ต)','ok');render();} else {toast('ยังเชื่อมเครื่องแม่ข่ายไม่ได้ — ตรวจว่าเครื่องแม่ข่ายเปิดโปรแกรมอยู่','err');} return; }
   if(!supa){toast('ยังไม่ได้ตั้งค่าคลาวด์','err');return;}
   try{if(typeof migrateSlipsLocal==='function')migrateSlipsLocal();}catch(e){}
   setSyncStatus('saving'); toast('⏳ กำลังเชื่อม/ดันข้อมูลขึ้นคลาวด์...','ok');
@@ -394,7 +440,7 @@ function subscribeRealtime(){
 }
 function setSyncStatus(s){
   const el=document.getElementById('syncChip'); if(!el)return;
-  const m={synced:['☁️ ซิงค์แล้ว','var(--teal)'],saving:['⏳ กำลังบันทึก','var(--amber)'],offline:['⚠️ ออฟไลน์','var(--red)']};
+  const m={synced:['☁️ ซิงค์แล้ว','var(--teal)'],saving:['⏳ กำลังบันทึก','var(--amber)'],offline:['⚠️ ออฟไลน์','var(--red)'],lan_cloud:['🖧 LAN + ☁️ สำรอง','var(--teal)'],lan_only:['🖧 LAN (คลาวด์รอ)','var(--amber)']};
   const v=m[s]||m.synced; el.textContent=v[0]; el.style.color=v[1];
 }
 const P=id=>DB.products.find(x=>x.id===id);
@@ -7455,15 +7501,23 @@ function tryGate(){
   try{ setSyncStatus(supa?'saving':'offline'); }catch(e){}
   /* ลิงก์ย้อนกลับจาก RTK-TQM: #ncsrc=<id> → เปิดดู NC ต้นทาง */
   try{ var _m=(location.hash||'').match(/ncsrc=([^&]+)/); if(_m){ var _id=decodeURIComponent(_m[1]); route='nc'; if(!_gate)render(); setTimeout(function(){ try{ if(typeof viewNCDoc==='function')viewNCDoc(_id); }catch(e){} },500); if(history.replaceState)history.replaceState(null,'',location.pathname+location.search); } }catch(e){}
-  /* ซิงก์คลาวด์เบื้องหลัง — ไม่ทำให้หน้าค้าง */
-  if(supa){
-    loadDB().then(function(){
-      try{ if(!gatePassed()){renderNav();renderGate();} else render(); }catch(e){}
-      try{ setSyncStatus(cloudOK?'synced':'offline'); }catch(e){}
-      if(cloudOK){ try{ subscribeRealtime(); }catch(e){} }
-      else { try{ toast('⚠️ เชื่อมต่อคลาวด์ไม่ได้ (Supabase) — ทำงานออฟไลน์ด้วยข้อมูลล่าสุด','err'); }catch(e){} }
-    }).catch(function(e){ console.warn('cloud sync failed',e); try{ setSyncStatus('offline'); }catch(_){} });
-  } else { try{ setSyncStatus('offline'); }catch(e){} }
+  /* ตรวจหาเครื่องแม่ข่าย LAN ก่อน — เจอ=ใช้ LAN (เร็ว+ใช้ได้แม้เน็ตล่ม), ไม่เจอ=ใช้คลาวด์ */
+  lanProbe().then(function(found){
+    if(found){
+      lanLoad().then(function(){
+        try{ if(!gatePassed()){renderNav();renderGate();} else render(); }catch(e){}
+        try{ setSyncStatus(lanCloud?'lan_cloud':'lan_only'); }catch(e){}
+        try{ lanStartPoll(); }catch(e){}
+      }).catch(function(){ try{ setSyncStatus('offline'); }catch(_){} });
+    } else if(supa){
+      loadDB().then(function(){
+        try{ if(!gatePassed()){renderNav();renderGate();} else render(); }catch(e){}
+        try{ setSyncStatus(cloudOK?'synced':'offline'); }catch(e){}
+        if(cloudOK){ try{ subscribeRealtime(); }catch(e){} }
+        else { try{ toast('⚠️ เชื่อมต่อคลาวด์ไม่ได้ (Supabase) — ทำงานออฟไลน์ด้วยข้อมูลล่าสุด','err'); }catch(e){} }
+      }).catch(function(e){ console.warn('cloud sync failed',e); try{ setSyncStatus('offline'); }catch(_){} });
+    } else { try{ setSyncStatus('offline'); }catch(e){} }
+  });
 })();
 </script>
 </body>
