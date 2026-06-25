@@ -223,7 +223,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.24o (NC→TQM link)';
+const APP_BUILD='SEMIQC-2026.06.24p (NC→TQM link+tag)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -5783,7 +5783,8 @@ function ncToTQM(id){
     pain:r.defect||'',rca_sum:'',action:r.method||'',temp:'',resp:r.reporter||'',start:r.date||todayISO(),due:'',finish:'',
     status:'Pending',priority:(ng>=100?'High':'Medium'),
     remark:'จาก Store Control NC '+(r.no||'')+(r.customer?(' · ลูกค้า '+r.customer):'')+(r.po?(' · PO '+r.po):''),
-    total:qty,ok:Math.max(0,qty-ng),ng:ng,img_ok:'',img_ng:'',img_tag:'',snr_id:'',rca_id:'',capa_id:''};
+    total:qty,ok:Math.max(0,qty-ng),ng:ng,img_ok:'',img_ng:'',img_tag:'',snr_id:'',rca_id:'',capa_id:'',
+    src:'STORE-NC',srcNo:(r.no||''),srcId:(r.id||''),srcDate:todayISO()};
   tdb.items.push(item);
   try{localStorage.setItem(TQM_SK,JSON.stringify(tdb));}catch(e){toast('พื้นที่ไม่พอ ส่งเข้า TQM ไม่สำเร็จ','err');return;}
   r.tqmId=nid; saveDB(); render();
