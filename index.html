@@ -270,7 +270,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.26h (ซ่อน/แสดงปุ่มกู้คืน)';
+const APP_BUILD='SEMIQC-2026.06.26i (Job Tracking ซ่อน/แสดงคอลัมน์)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -5438,6 +5438,13 @@ function jtBuildRows(){
   return rows;
 }
 function setJobTrack(key,f,v){ DB.jobTrack=DB.jobTrack||{}; DB.jobTrack[key]=DB.jobTrack[key]||{}; DB.jobTrack[key][f]=v; saveDB(); }
+/* ซ่อน/แสดงคอลัมน์ในหน้าการติดตามสถานะ (จำเฉพาะเครื่องนี้) */
+var jtCols=(function(){try{return JSON.parse(localStorage.getItem('rtk_jtcols')||'{}')}catch(e){return {}}})();
+function jtC(k){return jtCols[k]!==false;}
+function jtColToggle(k){jtCols[k]=(jtCols[k]===false)?true:false;try{localStorage.setItem('rtk_jtcols',JSON.stringify(jtCols))}catch(e){}render();}
+function jtColReset(){jtCols={};try{localStorage.setItem('rtk_jtcols','{}')}catch(e){}render();openJtColMenu();}
+var JT_COLS=[['oper','ผู้ดำเนินการ'],['maker','ผู้ผลิต/ผู้ตรวจ'],['po','เลขที่สั่งผลิต'],['ref','ใบส่ง/IV'],['buy','สั่งซื้อวัตถุดิบ'],['recvRM','รับวัตถุดิบ'],['issueRM','จ่ายวัตถุดิบ'],['makeOrd','สั่งผลิต'],['makeRecv','รับผลิต'],['plateSend','ส่งชุบ'],['plateRecv','รับชุบ'],['asmSend','ส่งประกอบ'],['asmDone','ประกอบเสร็จ'],['ng1','NG (หลังผลิต)'],['wait','รอคัด'],['ngSort','NG.'],['ok','OK'],['ship','ส่งลูกค้า'],['ng2','NG (หลังส่ง)']];
+function openJtColMenu(){modal({title:'👁 เลือกคอลัมน์ที่แสดง (การติดตามสถานะ)',body:'<div class="hint" style="margin-bottom:8px"><span class="i">💡</span><div>ติ๊ก = แสดง · เอาติ๊กออก = ซ่อน (จำเฉพาะเครื่องนี้) · Part Number/วันที่/คงเหลือ แสดงเสมอ</div></div><div style="columns:2;gap:14px">'+JT_COLS.map(c=>`<label style="display:flex;gap:7px;align-items:center;padding:4px 2px;font-size:13px;break-inside:avoid"><input type="checkbox" ${jtC(c[0])?'checked':''} onchange="jtColToggle('${c[0]}')"> ${c[1]}</label>`).join('')+'</div>',footer:`<button class="btn" onclick="jtColReset()">↺ แสดงทั้งหมด</button><button class="btn pri" onclick="closeModal()">ปิด</button>`});}
 var JT_PAGE=400;
 function jtRender(){
   const part=((document.getElementById('jtPart')||{}).value||'').trim().toLowerCase();
@@ -5456,28 +5463,28 @@ function jtRender(){
     return (isAdj?'<tr style="background:#fff7ed">':'<tr>')
      +'<td class="pn"><b>'+esc(r.pn)+'</b></td>'
      +'<td class="muted">'+esc(r.date)+'</td>'
-     +'<td><input value="'+esc(oper)+'" onchange="setJobTrack(\''+r.key+'\',\'oper\',this.value)" style="width:82px;padding:2px 4px;font-size:11px"></td>'
-     +'<td>'+esc(r.maker)+'</td>'
-     +'<td class="pn">'+esc(r.po)+'</td>'
-     +'<td>'+esc(r.ref)+'</td>'
-     +'<td class="num">'+jn(c.buy)+'</td>'
-     +'<td class="num">'+jn(c.recvRM)+'</td>'
-     +'<td class="num">'+jn(c.issueRM)+'</td>'
-     +'<td class="num">'+jn(c.makeOrd)+'</td>'
-     +'<td class="num">'+jn(c.makeRecv)+'</td>'
-     +'<td class="num">'+jn(c.plateSend)+'</td>'
-     +'<td class="num">'+jn(c.plateRecv)+'</td>'
-     +'<td><input value="'+esc(ov.asmSend||'')+'" onchange="setJobTrack(\''+r.key+'\',\'asmSend\',this.value)" style="width:62px;padding:2px 4px;font-size:11px"></td>'
-     +'<td><input value="'+esc(ov.asmDone||'')+'" onchange="setJobTrack(\''+r.key+'\',\'asmDone\',this.value)" style="width:62px;padding:2px 4px;font-size:11px"></td>'
-     +'<td class="num"></td>'
-     +'<td class="num"></td>'
-     +'<td class="num">'+jn(c.ngSort,'var(--red)')+'</td>'
-     +'<td class="num">'+jn(c.okQ,'var(--teal)')+'</td>'
-     +'<td class="num">'+jn(c.ship,'var(--red)')+'</td>'
-     +'<td class="num"></td>'
+     +(jtC('oper')?'<td><input value="'+esc(oper)+'" onchange="setJobTrack(\''+r.key+'\',\'oper\',this.value)" style="width:82px;padding:2px 4px;font-size:11px"></td>':'')
+     +(jtC('maker')?'<td>'+esc(r.maker)+'</td>':'')
+     +(jtC('po')?'<td class="pn">'+esc(r.po)+'</td>':'')
+     +(jtC('ref')?'<td>'+esc(r.ref)+'</td>':'')
+     +(jtC('buy')?'<td class="num">'+jn(c.buy)+'</td>':'')
+     +(jtC('recvRM')?'<td class="num">'+jn(c.recvRM)+'</td>':'')
+     +(jtC('issueRM')?'<td class="num">'+jn(c.issueRM)+'</td>':'')
+     +(jtC('makeOrd')?'<td class="num">'+jn(c.makeOrd)+'</td>':'')
+     +(jtC('makeRecv')?'<td class="num">'+jn(c.makeRecv)+'</td>':'')
+     +(jtC('plateSend')?'<td class="num">'+jn(c.plateSend)+'</td>':'')
+     +(jtC('plateRecv')?'<td class="num">'+jn(c.plateRecv)+'</td>':'')
+     +(jtC('asmSend')?'<td><input value="'+esc(ov.asmSend||'')+'" onchange="setJobTrack(\''+r.key+'\',\'asmSend\',this.value)" style="width:62px;padding:2px 4px;font-size:11px"></td>':'')
+     +(jtC('asmDone')?'<td><input value="'+esc(ov.asmDone||'')+'" onchange="setJobTrack(\''+r.key+'\',\'asmDone\',this.value)" style="width:62px;padding:2px 4px;font-size:11px"></td>':'')
+     +(jtC('ng1')?'<td class="num"></td>':'')
+     +(jtC('wait')?'<td class="num"></td>':'')
+     +(jtC('ngSort')?'<td class="num">'+jn(c.ngSort,'var(--red)')+'</td>':'')
+     +(jtC('ok')?'<td class="num">'+jn(c.okQ,'var(--teal)')+'</td>':'')
+     +(jtC('ship')?'<td class="num">'+jn(c.ship,'var(--red)')+'</td>':'')
+     +(jtC('ng2')?'<td class="num"></td>':'')
      +'<td class="num" style="background:#ecfdf5"><b>'+fmt(r.bal)+'</b></td>'
      +'</tr>';
-  }).join('')||'<tr><td colspan="22" class="muted" style="text-align:center;padding:18px">ยังไม่มีข้อมูล — เมื่อบันทึกเอกสาร (รับวัตถุดิบ/ผลิต/ชุบ/คัดแยก/ส่งลูกค้า) รายการจะมาแสดงที่นี่อัตโนมัติ</td></tr>';
+  }).join('')||('<tr><td colspan="'+(3+JT_COLS.filter(x=>jtC(x[0])).length)+'" class="muted" style="text-align:center;padding:18px">ยังไม่มีข้อมูล — เมื่อบันทึกเอกสาร (รับวัตถุดิบ/ผลิต/ชุบ/คัดแยก/ส่งลูกค้า) รายการจะมาแสดงที่นี่อัตโนมัติ</td></tr>');
   const elB=document.getElementById('jtRows'); if(elB)elB.innerHTML=body;
   const cnt=document.getElementById('jtCount'); if(cnt)cnt.textContent=fmt(total)+' รายการ';
   const more=document.getElementById('jtMore'); if(more)more.innerHTML=(total>shown.length)?('<button class="btn sm" onclick="jtShowMore()">แสดงเพิ่ม ('+fmt(total-shown.length)+' รายการ)</button> <button class="btn sm" onclick="jtShowAll()">แสดงทั้งหมด</button>'):'';
@@ -5498,13 +5505,11 @@ function viewJobTrack(el){
       <select id="jtPo" onchange="jtRender()" style="max-width:150px;width:auto"><option value="">🔢 เลขที่ PO ทั้งหมด</option>${_pos.map(p=>'<option value="'+esc(p)+'">'+esc(p)+'</option>').join('')}</select>
       <select id="jtMon" onchange="jtRender()" style="max-width:130px;width:auto"><option value="">📅 ทุกเดือน</option>${_mons.map(m=>'<option value="'+m+'">'+m+'</option>').join('')}</select>
       <input id="jtQ" placeholder="ค้นหา ผู้ผลิต/PO/เอกสาร" oninput="jtRender()" style="max-width:170px">
+      <button class="btn sm" onclick="openJtColMenu()" title="ซ่อน/แสดงคอลัมน์">👁 คอลัมน์</button>
       <span class="desc" id="jtCount"></span>
     </div></div>
     <div class="panel-b nopad"><div class="tbl-wrap"><table style="white-space:nowrap;font-size:11px"><thead><tr>
-      <th>PART NUMBER</th><th>วันที่</th><th>ผู้ดำเนินการ</th><th>ผู้ผลิต/ผู้ตรวจ</th><th>เลขที่สั่งผลิต</th><th>ใบส่งสินค้า/IV-P/O.</th>
-      <th class="num">สั่งซื้อวัตถุดิบ</th><th class="num">รับวัตถุดิบ</th><th class="num">จ่ายวัตถุดิบ</th><th class="num">สั่งผลิต</th><th class="num">รับผลิต</th>
-      <th class="num">ส่งชุบ</th><th class="num">รับชุบ</th><th>ส่งประกอบ</th><th>ประกอบเสร็จ</th>
-      <th class="num">NG</th><th class="num">รอคัด</th><th class="num">NG.</th><th class="num">OK</th><th class="num">ส่งลูกค้า</th><th class="num">NG</th><th class="num">คงเหลือ</th>
+      <th>PART NUMBER</th><th>วันที่</th>${jtC('oper')?'<th>ผู้ดำเนินการ</th>':''}${jtC('maker')?'<th>ผู้ผลิต/ผู้ตรวจ</th>':''}${jtC('po')?'<th>เลขที่สั่งผลิต</th>':''}${jtC('ref')?'<th>ใบส่งสินค้า/IV-P/O.</th>':''}${jtC('buy')?'<th class="num">สั่งซื้อวัตถุดิบ</th>':''}${jtC('recvRM')?'<th class="num">รับวัตถุดิบ</th>':''}${jtC('issueRM')?'<th class="num">จ่ายวัตถุดิบ</th>':''}${jtC('makeOrd')?'<th class="num">สั่งผลิต</th>':''}${jtC('makeRecv')?'<th class="num">รับผลิต</th>':''}${jtC('plateSend')?'<th class="num">ส่งชุบ</th>':''}${jtC('plateRecv')?'<th class="num">รับชุบ</th>':''}${jtC('asmSend')?'<th>ส่งประกอบ</th>':''}${jtC('asmDone')?'<th>ประกอบเสร็จ</th>':''}${jtC('ng1')?'<th class="num">NG</th>':''}${jtC('wait')?'<th class="num">รอคัด</th>':''}${jtC('ngSort')?'<th class="num">NG.</th>':''}${jtC('ok')?'<th class="num">OK</th>':''}${jtC('ship')?'<th class="num">ส่งลูกค้า</th>':''}${jtC('ng2')?'<th class="num">NG</th>':''}<th class="num">คงเหลือ</th>
     </tr></thead><tbody id="jtRows"></tbody></table></div>
     <div id="jtMore" style="padding:10px;text-align:center"></div>
     <div class="hint" style="margin:8px 12px"><span class="i">💡</span><div>คอลัมน์ตัวเลขดึงจากเอกสารที่บันทึกไว้แล้วอัตโนมัติ · <b>ผู้ดำเนินการ / ส่งประกอบ / ประกอบเสร็จ</b> พิมพ์แก้ในช่องได้ (บันทึกอัตโนมัติ) · <b>คงเหลือ</b> = OK สะสม − ส่งลูกค้าสะสม (ต่อ Part)</div></div>
