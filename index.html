@@ -268,7 +268,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.26a (Job Tracking)';
+const APP_BUILD='SEMIQC-2026.06.26b (Job Tracking + ผู้ดำเนินการ)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -5405,7 +5405,8 @@ function jtBuildRows(){
     (d.lines||[]).forEach((l,li)=>{ const pid=l.productId||l.fgId; const p=pid?P(pid):null; if(!p)return;
       const po=l.poNo||(t==='PRD'?d.no:'')||''; const ref=d.no||''; const mk=l.maker||d.maker||'';
       const base={pid:p.id,pn:p.pn,name:p.name||'',ts:d.ts||0};
-      function push(sub,date,maker,cols){ rows.push(Object.assign({},base,{sub:sub,date:date||l.date||d.date||'',maker:maker||'',po:po,ref:ref,cols:cols,key:d.id+'#'+li+'#'+sub})); }
+      const JT_DEFOPER={po:'วัชราภรณ์',gr:'มิตรอังคาร',wd:'วัชราภรณ์',prd:'อลิสา',rw:'มิตรอังคาร',pls:'วัชราภรณ์',plr:'วัชราภรณ์',inv:'ขวัญใจ'};
+      function push(sub,date,maker,cols){ const operDef=(sub==='qc'?(maker||''):(JT_DEFOPER[sub]||'')); rows.push(Object.assign({},base,{sub:sub,date:date||l.date||d.date||'',maker:maker||'',po:po,ref:ref,cols:cols,operDef:operDef,key:d.id+'#'+li+'#'+sub})); }
       if(t==='PO'||t==='IP'||t==='SP') push('po',null,mk,{buy:Number(l.qty)||0});
       else if(t==='GR'||t==='GI'||t==='GS') push('gr',null,mk,{recvRM:Number(l.weighed||l.qty)||0});
       else if(t==='WD') push('wd',null,mk,{issueRM:Number(l.qty)||0});
@@ -5434,11 +5435,11 @@ function jtRender(){
   const total=rows.length; const lim=window.__jtLimit||JT_PAGE; const shown=rows.slice(0,lim);
   const jn=(v,cls)=> v?('<b'+(cls?' style="color:'+cls+'"':'')+'>'+fmt(v)+'</b>'):'';
   const ovOf=k=>((DB.jobTrack||{})[k]||{});
-  const body=shown.map(r=>{ const ov=ovOf(r.key),c=r.cols;
+  const body=shown.map(r=>{ const ov=ovOf(r.key),c=r.cols; const oper=(ov.oper!==undefined)?ov.oper:(r.operDef||'');
     return '<tr>'
      +'<td class="pn"><b>'+esc(r.pn)+'</b></td>'
      +'<td class="muted">'+esc(r.date)+'</td>'
-     +'<td><input value="'+esc(ov.oper||'')+'" onchange="setJobTrack(\''+r.key+'\',\'oper\',this.value)" style="width:82px;padding:2px 4px;font-size:11px"></td>'
+     +'<td><input value="'+esc(oper)+'" onchange="setJobTrack(\''+r.key+'\',\'oper\',this.value)" style="width:82px;padding:2px 4px;font-size:11px"></td>'
      +'<td>'+esc(r.maker)+'</td>'
      +'<td class="pn">'+esc(r.po)+'</td>'
      +'<td>'+esc(r.ref)+'</td>'
