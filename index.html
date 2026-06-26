@@ -270,7 +270,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.26f (กู้คืนข้อมูล + กันชุดตั้งต้นทับ)';
+const APP_BUILD='SEMIQC-2026.06.26g (กู้คืน + กันทับ + คืนเมนู MAKER)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -6338,6 +6338,7 @@ function viewSettings(el){
   ${flowRefHTML(false)}
   ${partyTableEditor('cust')}
   ${partyTableEditor('sup')}
+  ${makersEditor()}
   <div class="row c2" style="align-items:start">
     <div>
       ${listEditor('platings','✨ ประเภทการชุบ')}
