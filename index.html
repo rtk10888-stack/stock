@@ -268,7 +268,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.26b (Job Tracking + ผู้ดำเนินการ)';
+const APP_BUILD='SEMIQC-2026.06.26c (NC↔TQM คลิกข้าม)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -5854,8 +5854,8 @@ function ncRowHtml(r){
     <td style="color:var(--red);max-width:200px;overflow:hidden;text-overflow:ellipsis">${esc(r.defect||'')}</td>
     <td class="c"><button class="btn sm" onclick="printNCTag('${r.id}')" title="พิมพ์ NC TAG (FM-QC-12)">🏷️ TAG</button></td>
     <td class="muted" style="max-width:220px;overflow:hidden;text-overflow:ellipsis">${esc(r.method||'')}</td>
-    <td class="num"><b style="color:var(--red)">${r.ng?fmt(r.ng):'-'}</b></td>
-    <td style="white-space:nowrap"><button class="btn sm" onclick="ncToTQM('${r.id}')" title="ส่ง/ซิงก์เข้า RTK-TQM (QCDMS)">➡️ TQM</button> ${r.tqmId?`<span class="tag green" title="เชื่อมเข้า RTK-TQM แล้ว">${esc(r.tqmId)}</span> `:''}<button class="btn sm" onclick="viewNCDoc('${r.id}')">ดู</button> <button class="btn sm" onclick="openNCTag('${r.id}')" title="พิมพ์ NG TAG">🏷️</button> <button class="btn sm" onclick="printNCOne('${r.id}')">🖨️</button> <button class="btn sm" onclick="openNCForm(DB.docs.find(x=>x.id==='${r.id}'))">✏️</button> <button class="btn sm danger" onclick="delNC('${r.id}')">ลบ</button></td>
+    <td class="num">${r.tqmId?`<b class="linkish" style="color:var(--red)" title="คลิกเพื่อดูใน RTK-TQM: ${esc(r.tqmId)}" onclick="openTQMItem('${esc(r.tqmId)}')">${r.ng?fmt(r.ng):'-'} 🔗</b>`:`<b style="color:var(--red)">${r.ng?fmt(r.ng):'-'}</b>`}</td>
+    <td style="white-space:nowrap"><button class="btn sm" onclick="ncToTQM('${r.id}')" title="ส่ง/ซิงก์เข้า RTK-TQM (QCDMS)">➡️ TQM</button> ${r.tqmId?`<span class="tag green linkish" title="คลิกเปิดดูใน RTK-TQM" onclick="openTQMItem('${esc(r.tqmId)}')">${esc(r.tqmId)} ↗</span> `:''}<button class="btn sm" onclick="viewNCDoc('${r.id}')">ดู</button> <button class="btn sm" onclick="openNCTag('${r.id}')" title="พิมพ์ NG TAG">🏷️</button> <button class="btn sm" onclick="printNCOne('${r.id}')">🖨️</button> <button class="btn sm" onclick="openNCForm(DB.docs.find(x=>x.id==='${r.id}'))">✏️</button> <button class="btn sm danger" onclick="delNC('${r.id}')">ลบ</button></td>
   </tr>`;
 }
 function ncDistinct(field){const set=new Set();DB.docs.filter(d=>d.type==='NC').forEach(d=>{let v=field==='po'?d.po:field==='part'?d.part:field==='cust'?d.customer:field==='maker'?d.maker:'';if(v)set.add(String(v));});return [...set].sort();}
@@ -5960,6 +5960,7 @@ function delNC(id){confirmBox('ลบรายการนี้?','',()=>{DB.do
 /* ===== เชื่อมโยง NC → RTK-TQM (QCDMS) : เขียน Item ลง GitHub data.json โดยตรง (แหล่งจริงที่ TQM ดึง) ===== */
 const TQM_SK='QCDMS_DATA_V3';
 const TQM_REPO='rtk10888-stack/RTK', TQM_FILE='data.json', TQM_TKKEY='QCDMS_GH_TOKEN';
+function openTQMItem(tqmId){ if(!tqmId){toast('รายการนี้ยังไม่ได้เชื่อมเข้า TQM','err');return;} window.open('/RTK/index.html#itm='+encodeURIComponent(tqmId),'_blank'); }
 const _TQM_TKE=[96,111,119,88,115,82,72,113,113,55,95,51,93,117,87,55,64,107,116,127,101,69,125,80,96,54,54,114,62,84,95,83,84,79,52,93,76,66,68,80];
 function _tqmTok(){try{return localStorage.getItem(TQM_TKKEY)||_TQM_TKE.map(c=>String.fromCharCode(c^7)).join('');}catch(e){return '';}}
 function _tqmNextId(items){const y=new Date().getFullYear();const ns=(items||[]).map(x=>{const m=String(x.id||'').match(new RegExp('ITM-'+y+'-(\\d+)'));return m?parseInt(m[1],10):0;});return 'ITM-'+y+'-'+String((ns.length?Math.max.apply(null,ns):0)+1).padStart(3,'0');}
