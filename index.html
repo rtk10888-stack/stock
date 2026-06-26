@@ -268,7 +268,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.26c (NC↔TQM คลิกข้าม)';
+const APP_BUILD='SEMIQC-2026.06.26d (Job Tracking กรอง PO/เดือน)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -5426,10 +5426,12 @@ function setJobTrack(key,f,v){ DB.jobTrack=DB.jobTrack||{}; DB.jobTrack[key]=DB.
 var JT_PAGE=400;
 function jtRender(){
   const part=((document.getElementById('jtPart')||{}).value||'').trim().toLowerCase();
+  const po=((document.getElementById('jtPo')||{}).value||'').trim();
   const mon=((document.getElementById('jtMon')||{}).value||'').trim();
   const q=((document.getElementById('jtQ')||{}).value||'').trim().toLowerCase();
   let rows=jtBuildRows();
   if(part) rows=rows.filter(r=>String(r.pn).toLowerCase().includes(part)||String(r.name).toLowerCase().includes(part));
+  if(po) rows=rows.filter(r=>String(r.po)===po);
   if(mon) rows=rows.filter(r=>(r.date||'').slice(0,7)===mon);
   if(q) rows=rows.filter(r=>(r.pn+' '+r.name+' '+r.maker+' '+r.po+' '+r.ref).toLowerCase().includes(q));
   const total=rows.length; const lim=window.__jtLimit||JT_PAGE; const shown=rows.slice(0,lim);
@@ -5471,11 +5473,15 @@ function viewJobTrack(el){
   setTitle('🧭 การติดตามสถานะ','Job Tracking — แต่ละวันชิ้นงานถูกดำเนินการสถานะอะไรบ้าง (ระบบรวบรวมอัตโนมัติ)');
   if(!window.__jtLimit)window.__jtLimit=JT_PAGE;
   const prods=DB.products.filter(p=>p.type==='FG'||p.type==='RM');
+  const _all=jtBuildRows();
+  const _pos=[...new Set(_all.map(r=>r.po).filter(Boolean))].sort((a,b)=>String(b).localeCompare(String(a),undefined,{numeric:true}));
+  const _mons=[...new Set(_all.map(r=>(r.date||'').slice(0,7)).filter(Boolean))].sort().reverse();
   el.innerHTML=`<div class="panel"><div class="panel-h" style="flex-wrap:wrap;gap:8px"><h2>🧭 Job Tracking : การติดตามสถานะ</h2>
     <div class="right" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-      <input id="jtPart" list="dl_jtpart" placeholder="🔢 Part Number" oninput="jtRender()" style="max-width:160px">
+      <input id="jtPart" list="dl_jtpart" placeholder="🔢 Part Number" oninput="jtRender()" style="max-width:150px">
       <datalist id="dl_jtpart">${prods.slice(0,1600).map(p=>'<option value="'+esc(p.pn)+'">'+esc(p.name||'')+'</option>').join('')}</datalist>
-      <input id="jtMon" type="month" oninput="jtRender()" style="max-width:140px" title="กรองเดือน">
+      <select id="jtPo" onchange="jtRender()" style="max-width:150px;width:auto"><option value="">🔢 เลขที่ PO ทั้งหมด</option>${_pos.map(p=>'<option value="'+esc(p)+'">'+esc(p)+'</option>').join('')}</select>
+      <select id="jtMon" onchange="jtRender()" style="max-width:130px;width:auto"><option value="">📅 ทุกเดือน</option>${_mons.map(m=>'<option value="'+m+'">'+m+'</option>').join('')}</select>
       <input id="jtQ" placeholder="ค้นหา ผู้ผลิต/PO/เอกสาร" oninput="jtRender()" style="max-width:170px">
       <span class="desc" id="jtCount"></span>
     </div></div>
