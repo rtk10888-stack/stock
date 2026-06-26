@@ -270,7 +270,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.26i (Job Tracking ซ่อน/แสดงคอลัมน์)';
+const APP_BUILD='SEMIQC-2026.06.26j (Job Tracking ตรึงหัวตาราง)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -5508,7 +5508,8 @@ function viewJobTrack(el){
       <button class="btn sm" onclick="openJtColMenu()" title="ซ่อน/แสดงคอลัมน์">👁 คอลัมน์</button>
       <span class="desc" id="jtCount"></span>
     </div></div>
-    <div class="panel-b nopad"><div class="tbl-wrap"><table style="white-space:nowrap;font-size:11px"><thead><tr>
+    <style>#jtWrap{max-height:calc(100vh - 230px);overflow:auto}#jtWrap table{border-collapse:separate;border-spacing:0}#jtWrap thead th{position:sticky;top:0;z-index:3;background:#eef2f7;box-shadow:0 1px 0 #cbd5e1}</style>
+    <div class="panel-b nopad"><div id="jtWrap" class="tbl-wrap"><table style="white-space:nowrap;font-size:11px"><thead><tr>
       <th>PART NUMBER</th><th>วันที่</th>${jtC('oper')?'<th>ผู้ดำเนินการ</th>':''}${jtC('maker')?'<th>ผู้ผลิต/ผู้ตรวจ</th>':''}${jtC('po')?'<th>เลขที่สั่งผลิต</th>':''}${jtC('ref')?'<th>ใบส่งสินค้า/IV-P/O.</th>':''}${jtC('buy')?'<th class="num">สั่งซื้อวัตถุดิบ</th>':''}${jtC('recvRM')?'<th class="num">รับวัตถุดิบ</th>':''}${jtC('issueRM')?'<th class="num">จ่ายวัตถุดิบ</th>':''}${jtC('makeOrd')?'<th class="num">สั่งผลิต</th>':''}${jtC('makeRecv')?'<th class="num">รับผลิต</th>':''}${jtC('plateSend')?'<th class="num">ส่งชุบ</th>':''}${jtC('plateRecv')?'<th class="num">รับชุบ</th>':''}${jtC('asmSend')?'<th>ส่งประกอบ</th>':''}${jtC('asmDone')?'<th>ประกอบเสร็จ</th>':''}${jtC('ng1')?'<th class="num">NG</th>':''}${jtC('wait')?'<th class="num">รอคัด</th>':''}${jtC('ngSort')?'<th class="num">NG.</th>':''}${jtC('ok')?'<th class="num">OK</th>':''}${jtC('ship')?'<th class="num">ส่งลูกค้า</th>':''}${jtC('ng2')?'<th class="num">NG</th>':''}<th class="num">คงเหลือ</th>
     </tr></thead><tbody id="jtRows"></tbody></table></div>
     <div id="jtMore" style="padding:10px;text-align:center"></div>
