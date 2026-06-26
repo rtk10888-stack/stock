@@ -194,7 +194,7 @@ td.num,th.num{text-align:right;font-family:'Inter',sans-serif;font-variant-numer
         <button id="undoBtn" class="btn sm" title="ย้อนกลับ (Ctrl+Z)" onclick="undoAction()" disabled style="margin-right:4px">↶ ย้อนกลับ</button><button id="redoBtn" class="btn sm" title="ไปข้างหน้า (Ctrl+Shift+Z)" onclick="redoAction()" disabled style="margin-right:8px">↷ ไปหน้า</button><span id="buildTag" style="font-size:10px;color:var(--ink3);margin-right:8px;white-space:nowrap"></span><span id="syncChip" onclick="forceCloudSync()" title="คลิกเพื่อลองเชื่อมคลาวด์ใหม่ / ดันข้อมูลขึ้นคลาวด์" style="font-size:12px;font-weight:600;margin-right:6px;white-space:nowrap;color:var(--ink3);cursor:pointer">…</span>
         <button class="btn sm ghost" onclick="exportData()">⬇ สำรองข้อมูล</button>
         <button class="btn sm ghost" onclick="document.getElementById('importFile').click()">⬆ นำเข้า</button>
-        <button class="btn sm" style="background:#fef3c7;color:#92400e" onclick="recoverFromBackup()" title="กู้รายการสินค้า+ยอดสต๊อก จากไฟล์สำรองใน GitHub">🔧 กู้คืนข้อมูล</button>
+        <button id="recoverBtn" class="btn sm" style="background:#fef3c7;color:#92400e;display:none" onclick="recoverFromBackup()" title="กู้รายการสินค้า+ยอดสต๊อก จากไฟล์สำรองใน GitHub">🔧 กู้คืนข้อมูล</button>
         <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(this)">
       </div>
     </div>
@@ -270,8 +270,8 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.26g (กู้คืน + กันทับ + คืนเมนู MAKER)';
-function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;}
+const APP_BUILD='SEMIQC-2026.06.26h (ซ่อน/แสดงปุ่มกู้คืน)';
+function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
 function todayISO(){return new Date().toISOString().slice(0,10)}
@@ -6354,6 +6354,7 @@ function viewSettings(el){
           <button class="btn" onclick="exportProductsCSV()">⬇ สินค้า (CSV)</button>
         </div>
         <div class="hint" style="margin-top:14px"><span class="i">ℹ️</span><div>ข้อมูลถูกบันทึกอัตโนมัติในเบราว์เซอร์ + คลาวด์ ควรกด "สำรองข้อมูล" เก็บไฟล์ไว้สม่ำเสมอ</div></div>
+        <label style="display:flex;gap:8px;align-items:center;margin-top:12px;padding:8px 10px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;font-size:13px"><input type="checkbox" ${recoverBtnOn()?'checked':''} onchange="showRecover(this.checked)" style="width:auto"> <span>แสดงปุ่ม <b>🔧 กู้คืนข้อมูล</b> ที่แถบบน (ใช้เฉพาะตอนฉุกเฉิน · ปกติซ่อนไว้กันเผลอกด)</span></label>
       </div></div>
       ${setCards.password!==false?`<div class="panel"><div class="panel-h"><h2>🔒 รหัสผ่านเข้าระบบ${setCardEye('password')}</h2></div><div class="panel-b">
         <p class="muted" style="font-size:12.5px;margin-bottom:10px">ตั้งรหัสผ่านล็อกการเข้าใช้งานระบบ (เว้นว่าง = ไม่ล็อก)</p>
@@ -6441,6 +6442,10 @@ function exportProductsCSV(){
    Backup / Import
    ============================================================ */
 function exportData(){downloadFile(JSON.stringify(DB,null,2),'RTK_backup_'+todayISO()+'.json','application/json');toast('สำรองข้อมูลเป็นไฟล์แล้ว','ok')}
+/* ซ่อน/แสดงปุ่มกู้คืน (กันคนเผลอกด) — จำเฉพาะเครื่องนี้ */
+function recoverBtnOn(){ try{return localStorage.getItem('rtk_show_recover')==='1';}catch(e){return false;} }
+function applyRecoverBtn(){ var b=document.getElementById('recoverBtn'); if(b)b.style.display=recoverBtnOn()?'':'none'; }
+function showRecover(on){ try{localStorage.setItem('rtk_show_recover',on?'1':'0');}catch(e){} applyRecoverBtn(); if(on)toast('แสดงปุ่ม 🔧 กู้คืนข้อมูลแล้ว (ใช้เฉพาะตอนฉุกเฉิน)','ok'); }
 /* กู้คืนรายการสินค้า + ยอดคงเหลือ จากไฟล์สำรองใน GitHub (RTK_import_full.json) */
 async function recoverFromBackup(){
   if(!confirm('กู้คืนรายการสินค้า + ยอดคงเหลือ จากไฟล์สำรองใน GitHub?\n\n• แทนที่ข้อมูลตั้งต้นปัจจุบัน ด้วยรายการสินค้าจริงจากไฟล์สำรอง\n• เอกสาร/ประวัติจะเริ่มบันทึกใหม่ (ไฟล์สำรองนี้เก็บเฉพาะสินค้า+ยอดสต๊อก)\n• จะดันขึ้นคลาวด์ให้ทุกเครื่องอัตโนมัติ\n\nดำเนินการต่อ?')) return;
