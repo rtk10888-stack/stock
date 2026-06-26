@@ -101,7 +101,7 @@ input::placeholder{color:#aab6cf}
 .searchbox::before{content:"🔍";position:absolute;left:11px;top:50%;transform:translateY(-50%);font-size:13px;opacity:.6}
 
 /* Table */
-.tbl-wrap{overflow-x:auto}.tbl-topscroll{overflow-x:scroll;overflow-y:hidden;height:13px;margin-bottom:2px}.tbl-topscroll::-webkit-scrollbar{height:11px}.tbl-topscroll::-webkit-scrollbar-thumb{background:#aeb6c6;border-radius:6px}.tbl-topscroll::-webkit-scrollbar-track{background:#eef0f5;border-radius:6px}.tbl-topscroll-inner{height:1px}
+.tbl-wrap{overflow:auto;max-height:calc(100vh - 200px)}.tbl-wrap thead th{position:sticky;top:0;z-index:3;background:#eef2f7;box-shadow:inset 0 -1px 0 #cbd5e1}.tbl-topscroll{overflow-x:scroll;overflow-y:hidden;height:13px;margin-bottom:2px}.tbl-topscroll::-webkit-scrollbar{height:11px}.tbl-topscroll::-webkit-scrollbar-thumb{background:#aeb6c6;border-radius:6px}.tbl-topscroll::-webkit-scrollbar-track{background:#eef0f5;border-radius:6px}.tbl-topscroll-inner{height:1px}
 table{width:100%;border-collapse:collapse;font-size:13px}
 th{text-align:left;padding:10px 12px;background:var(--panel2);color:var(--ink2);font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:.3px;border-bottom:1px solid var(--line);position:sticky;top:0;white-space:nowrap}
 td{padding:10px 12px;border-bottom:1px solid var(--line2);vertical-align:middle}
@@ -270,7 +270,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.26j (Job Tracking ตรึงหัวตาราง)';
+const APP_BUILD='SEMIQC-2026.06.26k (ตรึงหัวตารางทุกโมดูล + ล่าสุดบนสุด)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -5456,6 +5456,7 @@ function jtRender(){
   if(po) rows=rows.filter(r=>String(r.po)===po);
   if(mon) rows=rows.filter(r=>(r.date||'').slice(0,7)===mon);
   if(q) rows=rows.filter(r=>(r.pn+' '+r.name+' '+r.maker+' '+r.po+' '+r.ref).toLowerCase().includes(q));
+  rows=rows.slice().reverse(); /* แสดงล่าสุดอยู่บนสุด (คงเหลือคำนวณตามลำดับเวลาแล้ว) */
   const total=rows.length; const lim=window.__jtLimit||JT_PAGE; const shown=rows.slice(0,lim);
   const jn=(v,cls)=> v?('<b'+(cls?' style="color:'+cls+'"':'')+'>'+fmt(v)+'</b>'):'';
   const ovOf=k=>((DB.jobTrack||{})[k]||{});
@@ -5508,7 +5509,6 @@ function viewJobTrack(el){
       <button class="btn sm" onclick="openJtColMenu()" title="ซ่อน/แสดงคอลัมน์">👁 คอลัมน์</button>
       <span class="desc" id="jtCount"></span>
     </div></div>
-    <style>#jtWrap{max-height:calc(100vh - 230px);overflow:auto}#jtWrap table{border-collapse:separate;border-spacing:0}#jtWrap thead th{position:sticky;top:0;z-index:3;background:#eef2f7;box-shadow:0 1px 0 #cbd5e1}</style>
     <div class="panel-b nopad"><div id="jtWrap" class="tbl-wrap"><table style="white-space:nowrap;font-size:11px"><thead><tr>
       <th>PART NUMBER</th><th>วันที่</th>${jtC('oper')?'<th>ผู้ดำเนินการ</th>':''}${jtC('maker')?'<th>ผู้ผลิต/ผู้ตรวจ</th>':''}${jtC('po')?'<th>เลขที่สั่งผลิต</th>':''}${jtC('ref')?'<th>ใบส่งสินค้า/IV-P/O.</th>':''}${jtC('buy')?'<th class="num">สั่งซื้อวัตถุดิบ</th>':''}${jtC('recvRM')?'<th class="num">รับวัตถุดิบ</th>':''}${jtC('issueRM')?'<th class="num">จ่ายวัตถุดิบ</th>':''}${jtC('makeOrd')?'<th class="num">สั่งผลิต</th>':''}${jtC('makeRecv')?'<th class="num">รับผลิต</th>':''}${jtC('plateSend')?'<th class="num">ส่งชุบ</th>':''}${jtC('plateRecv')?'<th class="num">รับชุบ</th>':''}${jtC('asmSend')?'<th>ส่งประกอบ</th>':''}${jtC('asmDone')?'<th>ประกอบเสร็จ</th>':''}${jtC('ng1')?'<th class="num">NG</th>':''}${jtC('wait')?'<th class="num">รอคัด</th>':''}${jtC('ngSort')?'<th class="num">NG.</th>':''}${jtC('ok')?'<th class="num">OK</th>':''}${jtC('ship')?'<th class="num">ส่งลูกค้า</th>':''}${jtC('ng2')?'<th class="num">NG</th>':''}<th class="num">คงเหลือ</th>
     </tr></thead><tbody id="jtRows"></tbody></table></div>
