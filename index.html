@@ -270,7 +270,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.26k (ตรึงหัวตารางทุกโมดูล + ล่าสุดบนสุด)';
+const APP_BUILD='SEMIQC-2026.06.26l (รายละเอียดแสดงชื่อย่อ MAKER)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -346,6 +346,13 @@ async function importMakerXlsx(input){ const f=input.files&&input.files[0]; if(!
   saveDB(); render(); toast('นำเข้า/อัปเดต MAKER '+n+' รายแล้ว','ok'); }catch(e){ toast('นำเข้าไม่สำเร็จ: '+((e&&e.message)||e),'err'); } input.value=''; }
 function ensureSettings(){const s=DB&&DB.settings;if(!s)return;if(!s.company)s.company=DEFAULT_COMPANY();if(s.company&&!s.company.poSign)s.company.poSign=DEFAULT_COMPANY().poSign;if(s.company&&s.company.poSign&&/[ก-๙]/.test(JSON.stringify(s.company.poSign)))s.company.poSign=DEFAULT_COMPANY().poSign;if(s.company&&!s.company.thName)s.company.thName=DEFAULT_COMPANY().thName;if(s.company&&s.company.address&&s.company.address.indexOf('ออนนุช')>=0)s.company.address=DEFAULT_COMPANY().address;if(s.company&&!s.company.addressEn)s.company.addressEn=DEFAULT_COMPANY().addressEn;if(!s.makers||!s.makers.length)s.makers=DEFAULT_MAKERS();seedMakersV2(s);if(s.passcode===undefined)s.passcode='';if(!s.suppliers)s.suppliers=[];if(!s.customers)s.customers=[];if(!s.platings)s.platings=[];if(!s.flows||!s.flows.length)s.flows=[{name:'ไม่ชุบ',direct:true},{name:'ไม่ชุบ-QC',direct:false},{name:'ชุบ-QC',direct:false}];seedVendors(s);if(!s.custList)s.custList=(s.customers||[]).map(n=>({name:n}));if(!s.supList)s.supList=(s.suppliers||[]).map(n=>({name:n}));(s.customers||[]).forEach(n=>{if(n&&!s.custList.find(c=>c.name===n))s.custList.push({name:n});});(s.suppliers||[]).forEach(n=>{if(n&&!s.supList.find(c=>c.name===n))s.supList.push({name:n});});s.customers=s.custList.map(c=>c.name).filter(Boolean);s.suppliers=s.supList.map(c=>c.name).filter(Boolean);supCodeBackfill(s);}
 function makerByCode(code){return (DB.settings.makers||[]).find(m=>m.code===code)||null;}
+/* แปลงรหัส/ค่า MAKER → "ชื่อย่อ" สำหรับแสดงผล (ไม่แสดงเป็นเลข NO.) */
+function makerShort(v){ if(v===0)v='0'; if(!v)return '-'; v=String(v).trim(); if(!v)return '-';
+  var ms=(DB.settings&&DB.settings.makers)||[];
+  var m=ms.find(function(x){return String(x.code)===v;})||ms.find(function(x){return (x.abbr||'')===v;})||ms.find(function(x){return (x.name||'')===v;});
+  if(m&&(m.abbr||'').trim())return m.abbr.trim();
+  if(/^\d+$/.test(v)){ if(m&&(m.name||'').trim())return m.name.trim(); return v; }
+  return v; }
 function fmt2(n){return (Number(n)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}
 function prodFlow(p){if(!p)return'';if(p.flow)return p.flow;if(p.type==='RM'||p.type==='SUP')return'ไม่ชุบ';if(p.type==='RMC')return'รับแมทลูกค้า';const pl=(p.plating||'').trim();if(pl==='ไม่ชุบ'||pl==='ไม่ชุบ-QC'||pl==='ชุบ-QC')return pl;if(p.needPlating&&pl)return'ชุบ-QC';return'ไม่ชุบ-QC';}
 function platingSpec(p){if(!p)return'';const pl=(p.plating||'').trim();if(pl==='ไม่ชุบ'||pl==='ไม่ชุบ-QC'||pl==='ชุบ-QC')return'';return pl;}
@@ -1557,7 +1564,7 @@ function prdRow(d){
   const fp=first.fgId&&P(first.fgId)?((P(first.fgId).prodPrice)||first.price||0):(first.price||0);
   return `<tr data-no="${esc(d.no)}" data-ts="${d.ts||0}" data-price="${fp}" data-amt="${totQty}" data-mon="${(d.date||'').slice(0,7)}" data-mk="${esc(d.maker||'')}" data-item="${esc(itemAll)}">
     <td class="pn linkish" onclick="viewDoc('${d.id}')">${d.no}</td><td class="muted">${d.date}</td>
-    <td><span class="tag violet">${esc(d.makerAbbr||(makerByCode(d.maker)||{}).abbr||d.maker||'-')}</span> ${esc(pn)}${more}</td>
+    <td><span class="tag violet">${esc(makerShort(d.makerAbbr||d.maker))}</span> ${esc(pn)}${more}</td>
     <td class="num">${fp?fmt2(fp):'<span class="muted">-</span>'}</td>
     <td class="num">${fmt(totQty)}</td><td>${statusTag(d.status)}</td>
     <td style="text-align:right;white-space:nowrap">
@@ -1942,7 +1949,7 @@ function rwRow(d){
   return `<tr data-no="${esc(d.no)}" data-ts="${d.ts||0}" data-amt="${totQty}" data-mon="${(d.date||'').slice(0,7)}" data-mk="${esc(mkAll)}" data-item="${esc(itemAll)}" data-po="${esc(poTxt)}">
     <td class="pn linkish" onclick="viewDoc('${d.id}')">${d.no}</td><td class="muted">${d.date}</td>
     <td><span class="tag violet">${esc(poTxt)}</span></td>
-    <td><span class="tag amber">${esc(d.maker||'-')}</span> <span class="muted">${esc(head)}</span></td>
+    <td><span class="tag amber">${esc(makerShort(d.maker))}</span> <span class="muted">${esc(head)}</span></td>
     <td class="num">${fp?fmt2(fp):'<span class="muted">-</span>'}</td>
     <td class="num">${fmt(totQty)}</td>
     <td style="text-align:center"><button class="btn sm" onclick="openMvTagDialog('${d.id}')" title="พิมพ์ TAG ควบคุมการเคลื่อนที่">🏷️ TAG</button></td><td>${statusTag(d.status)}</td>
@@ -2715,7 +2722,7 @@ function siRow(d){
   return `<tr data-no="${esc(d.no)}" data-ts="${d.ts||0}" data-amt="${w}" data-qcok="${Number(f0.qcOk)||0}" data-qcng="${Number(f0.qcNg)||0}" data-mon="${(d.date||'').slice(0,7)}" data-mk="${esc(mkAll)}" data-item="${esc(itemAll)}" data-po="${esc(poTxt)}">
     <td class="pn linkish" onclick="viewDoc('${d.id}')">${d.no}</td><td class="muted">${d.date}</td>
     <td><span class="tag violet">${esc(poTxt)}</span></td>
-    <td><span class="tag amber">${esc(d.maker||'-')}</span> <span class="muted">${esc(head)}</span></td>
+    <td><span class="tag amber">${esc(makerShort(d.maker))}</span> <span class="muted">${esc(head)}</span></td>
     <td class="muted">${esc(f0.cust||'')}</td>
     <td class="num"><input type="number" value="${(f0.qcOk!=null&&f0.qcOk!=='')?f0.qcOk:''}" placeholder="พักจาก QC" onchange="setSIqcOk('${d.id}',this.value)" style="width:78px;text-align:right;padding:4px 6px"></td>
     <td class="num"><input type="number" value="${(f0.qcNg!=null&&f0.qcNg!=='')?f0.qcNg:''}" onchange="setSIqcNg('${d.id}',this.value)" style="width:70px;text-align:right;padding:4px 6px"></td>
@@ -3103,7 +3110,7 @@ function qcRow(d){
   return `<tr data-no="${esc(d.no)}" data-ts="${d.ts||0}" data-amt="${ng}" data-stg="${_stg||0}" data-tot="${_totV}" data-ok="${Number(f0.ok)||0}" data-mon="${(d.date||'').slice(0,7)}" data-mk="${esc(mkAll)}" data-item="${esc(itemAll)}" data-po="${esc(poTxt)}">
     <td class="pn linkish" onclick="viewDoc('${d.id}')">${d.no}</td><td class="muted">${d.date}</td>
     <td><span class="tag violet">${esc(poTxt)}</span></td>
-    <td><span class="tag amber">${esc(d.maker||'-')}</span> <span class="muted">${esc(head)}</span></td>
+    <td><span class="tag amber">${esc(makerShort(d.maker))}</span> <span class="muted">${esc(head)}</span></td>
     ${qcC('insp')?`<td class="muted">${esc(f0.inspector||'')}</td>`:''}${qcC('point')?`<td class="muted">${esc(f0.point||'')}</td>`:''}${qcC('tool')?`<td class="muted">${esc(f0.tool||'')}</td>`:''}
     ${qcC('stg')?`<td class="num muted">${_stg?fmt(_stg):'-'}</td>`:''}
     ${qcC('tot')?`<td class="num"><input type="number" value="${(f0.total!=null&&f0.total!=='')?f0.total:''}" placeholder="${_stg||''}" onchange="setQCTotal('${d.id}',this.value)" style="width:74px;text-align:right;padding:4px 6px"></td>`:''}
@@ -3342,7 +3349,7 @@ function plRow(d){
     return `<tr data-no="${esc(d.no)}" data-ts="${(d.ts||0)+idx}" data-sent="${sent}" data-recv="${recv}" data-pend="${pend}" data-amt="${recv}" data-mon="${(l.date||d.date||'').slice(0,7)}" data-mk="${esc((l.maker||d.maker||'').toLowerCase())}" data-item="${esc((pn+' '+pname).toLowerCase())}" data-po="${esc((l.poNo||'').toLowerCase())}">
       <td class="muted">${esc(l.date||d.date||'')}</td>
       <td><span class="tag violet">${esc(l.poNo||'-')}</span></td>
-      <td><span class="tag amber">${esc(l.maker||d.maker||'-')}</span></td>
+      <td><span class="tag amber">${esc(makerShort(l.maker||d.maker))}</span></td>
       <td class="pn linkish" onclick="editPLInline('${d.id}')"><b>${esc(pn)}</b></td>
       <td class="muted">${esc(pname)}</td>
       <td class="num">${sent?fmt(sent):'-'}</td>
