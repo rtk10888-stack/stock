@@ -270,7 +270,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.27f (NG TAG QR รอโหลด+fallback)';
+const APP_BUILD='SEMIQC-2026.06.27g (ติดตามสถานะ: sort เลขที่, ค้นหา PO, RMC, Subtotal)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -5633,6 +5633,11 @@ function jtBuildRows(){
       rows.push({pid:p.id,pn:p.pn,name:p.name||'',ts:d.ts||0,sub:'adj',date:d.date||'',maker:detail,po:'',ref:d.no||'',cols:{adjSet:setMode?(Number(d.qty)||0):null,adjDelta:setMode?null:(Number(d.qty)||0)},operDef:'',key:d.id+'#adj'});
       return;
     }
+    if(t==='RMC'){ const p=d.productId?P(d.productId):null; if(!p)return; const q=Number(d.qty)||0; if(!q)return;
+      /* รับแมทลูกค้า → แสดงที่ "รับวัตถุดิบ" และจ่ายออกอัตโนมัติที่ "จ่ายวัตถุดิบ" */
+      rows.push({pid:p.id,pn:p.pn,name:p.name||'',ts:d.ts||0,sub:'rmc',date:d.date||'',maker:'รับแมทลูกค้า'+(d.customer?(' · '+d.customer):''),po:d.orderNo||'',ref:d.no||'',cols:{recvRM:q,issueRM:q},operDef:'มิตรอังคาร',key:d.id+'#rmc'});
+      return;
+    }
     (d.lines||[]).forEach((l,li)=>{ const pid=l.productId||l.fgId; const p=pid?P(pid):null; if(!p)return;
       const po=l.poNo||(t==='PRD'?d.no:'')||''; const ref=d.no||''; const mk=l.maker||d.maker||'';
       const base={pid:p.id,pn:p.pn,name:p.name||'',ts:d.ts||0};
@@ -5645,7 +5650,7 @@ function jtBuildRows(){
       else if(t==='RW') push('rw',null,mk,{makeRecv:Number(l.receivedQty||l.qty)||0});
       else if(t==='PL'){ const s=Number(l.sentQty)||0,r=Number(l.recvQty)||0; const pl=l.plant||d.plant||l.maker||'';
         if(s) push('pls',l.date||d.date,pl,{plateSend:s}); if(r) push('plr',l.recvDate||l.date||d.date,pl,{plateRecv:r}); }
-      else if(t==='QC') push('qc',null,(l.insp||d.insp||''),{okQ:Number(l.ok)||0,ngSort:Number(l.ng)||0});
+      else if(t==='QC') push('qc',null,(l.inspector||l.insp||d.inspector||''),{okQ:Number(l.ok)||0,ngSort:Number(l.ng)||0});
       else if(t==='INV') push('inv',null,mk,{ship:Number(l.qty)||0});
     });
   });
@@ -5668,15 +5673,21 @@ function openJtColMenu(){modal({title:'👁 เลือกคอลัมน์
 var JT_PAGE=400;
 function jtRender(){
   const part=((document.getElementById('jtPart')||{}).value||'').trim().toLowerCase();
-  const po=((document.getElementById('jtPo')||{}).value||'').trim();
+  const po=((document.getElementById('jtPo')||{}).value||'').trim().toLowerCase();
   const mon=((document.getElementById('jtMon')||{}).value||'').trim();
   const q=((document.getElementById('jtQ')||{}).value||'').trim().toLowerCase();
+  const sort=((document.getElementById('jtSort')||{}).value||'no_desc');
   let rows=jtBuildRows();
   if(part) rows=rows.filter(r=>String(r.pn).toLowerCase().includes(part)||String(r.name).toLowerCase().includes(part));
-  if(po) rows=rows.filter(r=>String(r.po)===po);
+  if(po) rows=rows.filter(r=>String(r.po||'').toLowerCase().includes(po)||String(r.ref||'').toLowerCase().includes(po));
   if(mon) rows=rows.filter(r=>(r.date||'').slice(0,7)===mon);
   if(q) rows=rows.filter(r=>(r.pn+' '+r.name+' '+r.maker+' '+r.po+' '+r.ref).toLowerCase().includes(q));
-  rows=rows.slice().reverse(); /* แสดงล่าสุดอยู่บนสุด (คงเหลือคำนวณตามลำดับเวลาแล้ว) */
+  const nk=r=>String(r.po||r.ref||'');
+  rows=rows.slice();
+  if(sort==='no_desc')rows.sort((a,b)=>nk(b).localeCompare(nk(a),undefined,{numeric:true})||(b.date||'').localeCompare(a.date||''));
+  else if(sort==='no_asc')rows.sort((a,b)=>nk(a).localeCompare(nk(b),undefined,{numeric:true})||(a.date||'').localeCompare(b.date||''));
+  else if(sort==='date_asc')rows.sort((a,b)=>(a.date||'').localeCompare(b.date||'')||(a.ts-b.ts));
+  else rows.sort((a,b)=>(b.date||'').localeCompare(a.date||'')||(b.ts-a.ts)); /* date_desc */
   const total=rows.length; const lim=window.__jtLimit||JT_PAGE; const shown=rows.slice(0,lim);
   const jn=(v,cls)=> v?('<b'+(cls?' style="color:'+cls+'"':'')+'>'+fmt(v)+'</b>'):'';
   const ovOf=k=>((DB.jobTrack||{})[k]||{});
@@ -5707,6 +5718,31 @@ function jtRender(){
      +'</tr>';
   }).join('')||('<tr><td colspan="'+(3+JT_COLS.filter(x=>jtC(x[0])).length)+'" class="muted" style="text-align:center;padding:18px">ยังไม่มีข้อมูล — เมื่อบันทึกเอกสาร (รับวัตถุดิบ/ผลิต/ชุบ/คัดแยก/ส่งลูกค้า) รายการจะมาแสดงที่นี่อัตโนมัติ</td></tr>');
   const elB=document.getElementById('jtRows'); if(elB)elB.innerHTML=body;
+  /* ── Subtotal (รวมทุกรายการที่กรอง) ── */
+  const ft=document.getElementById('jtFoot');
+  if(ft){
+    const S={buy:0,recvRM:0,issueRM:0,makeOrd:0,makeRecv:0,plateSend:0,plateRecv:0,ngSort:0,okQ:0,ship:0};
+    rows.forEach(r=>{const c=r.cols||{};for(const k in S)S[k]+=Number(c[k])||0;});
+    const lead=2+(jtC('oper')?1:0)+(jtC('maker')?1:0)+(jtC('po')?1:0)+(jtC('ref')?1:0);
+    const sn=(v,cls)=>v?('<b'+(cls?' style="color:'+cls+'"':'')+'>'+fmt(v)+'</b>'):'';
+    ft.innerHTML='<td colspan="'+lead+'" style="text-align:right">รวม (Subtotal) · '+fmt(total)+' รายการ</td>'
+     +(jtC('buy')?'<td class="num">'+sn(S.buy)+'</td>':'')
+     +(jtC('recvRM')?'<td class="num">'+sn(S.recvRM)+'</td>':'')
+     +(jtC('issueRM')?'<td class="num">'+sn(S.issueRM)+'</td>':'')
+     +(jtC('makeOrd')?'<td class="num">'+sn(S.makeOrd)+'</td>':'')
+     +(jtC('makeRecv')?'<td class="num">'+sn(S.makeRecv)+'</td>':'')
+     +(jtC('plateSend')?'<td class="num">'+sn(S.plateSend)+'</td>':'')
+     +(jtC('plateRecv')?'<td class="num">'+sn(S.plateRecv)+'</td>':'')
+     +(jtC('asmSend')?'<td></td>':'')
+     +(jtC('asmDone')?'<td></td>':'')
+     +(jtC('ng1')?'<td class="num"></td>':'')
+     +(jtC('wait')?'<td class="num"></td>':'')
+     +(jtC('ngSort')?'<td class="num">'+sn(S.ngSort,'var(--red)')+'</td>':'')
+     +(jtC('ok')?'<td class="num">'+sn(S.okQ,'var(--teal)')+'</td>':'')
+     +(jtC('ship')?'<td class="num">'+sn(S.ship,'var(--red)')+'</td>':'')
+     +(jtC('ng2')?'<td class="num"></td>':'')
+     +'<td class="num" style="background:#ecfdf5">'+sn(S.okQ-S.ship)+'</td>';
+  }
   const cnt=document.getElementById('jtCount'); if(cnt)cnt.textContent=fmt(total)+' รายการ';
   const more=document.getElementById('jtMore'); if(more)more.innerHTML=(total>shown.length)?('<button class="btn sm" onclick="jtShowMore()">แสดงเพิ่ม ('+fmt(total-shown.length)+' รายการ)</button> <button class="btn sm" onclick="jtShowAll()">แสดงทั้งหมด</button>'):'';
 }
@@ -5721,9 +5757,10 @@ function viewJobTrack(el){
   const _mons=[...new Set(_all.map(r=>(r.date||'').slice(0,7)).filter(Boolean))].sort().reverse();
   el.innerHTML=`<div class="panel"><div class="panel-h" style="flex-wrap:wrap;gap:8px"><h2>🧭 Job Tracking : การติดตามสถานะ</h2>
     <div class="right" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+      <select id="jtSort" onchange="jtRender()" style="max-width:150px;width:auto"><option value="no_desc">เลขที่: มาก → น้อย</option><option value="no_asc">เลขที่: น้อย → มาก</option><option value="date_desc">วันที่: ใหม่ → เก่า</option><option value="date_asc">วันที่: เก่า → ใหม่</option></select>
       <input id="jtPart" list="dl_jtpart" placeholder="🔢 Part Number" oninput="jtRender()" style="max-width:150px">
       <datalist id="dl_jtpart">${prods.slice(0,1600).map(p=>'<option value="'+esc(p.pn)+'">'+esc(p.name||'')+'</option>').join('')}</datalist>
-      <select id="jtPo" onchange="jtRender()" style="max-width:150px;width:auto"><option value="">🔢 เลขที่ PO ทั้งหมด</option>${_pos.map(p=>'<option value="'+esc(p)+'">'+esc(p)+'</option>').join('')}</select>
+      <input id="jtPo" list="dl_jtpo" placeholder="🔢 เลขที่ PO (พิมพ์ค้นหา)" oninput="jtRender()" style="max-width:150px"><datalist id="dl_jtpo">${_pos.map(p=>'<option value="'+esc(p)+'">').join('')}</datalist>
       <select id="jtMon" onchange="jtRender()" style="max-width:130px;width:auto"><option value="">📅 ทุกเดือน</option>${_mons.map(m=>'<option value="'+m+'">'+m+'</option>').join('')}</select>
       <input id="jtQ" placeholder="ค้นหา ผู้ผลิต/PO/เอกสาร" oninput="jtRender()" style="max-width:170px">
       <button class="btn sm" onclick="openJtColMenu()" title="ซ่อน/แสดงคอลัมน์">👁 คอลัมน์</button>
@@ -5731,7 +5768,7 @@ function viewJobTrack(el){
     </div></div>
     <div class="panel-b nopad"><div id="jtWrap" class="tbl-wrap"><table style="white-space:nowrap;font-size:11px"><thead><tr>
       <th>PART NUMBER</th><th>วันที่</th>${jtC('oper')?'<th>ผู้ดำเนินการ</th>':''}${jtC('maker')?'<th>ผู้ผลิต/ผู้ตรวจ</th>':''}${jtC('po')?'<th>เลขที่สั่งผลิต</th>':''}${jtC('ref')?'<th>ใบส่งสินค้า/IV-P/O.</th>':''}${jtC('buy')?'<th class="num">สั่งซื้อวัตถุดิบ</th>':''}${jtC('recvRM')?'<th class="num">รับวัตถุดิบ</th>':''}${jtC('issueRM')?'<th class="num">จ่ายวัตถุดิบ</th>':''}${jtC('makeOrd')?'<th class="num">สั่งผลิต</th>':''}${jtC('makeRecv')?'<th class="num">รับผลิต</th>':''}${jtC('plateSend')?'<th class="num">ส่งชุบ</th>':''}${jtC('plateRecv')?'<th class="num">รับชุบ</th>':''}${jtC('asmSend')?'<th>ส่งประกอบ</th>':''}${jtC('asmDone')?'<th>ประกอบเสร็จ</th>':''}${jtC('ng1')?'<th class="num">NG</th>':''}${jtC('wait')?'<th class="num">รอคัด</th>':''}${jtC('ngSort')?'<th class="num">NG.</th>':''}${jtC('ok')?'<th class="num">OK</th>':''}${jtC('ship')?'<th class="num">ส่งลูกค้า</th>':''}${jtC('ng2')?'<th class="num">NG</th>':''}<th class="num">คงเหลือ</th>
-    </tr></thead><tbody id="jtRows"></tbody></table></div>
+    </tr></thead><tbody id="jtRows"></tbody><tfoot><tr id="jtFoot" style="font-weight:700;background:var(--panel2,#eef2f7);border-top:2px solid var(--line)"></tr></tfoot></table></div>
     <div id="jtMore" style="padding:10px;text-align:center"></div>
     <div class="hint" style="margin:8px 12px"><span class="i">💡</span><div>คอลัมน์ตัวเลขดึงจากเอกสารที่บันทึกไว้แล้วอัตโนมัติ · <b>ผู้ดำเนินการ / ส่งประกอบ / ประกอบเสร็จ</b> พิมพ์แก้ในช่องได้ (บันทึกอัตโนมัติ) · <b>คงเหลือ</b> = OK สะสม − ส่งลูกค้าสะสม (ต่อ Part)</div></div>
     </div></div>`;
