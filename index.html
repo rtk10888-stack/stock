@@ -270,7 +270,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.27n (สแกน QR: ปุ่มบันทึก 2 หัวข้อที่แถบล่าง เห็นชัดบนมือถือ)';
+const APP_BUILD='SEMIQC-2026.06.27o (คัดแยก NG: +เพิ่มรายการต่อประเภท + แก้ไข/ลบ บันทึกถาวร)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -3025,7 +3025,9 @@ function doPrintSIMonth(mon){
 }
 var qcLines=[];
 var DEFAULT_QC_DEFECTS=['ชุบสีเสีย TPI','ชุบสีเสีย MAWIN','ชุบสีเสีย ITP','ชุบสีเสีย NLD','ชุบสีเสีย PAKER','ชิ้นงานสั้น','รอยวัตถุดิบ','สนิม/คราบ','ชี้นงานหัวเล็ก','ครีบในรู','สนิม/คราบ','ไม่จีกรอ่ง','ไม่ลบเหลี่ยม','ไม่ลบC','รอยบุม','ลบCมาก','รอยที่หัว','รอยจับ','ปั้มไม่เข้า Jig','ปั้ม เสียรูป','หมุนไม่เข้า','ปั้ม หลุด','ไม่ปั้ม R / HEX.','รูใหญ่ เล็ก','รูใหญ่ ตื้น','รูใหญ่ ไม่เจาะ','รูใหญ่ หนา-บาง','รูใหญ่ ลึก','รูเล็ก เล็ก','รูเล็ก ไม่เจาะ','รูเล็ก ใหญ่','รูเล็ก เบี้ยว','รูเล็ก เป็นครีบ','กลึงสั้น','ผิวเล็ก','ผิวใหญ่','ประกอบปะปน','เกลี่ยวเสี่ยรูป','เกลียว ใหญ่หมุนติด','เกลียวเล็กรูด','เกลียวเป็นครีบ','หมุนหัวไม่เข้า','ลายรีดสั้น','เหลี่ยมไม่ลบ','เหลี่ยมลบน้อย','เหลี่ยมลบมาก','WASHER เป็นรอย','WASHER ผิวโต','WASHER ชุบสี่ไม่ดี','แหวน สียรูป/รอย','แหวนผิวโต','แหวนผิวเล็ก','แอดจัทเสียรูป/รอย','แอดจัทเกลียวเสีย','แอดจัดชุบสีไม่ดี','นัทเสียรูป/รอย','ปัญหาอื่น ๆ'];
-function qcDefectList(){return (DB.settings&&DB.settings.qcDefects&&DB.settings.qcDefects.length)?DB.settings.qcDefects:DEFAULT_QC_DEFECTS;}
+function qcDefNorm(x){if(x&&typeof x==='object'){var nm=String(x.name||x.type||'').trim();return {name:nm,cat:x.cat||qcDefCat(nm)};}var s=String(x||'').trim();return {name:s,cat:qcDefCat(s)};}
+function qcDefectList(){var raw=(DB.settings&&DB.settings.qcDefects&&DB.settings.qcDefects.length)?DB.settings.qcDefects:DEFAULT_QC_DEFECTS;return raw.map(qcDefNorm).filter(function(o){return o.name;});}
+function qcDefectNames(){return qcDefectList().map(function(o){return o.name;});}
 function qcDefCat(name){const s=String(name||'').toLowerCase();
   if(/ชุบสี|ชุบสี่/.test(s))return 'ชุบ/สี';
   if(/เกลียว|เกลี่ยว|หมุน|ลายรีด/.test(s))return 'เกลียว/หมุน';
@@ -3035,7 +3037,8 @@ function qcDefCat(name){const s=String(name||'').toLowerCase();
   if(/นัท|แอดจั/.test(s))return 'นัท/แอดจัท';
   if(/ปั้ม|เสียรูป|รอย|บุม|สั้น|หัวเล็ก|กลึง|ผิว|ปะปน|ประกอบ/.test(s))return 'รูปทรง/ผิว/รอย';
   return 'อื่นๆ';}
-function qcDefectGroups(list){const order=['ชุบ/สี','รู/เจาะ','เกลียว/หมุน','ลบเหลี่ยม/C/ครีบ','รูปทรง/ผิว/รอย','WASHER/แหวน','นัท/แอดจัท','อื่นๆ'];const map={};list.forEach((d,idx)=>{const c=qcDefCat(d);(map[c]=map[c]||[]).push({name:d,idx:idx});});return order.filter(c=>map[c]).map(c=>({cat:c,items:map[c]}));}
+var QC_DEF_ORDER=['ชุบ/สี','รู/เจาะ','เกลียว/หมุน','ลบเหลี่ยม/C/ครีบ','รูปทรง/ผิว/รอย','WASHER/แหวน','นัท/แอดจัท','อื่นๆ'];
+function qcDefectGroups(list){const order=QC_DEF_ORDER;const map={};list.forEach((d,idx)=>{const c=(d&&d.cat)||qcDefCat((d&&d.name)||d);(map[c]=map[c]||[]).push({name:(d&&d.name)||d,idx:idx});});return order.filter(c=>map[c]).map(c=>({cat:c,items:map[c]}));}
 function qcDefFilter(){const q=((document.getElementById('qcd_search')||{}).value||'').trim().toLowerCase();document.querySelectorAll('#qcd_wrap .qcd-card').forEach(c=>{c.style.display=(!q||(c.dataset.name||'').includes(q))?'':'none';});document.querySelectorAll('#qcd_wrap .qcd-cat').forEach(cat=>{const any=[...cat.querySelectorAll('.qcd-card')].some(c=>c.style.display!=='none');cat.style.display=any?'':'none';});}
 var DEFAULT_QC_POINTS=['สภาพทั่วไป','ขนาด/มิติ','เกลียว','รู/เจาะ','ผิว/สี','ความยาว','ความแข็ง','การประกอบ'];
 var DEFAULT_QC_TOOLS=['สายตา','เวอร์เนีย','เกจ','ไมโครมิเตอร์','เกจวัดเกลียว','เกจวัดรู','ตาชั่ง'];
@@ -3125,26 +3128,38 @@ function renderQcLines(){
 }
 function qcMatchName(i,val){qcLines[i].name=val;const pp=findProdByName(val,'FG');if(pp){qcLines[i].productId=pp.id;if(!qcLines[i].cust)qcLines[i].cust=pp.customer||'';}}
 function qcDefectModal(i){
-  const l=qcLines[i];const cur={};(l.defects||[]).forEach(d=>{cur[d.type]=d.qty;});
-  const list=qcDefectList();
-  const groups=qcDefectGroups(list);
-  modal({title:'🩹 บันทึกของเสีย (NG) — รายการที่ '+(i+1),size:'lg',body:`
-    <div class="hint"><span class="i">ℹ️</span><div>ใส่จำนวนเฉพาะชนิดที่พบ · NG รวม = ผลรวมทุกช่อง · OK = รวมยอด − NG</div></div>
-    <input id="qcd_search" placeholder="🔍 ค้นหาปัญหา (พิมพ์คำ เช่น รู, เกลียว, ชุบ)" oninput="qcDefFilter()" style="width:100%;padding:9px 12px;margin-bottom:8px;border:1px solid var(--line);border-radius:8px;font-size:13.5px">
-    <div id="qcd_wrap" style="max-height:50vh;overflow:auto">
-    ${groups.map(g=>`<div class="qcd-cat"><div style="font-weight:700;font-size:11.5px;color:#fff;background:#2456b8;padding:3px 9px;border-radius:6px;margin:8px 0 6px;position:sticky;top:0">${esc(g.cat)} <span style="opacity:.75">(${g.items.length})</span></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">${g.items.map(it=>`<div class="qcd-card" data-name="${esc(it.name.toLowerCase())}" style="display:flex;gap:6px;align-items:center;border:1px solid var(--line);border-radius:7px;padding:4px 8px"><span style="flex:1;font-size:12px">${esc(it.name)}</span><input type="number" id="qcd_${it.idx}" value="${cur[it.name]||''}" placeholder="0" style="width:60px;text-align:right;padding:4px"></div>`).join('')}</div></div>`).join('')}
-    </div>
-    <div class="row c2" style="margin-top:8px"><div class="field"><label>ปัญหาอื่น ๆ (พิมพ์เพิ่ม)</label><input id="qcd_custom" placeholder="ระบุปัญหา"></div><div class="field"><label>จำนวน</label><input type="number" id="qcd_customqty" placeholder="0"></div></div>
-  `,footer:`<button class="btn" onclick="closeModal()">ยกเลิก</button><button class="btn pri" onclick="qcSaveDefects(${i})">บันทึกของเสีย</button>`});
-  setTimeout(()=>{const s=document.getElementById('qcd_search');if(s)s.focus();},30);
+  window.__qdI=i;
+  var l=qcLines[i];var cur={};(l.defects||[]).forEach(function(d){cur[String(d.type||'').trim()]=Number(d.qty)||0;});
+  window.__qdList=qcDefectList().map(function(o){return {name:o.name,cat:o.cat};});
+  window.__qdQty=window.__qdList.map(function(o){return cur[o.name]||'';});
+  qcDefRender();
+  setTimeout(function(){var s=document.getElementById('qcd_search');if(s)s.focus();},30);
 }
+function qcDefRender(){
+  var i=window.__qdI;var list=window.__qdList||[];var qty=window.__qdQty||[];
+  var groups=qcDefectGroups(list);
+  var body='<div class="hint" style="margin-bottom:8px"><span class="i">💡</span><div>ใส่จำนวนเฉพาะชนิดที่พบ · กด <b>"+ เพิ่มรายการ"</b> ในแต่ละประเภทเพื่อเพิ่มหัวข้อใหม่ · แก้ชื่อ/ลบ (✕) ได้ บันทึกถาวร · NG รวม = ผลรวม, OK = ยอด − NG</div></div>'
+   +'<input id="qcd_search" placeholder="🔍 ค้นหาปัญหา (พิมพ์คำ เช่น รู, เกลียว, ชุบ)" oninput="qcDefFilter()" style="width:100%;padding:9px 12px;margin-bottom:8px;border:1px solid var(--line);border-radius:8px;font-size:13.5px">'
+   +'<div id="qcd_wrap" style="max-height:52vh;overflow:auto">'
+   +groups.map(function(g){var ci=QC_DEF_ORDER.indexOf(g.cat);
+      return '<div class="qcd-cat"><div style="font-weight:700;font-size:11.5px;color:#fff;background:#2456b8;padding:4px 9px;border-radius:6px;margin:8px 0 6px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0"><span>'+esc(g.cat)+' <span style="opacity:.75">('+g.items.length+')</span></span><span style="cursor:pointer;font-size:11px;background:rgba(255,255,255,.22);padding:2px 9px;border-radius:5px" onclick="qcDefAdd('+ci+')">+ เพิ่มรายการ</span></div>'
+       +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">'
+       +g.items.map(function(it){return '<div class="qcd-card" data-name="'+esc(String(it.name).toLowerCase())+'" style="display:flex;gap:5px;align-items:center;border:1px solid var(--line);border-radius:7px;padding:3px 6px"><input value="'+esc(it.name)+'" placeholder="พิมพ์หัวข้อของเสีย" oninput="window.__qdList['+it.idx+'].name=this.value" style="flex:1;font-size:12px;padding:4px;border:1px solid transparent;background:transparent" onfocus="this.style.border=\'1px solid var(--line)\';this.style.background=\'#fff\'" onblur="this.style.border=\'1px solid transparent\';this.style.background=\'transparent\'"><input type="number" value="'+(qty[it.idx]||'')+'" placeholder="0" oninput="window.__qdQty['+it.idx+']=Number(this.value)||0" style="width:52px;text-align:right;padding:4px"><span class="rm-x" style="height:26px;line-height:24px;cursor:pointer" onclick="qcDefDel('+it.idx+')">✕</span></div>';}).join('')
+       +'</div></div>';}).join('')
+   +'</div>';
+  modal({title:'🩹 บันทึกของเสีย (NG) — รายการที่ '+(i+1),size:'lg',body:body,footer:'<button class="btn" onclick="closeModal()">ยกเลิก</button><button class="btn pri" onclick="qcSaveDefects('+i+')">บันทึกของเสีย</button>'});
+}
+function qcDefAdd(ci){var c=QC_DEF_ORDER[ci]||'อื่นๆ';window.__qdList.push({name:'',cat:c});window.__qdQty.push('');qcDefRender();
+  setTimeout(function(){var ins=document.querySelectorAll('#qcd_wrap .qcd-card');if(ins.length){var last=ins[ins.length-1].querySelector('input');if(last)last.focus();}},20);}
+function qcDefDel(idx){if(!window.__qdList)return;window.__qdList.splice(idx,1);window.__qdQty.splice(idx,1);qcDefRender();}
 function qcSaveDefects(i){
-  const list=qcDefectList();const defs=[];
-  list.forEach((d,di)=>{const q=Number((document.getElementById('qcd_'+di)||{}).value)||0;if(q>0)defs.push({type:d,qty:q});});
-  const ct=((document.getElementById('qcd_custom')||{}).value||'').trim();const cq=Number((document.getElementById('qcd_customqty')||{}).value)||0;
-  if(ct&&cq>0)defs.push({type:ct,qty:cq});
-  qcLines[i].defects=defs;qcLines[i].ng=defs.reduce((s,d)=>s+d.qty,0);
-  const tot=Number(qcLines[i].total)||0;if(tot)qcLines[i].ok=tot-qcLines[i].ng;
+  var list=window.__qdList||[];var qty=window.__qdQty||[];
+  var master=list.filter(function(o){return (o.name||'').trim();}).map(function(o){return {name:o.name.trim(),cat:o.cat||qcDefCat(o.name)};});
+  DB.settings=DB.settings||{};DB.settings.qcDefects=master;
+  var defs=[];list.forEach(function(o,idx){var q=Number(qty[idx])||0;if(q>0&&(o.name||'').trim())defs.push({type:o.name.trim(),qty:q,cat:o.cat||''});});
+  qcLines[i].defects=defs;qcLines[i].ng=defs.reduce(function(s,d){return s+d.qty;},0);
+  var tot=Number(qcLines[i].total)||0;if(tot)qcLines[i].ok=tot-qcLines[i].ng;
+  try{saveDB();}catch(e){}
   closeModal();renderQcLines();
 }
 function submitQCInline(status){const id=(document.getElementById('qc_editid')||{}).value||'';submitQC2(status,id);}
@@ -6156,7 +6171,7 @@ function qckDefDel(i){qckDefs.splice(i,1);renderQckDefs();qckRecalc();}
 function renderQckDefs(){const root=document.getElementById('qck_deflist');if(!root)return;const ds=qckDefs;
   root.innerHTML='<table style="width:100%;font-size:12.5px"><thead><tr><th style="text-align:left">ปัญหา NG</th><th style="width:110px">จำนวน</th><th style="width:32px"></th></tr></thead><tbody>'
    +ds.map((x,i)=>`<tr><td style="padding:2px"><input list="dl_qckdef" value="${esc(x.type||'')}" placeholder="เช่น รอยขีดข่วน" oninput="qckDefs[${i}].type=this.value" style="width:100%;padding:5px 8px"></td><td style="padding:2px"><input type="number" value="${x.qty||''}" oninput="qckDefs[${i}].qty=Number(this.value)||0;qckRecalc()" style="width:100%;padding:5px 8px;text-align:right"></td><td style="text-align:center"><span class="rm-x" style="height:30px" onclick="qckDefDel(${i})">✕</span></td></tr>`).join('')
-   +'</tbody></table><datalist id="dl_qckdef">'+qcDefectList().map(t=>'<option value="'+esc(t)+'">').join('')+'</datalist>';}
+   +'</tbody></table><datalist id="dl_qckdef">'+qcDefectNames().map(t=>'<option value="'+esc(t)+'">').join('')+'</datalist>';}
 var QCK_DEF_CATS=['ชุบ/สี','รู/เจาะ','เกลียว/หมุน','ลบเหลี่ยม/C/ครีบ','รูปทรง/ผิว/รอย','WASHER/แหวน','นัท/แอดจัท','อื่นๆ'];
 function qckDefCatOf(d){return d.cat||qcDefCat(d.type||'')||'อื่นๆ';}
 function qckDefModal(){
