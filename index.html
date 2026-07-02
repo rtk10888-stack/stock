@@ -270,7 +270,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.26t (คงคลัง: ชื่อขาย + ใช้บน Invoice)';
+const APP_BUILD='SEMIQC-2026.06.26u (แก้จับคอลัมน์ราคาชุบ/1กก.)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -961,7 +961,7 @@ async function importPlateColor(input){ const f=input.files&&input.files[0]; if(
     if(!rows.length){toast('ไฟล์ว่าง','err');input.value='';return;}
     const hdr=(rows[0]||[]).map(h=>String(h||'').trim());
     const col=(re,fb)=>{for(let i=0;i<hdr.length;i++){if(re.test(hdr[i]))return i;}return fb;};
-    const cPart=col(/part/i,0), cColor=col(/ชุบสี|^สี/,1), cW=col(/น้ำหนัก/,2), cTPI=col(/ปรับ|tpi/i,3), cPrice=col(/ราคา/,4);
+    const cPart=col(/part/i,0), cColor=col(/ชุบสี|^สี/,1), cW=col(/น้ำหนัก/,2), cTPI=col(/ปรับ|tpi/i,3), cPrice=col(/ราคา.*กก|ราคาชุบ\/1|^ราคาชุบ$/,4);
     const tpiNum=v=>{const m=String(v||'').match(/(\d+)/);return m?parseInt(m[1],10):0;};
     const byPn={};
     rows.forEach((r,idx)=>{ if(idx===0)return; const raw=String(r[cPart]||'').trim(); if(!raw)return; const pn=raw.split(/\s+/)[0]; if(!pn)return;
