@@ -270,7 +270,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.27s (NC: เรียงเลขที่ มาก→น้อย เป็นค่าตั้งต้น)';
+const APP_BUILD='SEMIQC-2026.06.27t (NC: ผู้ผลิตตัวย่อ + ซ่อน/แสดง LOT/จำนวนสั่ง/NG)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -6285,7 +6285,7 @@ function viewNC(el){
   let rows=DB.docs.filter(d=>d.type==='NC');if(mon!=='ALL')rows=rows.filter(d=>ncMonthOf(d.date)===mon);
   rows=rows.sort((a,b)=>(a.date||'').localeCompare(b.date||'')||(a.ts||0)-(b.ts||0));
   const tNg=rows.reduce((s,r)=>s+(Number(r.ng)||0),0);
-  const byCust={},byMk={};rows.forEach(r=>{const c=(r.customer||'').trim()||'-';byCust[c]=(byCust[c]||0)+1;const m=(r.maker||'').trim()||'-';byMk[m]=(byMk[m]||0)+1;});
+  const byCust={},byMk={};rows.forEach(r=>{const c=(r.customer||'').trim()||'-';byCust[c]=(byCust[c]||0)+1;const m=(makerShort(r.maker||'')||'').trim()||'-';byMk[m]=(byMk[m]||0)+1;});
   const chip=o=>Object.entries(o).sort((a,b)=>b[1]-a[1]).map(e=>'<span style="white-space:nowrap"><b>'+esc(e[0])+'</b> <span style="color:var(--red);font-weight:700">'+e[1]+'</span></span>').join('')||'<span class="muted">-</span>';
   el.innerHTML=`
   <div class="hint"><span class="i">💡</span><div>บันทึกงานเสีย/ไม่ตรงข้อกำหนด · <b>เคาะเลขที่ PO</b> หรือ <b>ชื่องาน(Part)</b> → ระบบดึง ชื่อชิ้นงาน/ลูกค้า/Lot/ผู้ผลิต/จำนวน อัตโนมัติจากใบสั่งผลิต</div></div>
@@ -6303,16 +6303,22 @@ function viewNC(el){
   </div>
   <div class="panel"><div class="panel-h" style="flex-wrap:wrap;gap:8px">
     <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><select onchange="window.__ncMon=this.value;render()" style="padding:6px 10px">${months.map(m=>`<option value="${m}" ${m===mon?'selected':''}>${m==='ALL'?'ทั้งหมด':esc(m)}</option>`).join('')}</select><div class="searchbox"><input id="ncSearch" placeholder="ค้นหา PO/Part/ปัญหา" oninput="filterNCRows()"></div>${ncChip('ncfPo','🔢 PO','po')}${ncChip('ncfPart','🔩 Part','part')}${ncChip('ncfCust','👤 ลูกค้า','cust')}${ncChip('ncfMk','🏭 ผู้ผลิต','maker')}<select id="ncSort" onchange="filterNCRows()" style="max-width:170px;width:auto"><option value="no_desc">เลขที่: มาก → น้อย</option><option value="no_asc">เลขที่: น้อย → มาก</option><option value="date_desc">⬇ ใหม่ → เก่า</option><option value="date_asc">⬆ เก่า → ใหม่</option></select><button class="btn sm" onclick="['ncSearch','ncfPo','ncfPart','ncfCust','ncfMk'].forEach(i=>{var e=document.getElementById(i);if(e)e.value=''});var s=document.getElementById('ncSort');if(s)s.value='no_desc';filterNCRows()">ล้าง</button></div>
-    <div class="right" style="display:flex;gap:6px;flex-wrap:wrap"><input type="file" id="ncFile" accept=".json" style="display:none" onchange="importNC(this)"><button class="btn sm" onclick="document.getElementById('ncFile').click()">📥 นำเข้า</button><button class="btn sm" onclick="printNCClaim()">🧾 เคลมผู้ผลิต</button><button class="btn sm" onclick="printNC()">🖨️ พิมพ์รายงาน</button><button class="btn pri" onclick="openNCForm()">+ แจ้งงานเสีย</button></div>
+    <div class="right" style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn sm" onclick="ncColMenu()">👁 คอลัมน์</button><input type="file" id="ncFile" accept=".json" style="display:none" onchange="importNC(this)"><button class="btn sm" onclick="document.getElementById('ncFile').click()">📥 นำเข้า</button><button class="btn sm" onclick="printNCClaim()">🧾 เคลมผู้ผลิต</button><button class="btn sm" onclick="printNC()">🖨️ พิมพ์รายงาน</button><button class="btn pri" onclick="openNCForm()">+ แจ้งงานเสีย</button></div>
   </div><div class="panel-b nopad">
     ${rows.length?`<div class="tbl-wrap"><table style="white-space:nowrap;font-size:11.5px"><thead><tr>
-      <th>วันที่</th><th>เลขที่ PO</th><th>Part Number</th><th>CUSTOMER</th><th>LOT DATE</th><th class="num">จำนวนสั่ง</th><th>ผู้ผลิต(NG)</th><th>ปัญหา</th><th>NC TAG</th><th>วิธีแก้ไข</th><th class="num">NG</th><th></th>
+      <th>วันที่</th><th>เลขที่ PO</th><th>Part Number</th><th>CUSTOMER</th>${ncCol('lot')?'<th>LOT DATE</th>':''}${ncCol('qty')?'<th class="num">จำนวนสั่ง</th>':''}<th>ผู้ผลิต(NG)</th><th>ปัญหา</th><th>NC TAG</th><th>วิธีแก้ไข</th>${ncCol('ng')?'<th class="num">NG</th>':''}<th></th>
     </tr></thead><tbody id="ncRows">${rows.map(ncRowHtml).join('')}</tbody>
-    <tfoot><tr style="background:#fff7a8;font-weight:700"><td colspan="10" style="text-align:right">รวม NG (ตามที่กรอง)</td><td class="num" id="ncSubNg" style="color:var(--red)">${fmt(tNg)}</td><td></td></tr></tfoot></table></div>`:`<div class="empty"><div class="big">🚫</div><div class="t">ยังไม่มีรายการ NC</div><div>กด "+ แจ้งงานเสีย" หรือ "📥 นำเข้า"</div></div>`}
+    <tfoot><tr style="background:#fff7a8;font-weight:700"><td colspan="${10-(ncCol('lot')?0:1)-(ncCol('qty')?0:1)}" style="text-align:right">รวม NG (ตามที่กรอง)${ncCol('ng')?'':': <span id="ncSubNg" style="color:var(--red)">'+fmt(tNg)+'</span>'}</td>${ncCol('ng')?`<td class="num" id="ncSubNg" style="color:var(--red)">${fmt(tNg)}</td>`:''}<td></td></tr></tfoot></table></div>`:`<div class="empty"><div class="big">🚫</div><div class="t">ยังไม่มีรายการ NC</div><div>กด "+ แจ้งงานเสีย" หรือ "📥 นำเข้า"</div></div>`}
   </div></div>`;
   try{setTimeout(filterNCRows,0);}catch(e){}
 }
 function ncTogglePareto(){var p=document.getElementById('ncPareto');if(!p)return;var hide=p.style.display!=='none';p.style.display=hide?'none':'';try{localStorage.setItem('rtk_ncpareto',hide?'0':'1');}catch(e){}render();}
+function ncColHidden(){try{return JSON.parse(localStorage.getItem('rtk_nccols')||'[]');}catch(e){return [];}}
+function ncCol(k){return ncColHidden().indexOf(k)<0;}
+function ncColToggle(k){var h=ncColHidden();var i=h.indexOf(k);if(i<0)h.push(k);else h.splice(i,1);try{localStorage.setItem('rtk_nccols',JSON.stringify(h));}catch(e){}render();setTimeout(ncColMenu,20);}
+function ncColMenu(){var opts=[['lot','LOT DATE'],['qty','จำนวนสั่ง'],['ng','NG']];
+  var body=opts.map(function(o){return '<label style="display:block;padding:7px 4px;font-size:14px;cursor:pointer"><input type="checkbox" '+(ncCol(o[0])?'checked':'')+' onchange="ncColToggle(\''+o[0]+'\')" style="margin-right:8px;transform:scale(1.2)"> '+o[1]+'</label>';}).join('');
+  modal({title:'👁 แสดง/ซ่อนคอลัมน์',size:'sm',body:'<div class="hint" style="margin-bottom:6px"><span class="i">💡</span><div>ติ๊กเพื่อแสดง เอาติ๊กออกเพื่อซ่อน (บันทึกอัตโนมัติ)</div></div>'+body,footer:'<button class="btn pri" onclick="closeModal()">เสร็จ</button>'});}
 /* ประเมินผู้ผลิต (กราฟเส้นรูปแบบเดียวกับคัดแยก OK/NG) — ดึงจากใบคัดแยก (QC) ตามผู้ผลิต */
 function makerEvalData(months){
   var mks=[],data={};
@@ -6352,19 +6358,20 @@ function makerEvalModal(metric){
   modal({title:'🏭 ประเมินสมรรถนะผู้ผลิต',size:'lg',body:body,footer:'<button class="btn" onclick="closeModal()">ปิด</button>'});
 }
 function ncRowHtml(r){
-  return `<tr data-date="${esc(r.date||'')}" data-po="${esc((r.po||'').toLowerCase())}" data-part="${esc((r.part||'').toLowerCase())}" data-cust="${esc((r.customer||'').toLowerCase())}" data-mk="${esc((r.maker||'').toLowerCase())}" data-ng="${Number(r.ng)||0}">
+  const mkS=makerShort(r.maker||'');
+  return `<tr data-date="${esc(r.date||'')}" data-po="${esc((r.po||'').toLowerCase())}" data-part="${esc((r.part||'').toLowerCase())}" data-cust="${esc((r.customer||'').toLowerCase())}" data-mk="${esc(String(mkS||'').toLowerCase())}" data-ng="${Number(r.ng)||0}">
     <td class="muted">${esc(r.date||'')}</td><td><span class="tag violet">${esc(r.po||'-')}</span></td>
     <td class="pn linkish" onclick="viewNCDoc('${r.id}')"><b>${esc(r.part||'')}</b></td>
-    <td>${esc(r.customer||'')}</td><td class="c muted">${esc(r.lot||'')}</td><td class="num">${r.qty?fmt(r.qty):'-'}</td>
-    <td><span class="tag amber">${esc(r.maker||'-')}</span></td>
+    <td>${esc(r.customer||'')}</td>${ncCol('lot')?`<td class="c muted">${esc(r.lot||'')}</td>`:''}${ncCol('qty')?`<td class="num">${r.qty?fmt(r.qty):'-'}</td>`:''}
+    <td><span class="tag amber">${esc(mkS||'-')}</span></td>
     <td style="color:var(--red);max-width:200px;overflow:hidden;text-overflow:ellipsis">${esc(r.defect||'')}</td>
     <td class="c"><button class="btn sm" onclick="printNCTag('${r.id}')" title="พิมพ์ NC TAG (FM-QC-12)">🏷️ TAG</button></td>
     <td class="muted" style="max-width:220px;overflow:hidden;text-overflow:ellipsis">${esc(r.method||'')}</td>
-    <td class="num">${r.tqmId?`<b class="linkish" style="color:var(--red)" title="คลิกเพื่อดูใน RTK-TQM: ${esc(r.tqmId)}" onclick="openTQMItem('${esc(r.tqmId)}')">${r.ng?fmt(r.ng):'-'} 🔗</b>`:`<b style="color:var(--red)">${r.ng?fmt(r.ng):'-'}</b>`}</td>
+    ${ncCol('ng')?`<td class="num">${r.tqmId?`<b class="linkish" style="color:var(--red)" title="คลิกเพื่อดูใน RTK-TQM: ${esc(r.tqmId)}" onclick="openTQMItem('${esc(r.tqmId)}')">${r.ng?fmt(r.ng):'-'} 🔗</b>`:`<b style="color:var(--red)">${r.ng?fmt(r.ng):'-'}</b>`}</td>`:''}
     <td style="white-space:nowrap"><button class="btn sm" onclick="ncToTQM('${r.id}')" title="ส่ง/ซิงก์เข้า RTK-TQM (QCDMS)">➡️ TQM</button> ${r.tqmId?`<span class="tag green linkish" title="คลิกเปิดดูใน RTK-TQM" onclick="openTQMItem('${esc(r.tqmId)}')">${esc(r.tqmId)} ↗</span> `:''}<button class="btn sm" onclick="viewNCDoc('${r.id}')">ดู</button> <button class="btn sm" onclick="openNCTag('${r.id}')" title="พิมพ์ NG TAG">🏷️</button> <button class="btn sm" onclick="printNCOne('${r.id}')">🖨️</button> <button class="btn sm" onclick="openNCForm(DB.docs.find(x=>x.id==='${r.id}'))">✏️</button> <button class="btn sm danger" onclick="delNC('${r.id}')">ลบ</button></td>
   </tr>`;
 }
-function ncDistinct(field){const set=new Set();DB.docs.filter(d=>d.type==='NC').forEach(d=>{let v=field==='po'?d.po:field==='part'?d.part:field==='cust'?d.customer:field==='maker'?d.maker:'';if(v)set.add(String(v));});return [...set].sort();}
+function ncDistinct(field){const set=new Set();DB.docs.filter(d=>d.type==='NC').forEach(d=>{let v=field==='po'?d.po:field==='part'?d.part:field==='cust'?d.customer:field==='maker'?makerShort(d.maker||''):'';if(v)set.add(String(v));});return [...set].sort();}
 function ncChip(id,ph,field){return '<input id="'+id+'" class="fchip" list="dl_'+id+'" placeholder="'+ph+'" oninput="filterNCRows()" style="max-width:130px"><datalist id="dl_'+id+'">'+ncDistinct(field).map(v=>'<option value="'+esc(v)+'">').join('')+'</datalist>';}
 function filterNCRows(){
   const g=id=>((document.getElementById(id)||{}).value||'').trim().toLowerCase();
