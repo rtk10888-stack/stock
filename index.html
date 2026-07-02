@@ -270,7 +270,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.26x (PO วัสดุสิ้นเปลือง แสดงหน้าเดียวกัน)';
+const APP_BUILD='SEMIQC-2026.06.26y (Invoice: เครดิต60/ครบกำหนด/VAT/หัวเข็มเพิ่มข้อมูล)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -2258,17 +2258,19 @@ function ivBlank(){return {prodPO:'',maker:'',productId:'',name:'',lot:'',qty:''
 function ivToggle(force){const b=document.getElementById('ivFormBody');if(!b)return;const show=force!==undefined?force:(b.style.display==='none');b.style.display=show?'':'none';const t=document.getElementById('ivToggleBtn');if(t)t.textContent=show?'▲ ซ่อนฟอร์ม':'▼ เปิดฟอร์มบันทึก';}
 function ivOpenNew(){ivToggle(true);ivClear();try{window.scrollTo({top:0,behavior:'smooth'})}catch(e){}}
 function ivPeekNo(){let mx=0;DB.docs.filter(x=>x.type==='INV').forEach(x=>{const n=parseInt(String(x.invNo||'').replace(/\D/g,''),10);if(!isNaN(n)&&n>mx)mx=n;});return 'IV'+String(mx+1).padStart(7,'0');}
-function ivClear(){ivLines=[ivBlank()];const set=(k,v)=>{const e=document.getElementById(k);if(e)e.value=v;};set('iv_editid','');set('iv_no',ivPeekNo());set('iv_date',todayISO());set('iv_cust','');set('iv_custpo','');const v=document.getElementById('iv_vat');if(v)v.checked=false;const et=document.getElementById('ivEditTag');if(et)et.textContent='รายการใหม่';renderIvLines();}
+function ivClear(){ivLines=[ivBlank()];const set=(k,v)=>{const e=document.getElementById(k);if(e)e.value=v;};set('iv_editid','');set('iv_no',ivPeekNo());set('iv_date',todayISO());set('iv_cust','');set('iv_custpo','');set('iv_credit','60 วัน');const v=document.getElementById('iv_vat');if(v)v.checked=true;try{ivDue();}catch(e){}const et=document.getElementById('ivEditTag');if(et)et.textContent='รายการใหม่';renderIvLines();}
+function ivDue(){const dt=(document.getElementById('iv_date')||{}).value;const cr=(document.getElementById('iv_credit')||{}).value||'';const m=String(cr).match(/\d+/);const due=document.getElementById('iv_due');if(!due)return;if(dt&&m){try{const x=new Date(dt);x.setDate(x.getDate()+parseInt(m[0],10));due.value=x.toISOString().slice(0,10);}catch(e){}}}
 function ivPanelHTML(){ensureSettings();
   return `<div class="panel" style="margin-bottom:14px;border:1.5px solid var(--brand)">
     <div class="panel-h"><h2>🧾 บันทึก Invoice ส่งลูกค้า</h2><div style="display:flex;gap:10px;align-items:center"><span class="desc" id="ivEditTag">รายการใหม่</span><button class="btn sm" id="ivToggleBtn" onclick="ivToggle()">▼ เปิดฟอร์มบันทึก</button></div></div>
     <div class="panel-b" id="ivFormBody" style="display:none">
       <div class="row c3">
         <div class="field"><label>เลขที่ INV</label><input id="iv_no" value="${ivPeekNo()}"></div>
-        <div class="field"><label>วันที่</label><input type="date" id="iv_date" value="${todayISO()}"></div>
+        <div class="field"><label>วันที่</label><input type="date" id="iv_date" value="${todayISO()}" oninput="ivDue()"></div>
         <div class="field"><label>รหัสลูกค้า (NO.)</label><input id="iv_custcode" list="dl_ivcode" placeholder="เช่น 210-6" onchange="ivCustLookup()" oninput="ivCustLookup()"><datalist id="dl_ivcode">${(DB.settings.custList||[]).filter(c=>c.code).map(c=>`<option value="${esc(c.code)}">${esc(c.name)}</option>`).join('')}</datalist></div><div class="field"><label>ลูกค้า <span class="req">*</span></label><input id="iv_cust" list="dl_ivcust" placeholder="ชื่อลูกค้า"><datalist id="dl_ivcust">${(DB.settings.customers||[]).map(c=>`<option value="${esc(c)}">`).join('')}</datalist></div>
       </div>
-      <div class="row c2"><div class="field"><label>เลขที่ PO สั่งซื้อ (ลูกค้า)</label><input id="iv_custpo" placeholder="PO ของลูกค้า"></div><div class="field"><label style="opacity:0">.</label><label style="font-weight:400;display:flex;gap:7px;align-items:center;font-size:13px;padding-top:9px"><input type="checkbox" id="iv_vat" style="width:auto" onchange="ivTotals()"> รวม VAT 7%</label></div></div>
+      <div class="row c2"><div class="field"><label>เลขที่ PO สั่งซื้อ (ลูกค้า)</label><input id="iv_custpo" placeholder="PO ของลูกค้า"></div><div class="field"><label style="opacity:0">.</label><label style="font-weight:400;display:flex;gap:7px;align-items:center;font-size:13px;padding-top:9px"><input type="checkbox" id="iv_vat" style="width:auto" checked onchange="ivTotals()"> รวม VAT 7%</label></div></div>
+      <div class="row c2"><div class="field"><label>เงื่อนไขชำระเงิน</label><input id="iv_credit" value="60 วัน" oninput="ivDue()" placeholder="เช่น 60 วัน"></div><div class="field"><label>วันที่ครบกำหนด (อัตโนมัติ)</label><input type="date" id="iv_due"></div></div>
       <input type="hidden" id="iv_editid" value="">
       <div class="hint"><span class="i">💡</span><div>เลือก Part → ตัดยอดจากคงเหลือเมื่ออนุมัติ · เคาะ PO ผลิตเพื่อแนบอ้างอิงได้</div></div>
       <div id="ivRoot"></div>
@@ -2318,6 +2320,7 @@ function submitIV2(status,editId){
   if(!d.no)d.no=nextNo('INV');
   d.invNo=(v('iv_no')||'').trim();d.date=v('iv_date')||todayISO();d.customer=cust;d.custCode=(v('iv_custcode')||'').trim();d.custPO=(v('iv_custpo')||'').trim();
   d.vat7=!!(document.getElementById('iv_vat')&&document.getElementById('iv_vat').checked);
+  d.creditTerms=((document.getElementById('iv_credit')||{}).value||'').trim();d.dueDate=(document.getElementById('iv_due')||{}).value||'';
   d.lines=lines;d.subtotal=lines.reduce((s,l)=>s+l.qty*l.price,0);d.vat=d.vat7?d.subtotal*0.07:0;d.total=d.subtotal+d.vat;d.totalQty=lines.reduce((s,l)=>s+l.qty,0);
   if(status==='approved'){for(const l of lines){const p=P(l.productId);const av=(p.onHand||0)+(p.passedQC||0)+(p.wip||0)+(p.atPlating||0);if(p&&l.qty>av){toast(`${p.pn}: ขายเกินยอดที่ผลิต/รับมา (ส่งได้สูงสุด ${fmt(av)} รวม Q-Time)`,'err');return}}const r=doApprove(d);if(!r.ok){toast('อนุมัติไม่สำเร็จ: '+r.err,'err');return}toast('บันทึก+อนุมัติ (ตัดยอด): '+(d.invNo||d.no),'ok');}
   else toast((editId?'บันทึกการแก้ไข ':'สร้าง Invoice ')+(d.invNo||d.no)+' (รออนุมัติ)','ok');
@@ -2330,6 +2333,7 @@ function editIVInline(id){
   const set=(k,v)=>{const e=document.getElementById(k);if(e)e.value=v;};
   set('iv_editid',d.id);set('iv_no',d.invNo||'');set('iv_date',d.date||todayISO());set('iv_custcode',d.custCode||'');set('iv_cust',d.customer||'');set('iv_custpo',d.custPO||'');
   const vt=document.getElementById('iv_vat');if(vt)vt.checked=!!d.vat7;
+  const _cr=document.getElementById('iv_credit');if(_cr)_cr.value=d.creditTerms||'60 วัน';const _du=document.getElementById('iv_due');if(_du)_du.value=d.dueDate||'';if(!d.dueDate){try{ivDue();}catch(e){}}
   const et=document.getElementById('ivEditTag');if(et)et.textContent='✏️ กำลังแก้ไข: '+(d.invNo||d.no);
   renderIvLines();try{window.scrollTo({top:0,behavior:'smooth'});}catch(e){}
 }
@@ -2402,7 +2406,7 @@ function applyIVImport(input){
 function invLineName(l){ var p=l&&l.productId?P(l.productId):null; if(p&&(p.saleName||'').trim())return p.saleName.trim(); return p?(p.pn+' '+(p.name||'')):((l&&l.name)||''); }
 function printIV(id,mode){
   const d=DB.docs.find(x=>x.id===id);if(!d)return;ensureSettings();const co=DB.settings.company||{};
-  const cu=getCust(d.customer)||{};const ccode=d.custCode||cu.code||'';const credit=cu.creditTerms||d.credit||'';
+  const cu=getCust(d.customer)||{};const ccode=d.custCode||cu.code||'';const credit=d.creditTerms||cu.creditTerms||d.credit||'';
   const rows=(d.lines||[]).map((l,i)=>{const pn=invLineName(l);return '<tr><td class="c">'+(i+1)+'</td><td>'+esc(pn)+'</td><td class="c">'+esc(l.lot||'')+'</td><td class="r">'+fmt(l.qty)+'</td><td class="r">'+fmt2(l.price)+'</td><td class="r">'+fmt2(l.qty*l.price)+'</td></tr>';}).join('');
   const blanks=Array.from({length:Math.max(0,8-(d.lines||[]).length)}).map(()=>'<tr><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td></tr>').join('');
   const html='<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"><title>'+esc(d.invNo||d.no)+'</title><style>'
@@ -2425,18 +2429,21 @@ function printIV(id,mode){
   const w=window.open('','_blank');if(!w){toast('เบราว์เซอร์บล็อก popup','err');return}w.document.write(html);w.document.close();
 }
 function printIVForm(d,ccode,credit,cu){
-  const F={code:[14,15],inv:[150,15],cust:[28,27],tax:[28,33.5],credit:[150,27],date:[150,33.5],
-    row0:52,pitch:7,cNo:12,cDesc:20,cPo:108,cQty:142,cUnit:166,cAmt:196,
+  const F={code:[14,15],inv:[150,15],cust:[28,27],tax:[28,33.5],credit:[150,27],due:[185,27],date:[150,33.5],custpo:[28,40],
+    row0:52,pitch:7,cNo:12,cDesc:20,cLot:118,cPo:100,cQty:145,cUnit:168,cAmt:198,
     hak:[14,120],subL:[150,116],subV:[196,116],vatL:[150,123],vatV:[196,123],totL:[150,131],totV:[196,131]};
   const T=(x,y,t,r)=>'<span class="t'+(r?' r':'')+'" style="left:'+x+'mm;top:'+y+'mm">'+t+'</span>';
+  const dv=tagDate?tagDate:(x=>x);
   const items=(d.lines||[]).map((l,i)=>{const pn=invLineName(l);const y=F.row0+i*F.pitch;
-    return T(F.cNo,y,(i+1))+T(F.cDesc,y,esc(pn))+T(F.cPo,y,esc(l.prodPO||l.maker||''))+T(F.cQty,y,fmt(l.qty),1)+T(F.cUnit,y,fmt2(l.price),1)+T(F.cAmt,y,fmt2(l.qty*l.price),1);}).join('');
+    return T(F.cNo,y,(i+1))+T(F.cDesc,y,esc(pn))+(l.lot?T(F.cLot,y,esc(l.lot)):'')+T(F.cPo,y,esc(l.prodPO||l.maker||''))+T(F.cQty,y,fmt(l.qty)+' ชิ้น',1)+T(F.cUnit,y,fmt2(l.price),1)+T(F.cAmt,y,fmt2(l.qty*l.price),1);}).join('');
   const body=T(F.code[0],F.code[1],esc(ccode))
     +T(F.inv[0],F.inv[1],esc(d.invNo||d.no))
-    +T(F.cust[0],F.cust[1],esc(d.customer||''))
+    +T(F.cust[0],F.cust[1],esc(cu.name||d.customer||''))
     +T(F.tax[0],F.tax[1],esc(cu.taxId||''))
     +T(F.credit[0],F.credit[1],esc(credit||''))
-    +T(F.date[0],F.date[1],esc(d.date||''))
+    +(d.dueDate?T(F.due[0],F.due[1],esc(tagDate(d.dueDate))):'')
+    +(d.custPO?T(F.custpo[0],F.custpo[1],'PO: '+esc(d.custPO)):'')
+    +T(F.date[0],F.date[1],esc(tagDate(d.date||'')))
     +items
     +T(F.hak[0],F.hak[1],'สามารถหัก 3% ได้')
     +T(F.subL[0],F.subL[1],'รวมเงิน')+T(F.subV[0],F.subV[1],fmt2(d.subtotal||0),1)
