@@ -270,7 +270,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.27h (ติดตามสถานะ: ผู้ผลิตแสดงชื่อย่อ)';
+const APP_BUILD='SEMIQC-2026.06.27i (DELIVERY TAG 5x9 FM-ST-15 + QR สแกนเข้ารับชิ้นงาน)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -1879,65 +1879,93 @@ function openMvTagDialog(docId){
   const f0=(d.lines||[]).find(l=>Number(l.qty)>0)||(d.lines||[])[0]||{};
   const pr=f0.productId?P(f0.productId):null;const pno=pr?pr.pn:((f0.name||'').split(' ')[0]);
   const qty=Number(f0.qty||f0.receivedQty)||0;
-  modal({title:'🏷️ พิมพ์ TAG ควบคุมการเคลื่อนที่ของชิ้นงาน',size:'lg',body:`
-    <div class="hint" style="margin-bottom:8px"><span class="i">💡</span><div>ดึงข้อมูลจากใบรับชิ้นงานอัตโนมัติ แก้ไขได้ · กรอก <b>จำนวนชิ้น/ถุง</b> ออก TAG ตามจำนวนถุง (รับ ÷ ชิ้น/ถุง) · A4 = 12 ดวง</div></div>
+  const prodDate=(d.prodDate||f0.prodDate||d.date||todayISO());
+  modal({title:'🏷️ พิมพ์ DELIVERY TAG (FM-ST-15) 5×9 ซม.',size:'lg',body:`
+    <div class="hint" style="margin-bottom:8px"><span class="i">💡</span><div>ดึงข้อมูลจากใบรับชิ้นงานอัตโนมัติ แก้ไขได้ · กรอก <b>จำนวนบรรจุ/ถุง</b> ออก TAG ตามจำนวนถุง (จำนวน ÷ บรรจุ) · A4 = 10 ดวง · มี <b>QR</b> สแกนด้วย LINE เชื่อมเข้า "รับชิ้นงาน" อัตโนมัติ</div></div>
+    <input type="hidden" id="mv_docid" value="${esc(docId)}">
     <div class="row c3">
-      <div class="field"><label>DATE</label><input id="mv_date" value="${esc(d.date||todayISO())}"></div>
-      <div class="field"><label>PO.</label><input id="mv_po" value="${esc(f0.poNo||'')}"></div>
-      <div class="field"><label>P/NO. (ชิ้นงาน)</label><input id="mv_pno" value="${esc(pno||'')}"></div>
+      <div class="field"><label>ชื่อผู้ผลิต / MAKER NAME</label><input id="mv_maker" value="${esc(makerShort(f0.maker||d.maker||''))}"></div>
+      <div class="field"><label>ใบสั่งซื้อ / P/O NO.</label><input id="mv_po" value="${esc(f0.poNo||'')}"></div>
+      <div class="field"><label>หมายเลขชิ้นส่วน / PART NO.</label><input id="mv_pno" value="${esc(pno||'')}"></div>
     </div>
     <div class="row c3">
-      <div class="field"><label>LOT/DATE</label><input id="mv_lot" value="${esc(f0.lot||f0.date||'')}"></div>
-      <div class="field"><label>CUSTOMER</label><input id="mv_cust" value="${esc(pr?pr.customer:'')}"></div>
-      <div class="field"><label>ผู้ผลิต</label><input id="mv_maker" value="${esc(f0.maker||d.maker||'')}"></div>
+      <div class="field"><label>ชื่อชิ้นส่วน / PART NAME</label><input id="mv_pname" value="${esc(pr?pr.name:(f0.name||''))}"></div>
+      <div class="field"><label>ล๊อต / LOT NO.</label><input id="mv_lot" value="${esc(f0.lot||f0.date||'')}"></div>
+      <div class="field"><label>วันที่สั่งผลิต (สำหรับ QR)</label><input id="mv_pdate" value="${esc(prodDate)}"></div>
     </div>
-    <div class="row c2">
-      <div class="field"><label>PLATING (การชุบ)</label><input id="mv_plate" value="${esc(pr?(pr.plating||''):'')}"></div>
-      <div class="field"><label>ขั้นตอน</label><input id="mv_step" value="รับชิ้นงาน"></div>
+    <div class="row c3">
+      <div class="field"><label>กำหนดส่ง / DUE DATE</label><input id="mv_due" value="${esc(d.dueDate||'')}"></div>
+      <div class="field"><label>วันที่ส่ง / DELIVERY DATE</label><input id="mv_deliv" value="${esc(d.date||todayISO())}"></div>
+      <div class="field"><label>ผู้ตรวจสอบ / FIFO</label><input id="mv_insp" value="${esc(f0.inspector||'')}"></div>
     </div>
-    <div class="row c2">
-      <div class="field"><label>จำนวนรับทั้งหมด</label><input id="mv_qty" type="number" value="${qty}" oninput="mvTagCalc()"></div>
-      <div class="field"><label>จำนวนชิ้น/ถุง <span class="req">*</span></label><input id="mv_per" type="number" value="${qty||1}" oninput="mvTagCalc()"></div>
+    <div class="row c3">
+      <div class="field"><label>น้ำหนัก / WEIGHT</label><input id="mv_wt" value=""></div>
+      <div class="field"><label>จำนวนทั้งหมด / Q'TY</label><input id="mv_qty" type="number" value="${qty}" oninput="mvTagCalc()"></div>
+      <div class="field"><label>จำนวนบรรจุ/ถุง <span class="req">*</span></label><input id="mv_per" type="number" value="${qty||1}" oninput="mvTagCalc()"></div>
     </div>
     <div class="kv" style="margin-top:4px;font-size:14px"><span class="k">จำนวน TAG ที่จะพิมพ์</span><b id="mv_count" style="color:var(--brand);font-size:18px">1</b></div>
   `,footer:`<button class="btn" onclick="closeModal()">ปิด</button><button class="btn" onclick="printMvTags(true)">👁️ ดูตัวอย่าง</button><button class="btn pri" onclick="printMvTags(false)">🖨️ พิมพ์ TAG</button>`});
   setTimeout(mvTagCalc,20);
 }
 function mvTagCalc(){const q=Number((document.getElementById('mv_qty')||{}).value)||0;const per=Number((document.getElementById('mv_per')||{}).value)||0;const n=per>0?Math.ceil(q/per):0;const e=document.getElementById('mv_count');if(e)e.textContent=fmt(n);return n;}
-function mvTagOne(t){
-  return '<div class="mvtag"><table>'
-   +'<tr><td class="rtk" rowspan="2">RTK</td><td class="mvh" colspan="2">TAG<br><span class="sub">ควบคุมการเคลื่อนที่ของชิ้นงาน</span></td><td class="dt">DATE<br><b>'+esc(t.date)+'</b></td></tr>'
-   +'<tr><td class="l">PO.</td><td>'+esc(t.po)+'</td><td class="pn2"><span class="l2">P/NO.</span> <b>'+esc(t.pno)+'</b></td></tr>'
-   +'<tr><td class="l">LOT/DATE</td><td class="hl">'+esc(t.lot)+'</td><td class="l">CUSTOMER</td><td>'+esc(t.cust)+'</td></tr>'
-   +'<tr><td class="l">ผู้ผลิต</td><td>'+esc(t.maker)+'</td><td class="l">PLATING</td><td>'+esc(t.plate)+'</td></tr>'
-   +'<tr><td class="l">ขั้นตอน</td><td colspan="3">'+esc(t.step)+'</td></tr>'
-   +'<tr><td class="l">ส่ง / จำนวนชิ้น</td><td></td><td class="l">ส่ง / กิโลกรัม</td><td></td></tr>'
-   +'<tr><td class="l">รับ / จำนวนชิ้น</td><td class="qty">'+fmt(t.qty)+'</td><td class="l">รับ / กิโลกรัม</td><td></td></tr>'
-   +'<tr><td colspan="4" class="fm">FM-ST-04 REV.00</td></tr>'
+function mvScanURL(t){/* QR = ลิงก์เปิดแอป + เชื่อมเข้า "รับชิ้นงาน" อัตโนมัติเมื่อสแกนด้วย LINE */
+  var base=location.origin+location.pathname;
+  var payload=[t.docid||'',t.pno||'',t.qty||'',t.po||'',t.pdate||''].join('|');
+  return base+'#rwscan='+encodeURIComponent(payload);}
+function mvTagOne(t){var qr=esc(mvScanURL(t));
+  return '<div class="dtag"><table>'
+   +'<tr><td class="l">ชื่อผู้ผลิต<br><span class="e">MAKER NAME</span></td><td class="v"><b>'+esc(t.maker)+'</b></td><td class="l">ใบสั่งซื้อ<br><span class="e">P/O NO.</span></td><td class="v">'+esc(t.po)+'</td><td class="qrc" rowspan="5"><div class="qr" data-qr="'+qr+'"></div></td></tr>'
+   +'<tr><td class="l">หมายเลขชิ้นส่วน<br><span class="e">PART NO.</span></td><td class="v big" colspan="3"><b>'+esc(t.pno)+'</b></td></tr>'
+   +'<tr><td class="l">ชื่อชิ้นส่วน<br><span class="e">PART NAME</span></td><td class="v" colspan="3">'+esc(t.pname)+'</td></tr>'
+   +'<tr><td class="l">ล๊อต<br><span class="e">LOT NO.</span></td><td class="v">'+esc(t.lot)+'</td><td class="l">จำนวน<br><span class="e">Q\'TY</span></td><td class="v qty"><b>'+fmt(t.qty)+'</b></td></tr>'
+   +'<tr><td class="l">กำหนดส่ง<br><span class="e">DUE DATE</span></td><td class="v">'+esc(t.due)+'</td><td class="l">วันที่ส่ง<br><span class="e">DELIVERY DATE</span></td><td class="v">'+esc(t.deliv)+'</td></tr>'
+   +'<tr><td class="l">น้ำหนัก<br><span class="e">WEIGHT</span></td><td class="v">'+esc(t.wt)+'</td><td class="l">ผู้ตรวจสอบ/FIFO<br><span class="e">INSPECTOR/FIFO</span></td><td class="v" colspan="2">'+esc(t.insp)+'</td></tr>'
+   +'<tr><td colspan="5" class="dec">ชิ้นส่วนที่นำเข้าล๊อตนี้ ได้ทำการตรวจสอบแล้วทุกชิ้น ข้าพเจ้าขอรับผิดชอบ และรับประกันคุณภาพของชิ้นส่วนที่นำมาส่งทั้งหมด</td></tr>'
+   +'<tr><td colspan="5" class="fm">FM-ST-15 Rev 00</td></tr>'
    +'</table></div>';}
 function printMvTags(preview){
   const v=k=>((document.getElementById(k)||{}).value||'').trim();
   const q=Number(v('mv_qty'))||0, per=Number(v('mv_per'))||0;
-  if(per<=0){toast('กรอกจำนวนชิ้น/ถุง','err');return;}
-  const n=Math.ceil(q/per); if(n<=0){toast('ไม่มีจำนวนรับ','err');return;}
-  const base={date:v('mv_date'),po:v('mv_po'),pno:v('mv_pno'),lot:v('mv_lot'),cust:v('mv_cust'),maker:v('mv_maker'),plate:v('mv_plate'),step:v('mv_step')};
+  if(per<=0){toast('กรอกจำนวนบรรจุ/ถุง','err');return;}
+  const n=Math.ceil(q/per); if(n<=0){toast('ไม่มีจำนวน','err');return;}
+  const base={docid:v('mv_docid'),maker:v('mv_maker'),po:v('mv_po'),pno:v('mv_pno'),pname:v('mv_pname'),lot:v('mv_lot'),pdate:v('mv_pdate'),due:v('mv_due'),deliv:v('mv_deliv'),insp:v('mv_insp'),wt:v('mv_wt')};
   let tags='';for(let i=0;i<n;i++){const qty=(i===n-1)?(q-per*(n-1)):per;tags+=mvTagOne(Object.assign({qty},base));}
-  const css="@page{size:A4;margin:7mm}*{box-sizing:border-box;font-family:'Tahoma',sans-serif}body{margin:0}.sheet{font-size:0}"
-   +".mvtag{display:inline-block;vertical-align:top;width:95mm;height:45mm;border:1.6px solid #1b3a8f;page-break-inside:avoid;margin:0 1mm 1mm 0;overflow:hidden}"
-   +".mvtag table{width:100%;height:100%;border-collapse:collapse;table-layout:fixed}"
-   +".mvtag td{border:.6px solid #555;font-size:8px;padding:1px 3px;line-height:1.1;text-align:left}"
-   +".mvtag .rtk{font-weight:800;font-size:13px;color:#c0202e;text-align:center;width:16%;background:#fff;border:1.6px solid #1b3a8f}"
-   +".mvtag .mvh{background:#2456b8;color:#fff;font-weight:800;font-size:12px;text-align:center;line-height:1.15}.mvtag .mvh .sub{font-size:7.5px;font-weight:600}"
-   +".mvtag .dt{font-size:6.5px;text-align:center;width:24%}.mvtag .dt b{font-size:8px}"
-   +".mvtag .l{font-weight:700;background:#eef2fb;width:20%;white-space:nowrap}.mvtag .l2{font-weight:700}"
-   +".mvtag .hl{background:#f5e2c9}.mvtag .qty{font-weight:800;font-size:11px}.mvtag .pn2 b{font-size:10px}"
-   +".mvtag .fm{font-size:5.5px;text-align:right;color:#444;border:none;padding:0 3px 0 0}"
+  const css="@page{size:A4;margin:6mm}*{box-sizing:border-box;font-family:'Tahoma',sans-serif}body{margin:0}.sheet{font-size:0}"
+   +".dtag{display:inline-block;vertical-align:top;width:90mm;height:50mm;border:1.8px solid #111;page-break-inside:avoid;margin:0 2mm 2mm 0;overflow:hidden}"
+   +".dtag table{width:100%;height:100%;border-collapse:collapse;table-layout:fixed}"
+   +".dtag td{border:.7px solid #333;font-size:8px;padding:1px 3px;line-height:1.05;text-align:left;vertical-align:middle}"
+   +".dtag .l{font-weight:700;background:#f0f0f0;width:21%;white-space:nowrap;font-size:7.2px}.dtag .l .e{font-size:5.8px;color:#333;font-weight:600}"
+   +".dtag .v{font-size:9px}.dtag .v.big b{font-size:12px}.dtag .qty b{font-size:12px;color:#0a5}"
+   +".dtag .qrc{width:23mm;text-align:center;vertical-align:middle;background:#fff}.dtag .qrc .qr{width:20mm;height:20mm;margin:0 auto}.dtag .qrc .qr img,.dtag .qrc .qr canvas{width:20mm !important;height:20mm !important;display:block;margin:auto}"
+   +".dtag .dec{font-size:6px;line-height:1.15;color:#222;text-align:center;padding:1px 4px}"
+   +".dtag .fm{font-size:6px;text-align:right;color:#444;border:none;padding:0 4px 0 0}"
    +"@media print{.noprint{display:none}}";
   const auto=preview?'':'setTimeout(function(){window.print();},900);';
-  const html='<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"><title>TAG ควบคุมการเคลื่อนที่</title><style>'+css+'</style></head><body>'
-   +'<div class="noprint" style="text-align:center;padding:8px;font-family:Tahoma"><b>TAG ควบคุมการเคลื่อนที่ '+fmt(n)+' ดวง</b> (A4 = 12 ดวง/แผ่น) &nbsp; <button onclick="window.print()" style="padding:6px 18px;cursor:pointer">🖨️ พิมพ์</button></div>'
-   +'<div class="sheet">'+tags+'</div><scr'+'ipt>'+auto+'</scr'+'ipt></body></html>';
+  const html='<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"><title>DELIVERY TAG (FM-ST-15)</title><style>'+css+'</style></head><body>'
+   +'<div class="noprint" style="text-align:center;padding:8px;font-family:Tahoma"><b>DELIVERY TAG '+fmt(n)+' ดวง</b> (5×9 ซม. · A4 = 10 ดวง/แผ่น · มี QR สแกนเข้า "รับชิ้นงาน") &nbsp; <button onclick="window.print()" style="padding:6px 18px;cursor:pointer">🖨️ พิมพ์</button></div>'
+   +'<div class="sheet">'+tags+'</div>'
+   +'<scr'+'ipt src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></scr'+'ipt>'
+   +'<scr'+'ipt>var _tries=0;function go(){if(!window.QRCode){if(_tries++<80){return setTimeout(go,80);}return;}document.querySelectorAll(".qr").forEach(function(dd){dd.innerHTML="";try{new QRCode(dd,{text:dd.getAttribute("data-qr")||" ",width:180,height:180,correctLevel:QRCode.CorrectLevel.M});}catch(e){dd.style.fontSize="5px";dd.style.wordBreak="break-all";dd.textContent=(dd.getAttribute("data-qr")||"");}});'+auto+'}go();</scr'+'ipt></body></html>';
   const w=window.open('','_blank');if(!w){toast('เบราว์เซอร์บล็อก popup','err');return}w.document.write(html);w.document.close();
+}
+/* สแกน QR (LINE) จาก DELIVERY TAG → เปิด/เชื่อมเข้า "รับชิ้นงาน (จากผู้ผลิต)" อัตโนมัติ */
+function rwScanHandler(payload){
+  try{
+    var parts=String(payload||'').split('|');
+    var docId=parts[0]||'', pno=parts[1]||'', qty=parts[2]||'', po=parts[3]||'', pdate=parts[4]||'';
+    var d=docId?(DB.docs||[]).find(function(x){return x.id===docId;}):null;
+    route='rw'; try{render();}catch(e){}
+    if(d){
+      setTimeout(function(){ try{ viewDoc(d.id); }catch(e){} toast('📷 สแกนสำเร็จ → เปิดใบรับชิ้นงาน '+(d.no||'')+' · '+esc(pno)+' × '+fmt(Number(qty)||0),'ok'); },350);
+    } else {
+      setTimeout(function(){
+        try{ rwToggle(true); }catch(e){}
+        var set=function(id,val){var el=document.getElementById(id);if(el){el.value=val;}};
+        set('rw_po',po); set('rw_pno',pno);
+        toast('📷 สแกน: '+esc(pno)+' × '+fmt(Number(qty)||0)+' · PO '+esc(po)+' — กรุณาตรวจ/บันทึกรับชิ้นงาน','ok');
+      },350);
+    }
+  }catch(e){ try{toast('อ่าน QR ไม่สำเร็จ','err');}catch(_){} }
 }
 function openPlTagDialog(docId,idx){
   const d=DB.docs.find(x=>x.id===docId);if(!d)return;
@@ -2040,7 +2068,7 @@ function rwRow(d){
     <td><span class="tag amber">${esc(makerShort(d.maker))}</span> <span class="muted">${esc(head)}</span></td>
     <td class="num">${fp?fmt2(fp):'<span class="muted">-</span>'}</td>
     <td class="num">${fmt(totQty)}</td>
-    <td style="text-align:center"><button class="btn sm" onclick="openMvTagDialog('${d.id}')" title="พิมพ์ TAG ควบคุมการเคลื่อนที่">🏷️ TAG</button></td><td>${statusTag(d.status)}</td>
+    <td style="text-align:center"><button class="btn sm" onclick="openMvTagDialog('${d.id}')" title="พิมพ์ DELIVERY TAG 5×9ซม. (FM-ST-15) + QR สแกนเข้ารับชิ้นงาน">🏷️ TAG</button></td><td>${statusTag(d.status)}</td>
     <td style="text-align:right;white-space:nowrap">
       <button class="btn sm" onclick="viewDoc('${d.id}')">ดู</button>
       <button class="btn sm" onclick="printRW('${d.id}')">🖨️</button>
@@ -7906,6 +7934,8 @@ function tryGate(){
   try{ setSyncStatus(supa?'saving':'offline'); }catch(e){}
   /* ลิงก์ย้อนกลับจาก RTK-TQM: #ncsrc=<id> → เปิดดู NC ต้นทาง */
   try{ var _m=(location.hash||'').match(/ncsrc=([^&]+)/); if(_m){ var _id=decodeURIComponent(_m[1]); route='nc'; if(!_gate)render(); setTimeout(function(){ try{ if(typeof viewNCDoc==='function')viewNCDoc(_id); }catch(e){} },500); if(history.replaceState)history.replaceState(null,'',location.pathname+location.search); } }catch(e){}
+  /* สแกน DELIVERY TAG (LINE QR): #rwscan=<docId|part|qty|po|proddate> → เปิด/เชื่อมเข้ารับชิ้นงาน */
+  try{ var _rs=(location.hash||'').match(/rwscan=([^&]+)/); if(_rs && !_gate){ var _pl=decodeURIComponent(_rs[1]); setTimeout(function(){ try{ rwScanHandler(_pl); }catch(e){} },500); if(history.replaceState)history.replaceState(null,'',location.pathname+location.search); } }catch(e){}
   /* ตรวจหาเครื่องแม่ข่าย LAN ก่อน — เจอ=ใช้ LAN (เร็ว+ใช้ได้แม้เน็ตล่ม), ไม่เจอ=ใช้คลาวด์ */
   lanProbe().then(function(found){
     if(found){
