@@ -270,7 +270,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.27d (NG TAG QR ช่องแยกไม่ทับ)';
+const APP_BUILD='SEMIQC-2026.06.27e (OK TAG ชื่อย่อลูกค้า)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -3150,7 +3150,7 @@ function openTagDialog(docId){
     </div>
     <div class="row c3">
       <div class="field"><label>LOT/DATE</label><input id="tg_lot" value="${esc(f0.lot||f0.date||'')}"></div>
-      <div class="field"><label>ลูกค้า</label><input id="tg_cust" value="${esc(f0.cust||'')}"></div>
+      <div class="field"><label>ลูกค้า (ชื่อย่อ)</label><input id="tg_cust" value="${esc((()=>{const c=f0.cust||(pr&&pr.customer)||'';return (getCust(c).shortName||c);})())}"></div>
       <div class="field"><label>ขั้นตอน</label><input id="tg_step" value="QC Final 100%"></div>
     </div>
     <div class="row c3">
