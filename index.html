@@ -270,7 +270,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.26o (DP: OK/NG TAG + พิมพ์ + เรียงเลขที่)';
+const APP_BUILD='SEMIQC-2026.06.26p (TAG รูปแบบ FM-ST-04 / FM-QC-14)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -3706,24 +3706,42 @@ function dpStepAdd(){ var d=DB.docs.find(function(x){return x.id===_dpStepDoc;})
 function dpStepDel(i){ var d=DB.docs.find(function(x){return x.id===_dpStepDoc;}); if(!d)return; d.steps.splice(i,1); saveDB(); dpStepsModal(d); }
 function dpStepsSaveClose(){ saveDB(); closeModal(); render(); }
 /* ===== พิมพ์ TAG (OK/NG) + รายงานผลิต ===== */
-function dpPartInfo(d){ var l=(d.lines||[])[0]||{}; var p=l.productId?P(l.productId):(typeof findProdByName==='function'?findProdByName(l.name,'FG'):null); return {part:(p?p.pn:(l.name||'')), pack:(p&&(p.moq||p.reorder))||0, po:(l.poNo||''), date:(d.date||'')}; }
-function printOkTag(id){ var d=DB.docs.find(function(x){return x.id===id;}); if(!d)return; var info=dpPartInfo(d); var okTotal=dpStepAgg(d).ok||0; if(okTotal<=0){toast('ยังไม่มียอด OK','err');return;} var pack=info.pack>0?info.pack:okTotal; var tags=[],remain=okTotal; while(remain>0&&tags.length<300){ var q=Math.min(pack,remain); tags.push({part:info.part,po:info.po,date:info.date,qty:q,ng:''}); remain-=q; } printTags(tags,false,9,5); }
-function printNgTag(id){ var d=DB.docs.find(function(x){return x.id===id;}); if(!d)return; var info=dpPartInfo(d); var steps=(d.steps||[]).filter(function(s){return Number(s.ng)>0;}); var tags=[]; if(steps.length){ steps.forEach(function(s){ tags.push({part:info.part,po:info.po,date:info.date,qty:Number(s.ng)||0,ng:s.name||'NG'}); }); } else { var ng=dpStepAgg(d).ng||0; if(ng>0)tags.push({part:info.part,po:info.po,date:info.date,qty:ng,ng:'NG'}); } if(!tags.length){toast('ไม่มีรายการ NG','err');return;} printTags(tags,true,8.5,4.5); }
-function printTags(tags,isNG,W,H){
-  var cells=tags.map(function(t){ var qr='PART:'+t.part+'|PO:'+t.po+'|DATE:'+t.date+'|QTY:'+t.qty+(isNG?('|NG:'+t.ng):'');
-    return '<div class="tag"><div class="tinfo"><div class="thd">'+(isNG?'NG TAG':'OK TAG')+'</div>'
-      +'<div class="tr"><b>PART:</b> '+esc(t.part)+'</div><div class="tr"><b>PO:</b> '+esc(t.po)+'</div>'
-      +'<div class="tr"><b>วันที่สั่งผลิต:</b> '+esc(t.date)+'</div><div class="tr"><b>จำนวน:</b> '+fmt(t.qty)+'</div>'
-      +(isNG?'<div class="tr" style="color:#c00"><b>ปัญหา NG:</b> '+esc(t.ng)+'</div>':'')
-      +'</div><div class="qr" data-qr="'+esc(qr)+'"></div></div>'; }).join('');
-  var html='<html><head><meta charset="utf-8"><title>'+(isNG?'NG TAG':'OK TAG')+'</title>'
+function dpPartInfo(d){ var l=(d.lines||[])[0]||{}; var p=l.productId?P(l.productId):(typeof findProdByName==='function'?findProdByName(l.name,'FG'):null); var st=(d.steps||[]); var last=st.length?st[st.length-1]:null; var agg=dpStepAgg(d); return {part:(p?p.pn:(l.name||'')), pack:(p&&(p.moq||p.reorder))||0, po:(l.poNo||''), date:(d.date||''), cust:(p&&p.customer)||l.cust||'', maker:makerShort((last&&last.maker)||d.maker||l.maker||''), step:(last&&last.name)||'', lot:agg.finish||d.date||'', insp:d.inspector||'' }; }
+function tagDate(iso){ if(!iso)return ''; var s=String(iso).slice(0,10).split('-'); if(s.length<3)return iso; return parseInt(s[2],10)+'/'+parseInt(s[1],10)+'/'+s[0].slice(2); }
+function printOkTag(id){ var d=DB.docs.find(function(x){return x.id===id;}); if(!d)return; var info=dpPartInfo(d); var okTotal=dpStepAgg(d).ok||0; if(okTotal<=0){toast('ยังไม่มียอด OK','err');return;} var pack=info.pack>0?info.pack:okTotal; var cells='',remain=okTotal,n=0; while(remain>0&&n<300){ var q=Math.min(pack,remain); cells+=okTagCell({po:info.po,part:info.part,lot:info.lot,cust:info.cust,maker:info.maker,step:info.step,qty:q,date:info.date}); remain-=q; n++; } printTagSheet(cells,9,5,'OK TAG'); }
+function printNgTag(id){ var d=DB.docs.find(function(x){return x.id===id;}); if(!d)return; var info=dpPartInfo(d); var steps=(d.steps||[]).filter(function(s){return Number(s.ng)>0;}); var cells=''; if(steps.length){ steps.forEach(function(s){ cells+=ngTagCell({po:info.po,part:info.part,lot:info.lot,cust:info.cust,maker:makerShort(s.maker||info.maker),step:s.name||'',problem:s.name||'',qty:Number(s.ng)||0,insp:info.insp,date:info.date}); }); } else { var ng=dpStepAgg(d).ng||0; if(ng>0)cells+=ngTagCell({po:info.po,part:info.part,lot:info.lot,cust:info.cust,maker:info.maker,step:info.step,problem:'',qty:ng,insp:info.insp,date:info.date}); } if(!cells){toast('ไม่มีรายการ NG','err');return;} printTagSheet(cells,8.5,4.5,'NG TAG'); }
+function okTagCell(t){ var qr='PART:'+t.part+'|PO:'+t.po+'|DATE:'+t.date+'|QTY:'+t.qty;
+  return '<div class="tag ok"><div class="hd okh"><span class="lg">RTK</span><span class="tt">TAG ควบคุมการเคลื่อนที่ของชิ้นงาน</span><span class="dt">DATE: '+esc(tagDate(t.date))+'</span></div>'
+   +'<div class="mid"><table class="bd"><tr><td class="l">PO.</td><td class="v">'+esc(t.po)+'</td></tr><tr><td class="l">P/NO-.</td><td class="v">'+esc(t.part)+'</td></tr><tr><td class="l">LOT/DATE</td><td class="v">'+esc(tagDate(t.lot))+'</td></tr><tr><td class="l">CUSTOMER</td><td class="v">'+esc(t.cust)+'</td></tr></table><div class="qr"><div class="q" data-qr="'+esc(qr)+'"></div></div></div>'
+   +'<table class="bd bd2"><tr><td class="l">ผู้ผลิต</td><td class="v">'+esc(t.maker)+'</td><td class="l">ขั้นตอน</td><td class="v">'+esc(t.step)+'</td></tr><tr><td class="l">ส่ง/ชิ้น</td><td class="v"><b>'+fmt(t.qty)+'</b></td><td class="l">ส่ง/กก.</td><td class="v">-</td></tr><tr><td class="l">รับ/ชิ้น</td><td class="v"></td><td class="l">รับ/กก.</td><td class="v"></td></tr></table>'
+   +'<div class="foot">FM-ST-04 REV.00</div></div>'; }
+function ngTagCell(t){ var qr='PART:'+t.part+'|PO:'+t.po+'|DATE:'+t.date+'|QTY:'+t.qty+'|NG:'+t.problem;
+  return '<div class="tag ng"><div class="hd ngh"><span class="lg">RTK</span><span class="tt">NG TAG</span><span class="qrtop"><div class="q" data-qr="'+esc(qr)+'"></div></span></div>'
+   +'<table class="bd"><tr><td class="l">PO.</td><td class="v" colspan="3">'+esc(t.po)+'</td></tr><tr><td class="l">P/NO-.</td><td class="v" colspan="3">'+esc(t.part)+'</td></tr><tr><td class="l">LOT/DATE</td><td class="v" colspan="3">'+esc(tagDate(t.lot))+'</td></tr><tr><td class="l">CUSTOMER</td><td class="v" colspan="3">'+esc(t.cust)+'</td></tr>'
+   +'<tr><td class="l">ผู้ผลิต</td><td class="v">'+esc(t.maker)+'</td><td class="l">จำนวนชิ้น</td><td class="v"><b>'+fmt(t.qty)+'</b></td></tr>'
+   +'<tr><td class="l">ขั้นตอน</td><td class="v" colspan="3">'+esc(t.step)+'</td></tr>'
+   +'<tr><td class="l" style="color:#c00">ปัญหา NG.</td><td class="v" colspan="3" style="color:#c00">'+esc(t.problem)+'</td></tr>'
+   +'<tr><td class="l">ผู้ตรวจสอบ</td><td class="v">'+esc(t.insp)+'</td><td class="l">วันที่</td><td class="v"></td></tr></table>'
+   +'<div class="ngres">ผลการพิจารณา &nbsp;☐ ซ่อม &nbsp;☐ ทำลาย &nbsp;☐ คืน &nbsp;☐ ยอมรับใช้</div>'
+   +'<div class="ngsign">หัวหน้างาน ............... วันที่ ...............</div>'
+   +'<div class="foot">FM-QC-14 REV.00</div></div>'; }
+function printTagSheet(cells,W,H,title){
+  var html='<html><head><meta charset="utf-8"><title>'+title+'</title>'
     +'<scr'+'ipt src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></scr'+'ipt>'
-    +'<style>@page{size:A4;margin:0.4cm}body{margin:0;font-family:Tahoma,\"Sarabun\",sans-serif}.wrap{display:flex;flex-wrap:wrap;gap:0.15cm}'
-    +'.tag{width:'+W+'cm;height:'+H+'cm;border:1px solid #444;box-sizing:border-box;padding:0.18cm;display:flex;align-items:center;justify-content:space-between;gap:0.15cm;overflow:hidden;page-break-inside:avoid}'
-    +'.tinfo{font-size:'+(isNG?'10.5':'11.5')+'px;line-height:1.45;flex:1;overflow:hidden}.thd{font-weight:800;font-size:14px;'+(isNG?'color:#c00':'color:#0a7')+';margin-bottom:2px}'
-    +'.tr{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.qr{width:2.3cm;height:2.3cm;flex:none;display:flex;align-items:center;justify-content:center}'
+    +'<style>@page{size:A4;margin:0.4cm}body{margin:0;font-family:Tahoma,\"Sarabun\",sans-serif}.wrap{display:flex;flex-wrap:wrap;gap:0.12cm}'
+    +'.tag{width:'+W+'cm;height:'+H+'cm;border:1.5px solid #222;box-sizing:border-box;overflow:hidden;page-break-inside:avoid;display:flex;flex-direction:column}'
+    +'.hd{display:flex;align-items:center;gap:4px;padding:1px 3px;color:#fff}.okh{background:#1e5fa8}.ngh{background:#d11}'
+    +'.hd .lg{font-weight:900;background:#fff;color:#d11;padding:0 4px;border-radius:2px;font-size:11px}.okh .lg{color:#1e5fa8}'
+    +'.hd .tt{font-weight:800;font-size:10px;flex:1;line-height:1.05}.hd .dt{font-size:8px;white-space:nowrap}'
+    +'.hd .qrtop{width:1.5cm;height:1.5cm;background:#fff;padding:1px;flex:none}.hd .qrtop .q{width:100%;height:100%}'
+    +'.mid{display:flex;flex:1}.mid .bd{flex:1}.mid .qr{width:2cm;height:2cm;padding:2px;flex:none;display:flex;align-items:center;justify-content:center}'
+    +'.bd{border-collapse:collapse;width:100%;font-size:8.5px}.bd td{border:0.5px solid #999;padding:1px 3px;line-height:1.2}'
+    +'.bd .l{background:#f1f3f6;font-weight:700;white-space:nowrap;width:1px}.bd .v{font-weight:600}'
+    +'.ngres{font-size:8px;font-weight:700;background:#fde047;padding:2px 3px;border-top:0.5px solid #999}'
+    +'.ngsign{font-size:8px;padding:2px 3px}.foot{font-size:7px;text-align:right;padding:0 3px;color:#555}'
+    +'.q img,.q canvas,.q table{width:100%!important;height:100%!important}'
     +'</style></head><body><div class="wrap">'+cells+'</div>'
-    +'<scr'+'ipt>window.onload=function(){document.querySelectorAll(".qr").forEach(function(el){try{new QRCode(el,{text:el.getAttribute("data-qr"),width:86,height:86,correctLevel:QRCode.CorrectLevel.M});}catch(e){el.style.fontSize="7px";el.textContent=el.getAttribute("data-qr");}});setTimeout(function(){try{window.print();}catch(e){}},700);};</scr'+'ipt>'
+    +'<scr'+'ipt>window.onload=function(){document.querySelectorAll(".q").forEach(function(el){try{new QRCode(el,{text:el.getAttribute("data-qr"),width:80,height:80,correctLevel:QRCode.CorrectLevel.M});}catch(e){el.style.fontSize="6px";el.textContent=el.getAttribute("data-qr");}});setTimeout(function(){try{window.print();}catch(e){}},700);};</scr'+'ipt>'
     +'</body></html>';
   var w=window.open('','_blank'); if(!w){toast('เบราว์เซอร์บล็อก popup','err');return;} w.document.write(html); w.document.close();
 }
