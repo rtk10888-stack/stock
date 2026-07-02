@@ -270,7 +270,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.27q (ประเมินสมรรถนะผู้ตรวจ รายบุคคล กราฟเส้น)';
+const APP_BUILD='SEMIQC-2026.06.27r (ประเมินผู้ผลิต กราฟเส้น + ซ่อน/แสดง Pareto)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -6280,6 +6280,7 @@ function viewNC(el){
   const months=ncMonths();
   if(!window.__ncMon||months.indexOf(window.__ncMon)<0)window.__ncMon='ALL';
   const mon=window.__ncMon;
+  let showPareto=true;try{showPareto=localStorage.getItem('rtk_ncpareto')!=='0';}catch(e){}
   setTitle('🚫 ผลิตภัณฑ์ไม่เป็นไปตามข้อกำหนด','Non-Conforming Product Report (NC) · FM-QC-03 · ผู้พบปัญหาแจ้งงานเสีย');
   let rows=DB.docs.filter(d=>d.type==='NC');if(mon!=='ALL')rows=rows.filter(d=>ncMonthOf(d.date)===mon);
   rows=rows.sort((a,b)=>(a.date||'').localeCompare(b.date||'')||(a.ts||0)-(b.ts||0));
@@ -6292,7 +6293,11 @@ function viewNC(el){
     <div class="card"><div class="lbl"><span class="dot d-brand">🚫</span>รายการ (${esc(mon==='ALL'?'ทั้งหมด':mon)})</div><div class="val">${fmt(rows.length)}</div></div>
     <div class="card"><div class="lbl"><span class="dot d-red">⚠️</span>จำนวน NG รวม</div><div class="val" style="color:var(--red)">${fmt(tNg)}</div></div>
   </div>
-  <div class="row c2" style="align-items:start">
+  <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap">
+    <button class="btn sm" onclick="ncTogglePareto()">${showPareto?'📊 ซ่อน Pareto':'📊 แสดง Pareto'}</button>
+    <button class="btn sm" onclick="makerEvalModal()">🏭 ประเมินผู้ผลิต (กราฟเส้น)</button>
+  </div>
+  <div id="ncPareto" class="row c2" style="align-items:start;${showPareto?'':'display:none'}">
     <div class="panel"><div class="panel-h"><h2>🏢 เกิดปัญหาที่ลูกค้า (Pareto)</h2><div class="desc">จำนวนครั้งที่พบปัญหา · เส้นแดง = % สะสม</div></div><div class="panel-b">${ncParetoSVG(Object.entries(byCust).sort((a,b)=>b[1]-a[1]),'#7c5cff')}</div></div>
     <div class="panel"><div class="panel-h"><h2>🏭 ผู้ผลิตงานเสีย (Pareto)</h2><div class="desc">จำนวนครั้งที่ทำงานเสีย · เส้นแดง = % สะสม</div></div><div class="panel-b">${ncParetoSVG(Object.entries(byMk).sort((a,b)=>b[1]-a[1]),'#f59e0b')}</div></div>
   </div>
@@ -6305,6 +6310,45 @@ function viewNC(el){
     </tr></thead><tbody id="ncRows">${rows.map(ncRowHtml).join('')}</tbody>
     <tfoot><tr style="background:#fff7a8;font-weight:700"><td colspan="10" style="text-align:right">รวม NG (ตามที่กรอง)</td><td class="num" id="ncSubNg" style="color:var(--red)">${fmt(tNg)}</td><td></td></tr></tfoot></table></div>`:`<div class="empty"><div class="big">🚫</div><div class="t">ยังไม่มีรายการ NC</div><div>กด "+ แจ้งงานเสีย" หรือ "📥 นำเข้า"</div></div>`}
   </div></div>`;
+}
+function ncTogglePareto(){var p=document.getElementById('ncPareto');if(!p)return;var hide=p.style.display!=='none';p.style.display=hide?'none':'';try{localStorage.setItem('rtk_ncpareto',hide?'0':'1');}catch(e){}render();}
+/* ประเมินผู้ผลิต (กราฟเส้นรูปแบบเดียวกับคัดแยก OK/NG) — ดึงจากใบคัดแยก (QC) ตามผู้ผลิต */
+function makerEvalData(months){
+  var mks=[],data={};
+  DB.docs.filter(function(d){return d.type==='QC'&&d.status!=='cancelled'&&d.date;}).forEach(function(d){
+    var mi=months.indexOf(d.date.slice(0,7)); if(mi<0)return;
+    (d.lines||[]).forEach(function(l){
+      var nm=(makerShort(l.maker||d.maker||'')||'').trim()||'(ไม่ระบุ)';
+      if(!data[nm]){data[nm]={total:months.map(function(){return 0;}),ng:months.map(function(){return 0;})};mks.push(nm);}
+      var tot=Number(l.total)||((Number(l.ok)||0)+(Number(l.ng)||0));
+      data[nm].total[mi]+=tot; data[nm].ng[mi]+=Number(l.ng)||0;
+    });
+  });
+  return {mks:mks,data:data};
+}
+function makerEvalModal(metric){
+  metric=metric||'rate';
+  var months=monitorMonths();
+  if(!months.length){toast('ยังไม่มีข้อมูล','err');return;}
+  var lab=months.map(monThaiLabel);
+  var ed=makerEvalData(months);
+  if(!ed.mks.length){toast('ยังไม่มีข้อมูลผู้ผลิตในใบคัดแยก','err');return;}
+  ed.mks.sort(function(a,b){var sa=ed.data[a].ng.reduce(function(x,y){return x+y;},0),sb=ed.data[b].ng.reduce(function(x,y){return x+y;},0);return sb-sa;});
+  var series=ed.mks.map(function(nm,idx){var d=ed.data[nm];var arr;
+    if(metric==='ng')arr=d.ng;
+    else if(metric==='total')arr=d.total;
+    else arr=d.total.map(function(t,i){return t?Math.round(d.ng[i]/t*1000)/10:0;});
+    return {name:nm,color:INSP_COLORS[idx%INSP_COLORS.length],data:arr};});
+  var fy=metric==='rate'?function(v){return (Math.round(v*10)/10)+'%';}:function(v){return fmt(Math.round(v));};
+  var title=metric==='ng'?'จำนวนของเสีย (NG)':metric==='total'?'ปริมาณงานที่ตรวจ (ชิ้น)':'อัตราของเสีย % (NG ÷ ตรวจ) — ยิ่งต่ำยิ่งดี';
+  var btn=function(k,t){return '<button class="btn sm'+(metric===k?' pri':'')+'" onclick="makerEvalModal(\''+k+'\')">'+t+'</button>';};
+  var rows=ed.mks.map(function(nm,idx){var d=ed.data[nm];var tt=d.total.reduce(function(x,y){return x+y;},0),tn=d.ng.reduce(function(x,y){return x+y;},0);var rt=tt?Math.round(tn/tt*1000)/10:0;return '<tr><td style="padding:4px 8px"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:'+INSP_COLORS[idx%INSP_COLORS.length]+'"></span> '+esc(nm)+'</td><td style="text-align:right;padding:4px 8px">'+fmt(tt)+'</td><td style="text-align:right;padding:4px 8px;color:var(--red)">'+fmt(tn)+'</td><td style="text-align:right;padding:4px 8px">'+rt+'%</td></tr>';}).join('');
+  var body='<div class="hint" style="margin-bottom:8px"><span class="i">📈</span><div>ประเมินสมรรถนะ<b>ผู้ผลิต</b>รายราย ต่อเดือน (ดึงจากใบคัดแยก OK/NG) · อัตราของเสียยิ่งต่ำ = ผู้ผลิตยิ่งดี</div></div>'
+    +'<div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap">'+btn('rate','อัตราของเสีย %')+btn('ng','จำนวน NG')+btn('total','ปริมาณตรวจ')+'</div>'
+    +'<div style="font-weight:700;margin-bottom:2px">'+esc(title)+'</div>'
+    +lineChart(lab,series,{height:260,fy:fy})
+    +'<table style="width:100%;border-collapse:collapse;margin-top:10px;font-size:12px"><thead><tr style="background:var(--panel2)"><th style="text-align:left;padding:5px 8px">ผู้ผลิต</th><th style="text-align:right;padding:5px 8px">รวมตรวจ</th><th style="text-align:right;padding:5px 8px">รวม NG</th><th style="text-align:right;padding:5px 8px">อัตรา NG</th></tr></thead><tbody>'+rows+'</tbody></table>';
+  modal({title:'🏭 ประเมินสมรรถนะผู้ผลิต',size:'lg',body:body,footer:'<button class="btn" onclick="closeModal()">ปิด</button>'});
 }
 function ncRowHtml(r){
   return `<tr data-date="${esc(r.date||'')}" data-po="${esc((r.po||'').toLowerCase())}" data-part="${esc((r.part||'').toLowerCase())}" data-cust="${esc((r.customer||'').toLowerCase())}" data-mk="${esc((r.maker||'').toLowerCase())}" data-ng="${Number(r.ng)||0}">
