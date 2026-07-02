@@ -270,7 +270,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.26u (แก้จับคอลัมน์ราคาชุบ/1กก.)';
+const APP_BUILD='SEMIQC-2026.06.26v (Invoice ดึง Q-Time + รับเข้าสต๊อคอัตโนมัติ)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -499,6 +499,20 @@ function move(productId,bucket,qty,docType,docNo,note){
   DB.movements.push({id:uid(),date:todayISO(),ts:Date.now(),productId,bucket,qty,docType,docNo,note:note||''});
 }
 /* Apply stock effect for a doc (called on approve). Returns {ok,err} */
+/* Invoice: ถ้าคงเหลือไม่พอ ดึงจาก Q-Time (คัดผ่านก่อน → ระหว่างผลิต) มา "รับเข้าสต๊อคอัตโนมัติ" + สร้างเอกสาร SI เป็นหลักฐาน — จำกัดไม่เกินยอดที่รับชิ้นงาน/ผลิตมาจริง กันยอดกระทบ */
+function invDrawFromQTime(d){
+  if(!d||!(d.type==='INV'||d.type==='IV2')||!d.lines)return;
+  const note='รับเข้าอัตโนมัติจาก Invoice '+(d.invNo||d.no||'');
+  const autoLines=[];
+  d.lines.forEach(function(l){ const p=P(l.productId); if(!p)return; const need=Number(l.qty)||0; if((p.onHand||0)>=need)return;
+    let deficit=need-(p.onHand||0), got=0;
+    const a=Math.min(deficit,p.passedQC||0);
+    if(a>0){ p.passedQC-=a; p.onHand=(p.onHand||0)+a; move(p.id,'passedQC',-a,'SI','(auto)',note); move(p.id,'onHand',+a,'SI','(auto)',note); deficit-=a; got+=a; }
+    if(deficit>0){ const b=Math.min(deficit,p.wip||0); if(b>0){ p.wip-=b; p.onHand=(p.onHand||0)+b; move(p.id,'wip',-b,'SI','(auto)',note); move(p.id,'onHand',+b,'SI','(auto)',note); deficit-=b; got+=b; } }
+    if(got>0)autoLines.push({productId:p.id,name:p.pn,poNo:l.poNo||'',weighed:got,qcOk:got,qcNg:0});
+  });
+  if(autoLines.length){ DB.docs.push({id:uid(),type:'SI',ts:Date.now(),status:'approved',autoSI:true,approvedAt:'(อัตโนมัติจาก Invoice)',no:nextNo('SI'),date:todayISO(),maker:'',lines:autoLines,totalQty:autoLines.reduce(function(s,x){return s+x.weighed;},0),note:note}); }
+}
 function applyDoc(d){
   const t=d.type;
   try{
@@ -1582,7 +1596,7 @@ function submitDoc(type,status){
     if(type==='PO'||type==='GR')d.supplier=v('d_supplier')||'';
     if(type==='GR')d.refPO=v('d_refpo')||'';
     if(type==='INV'){d.customer=v('d_customer')||'';
-      for(const l of lines){const p=P(l.productId);if(l.qty>p.onHand){toast(`${p.pn}: จำนวนขายเกินคงเหลือ (${fmt(p.onHand)})`,'err');return}}}
+      for(const l of lines){const p=P(l.productId);const av=(p.onHand||0)+(p.passedQC||0)+(p.wip||0);if(l.qty>av){toast(`${p.pn}: ขายเกินยอดที่ผลิต/รับมา (ส่งได้สูงสุด ${fmt(av)} รวม Q-Time)`,'err');return}}}
     if(type==='WD'){d.refPRD=(()=>{const id=v('d_refprd');const x=DB.docs.find(z=>z.id===id);return x?x.no:''})();
       for(const l of lines){const p=P(l.productId);if(l.qty>p.onHand){toast(`${p.pn}: เบิกเกินคงเหลือ (${fmt(p.onHand)})`,'err');return}}}
   } else {
@@ -2144,7 +2158,7 @@ function submitIV2(status,editId){
   d.invNo=(v('iw_no')||'').trim();d.date=v('iw_date')||todayISO();d.customer=cust;d.custCode=(v('iw_custcode')||'').trim();d.custPO=(v('iw_custpo')||'').trim();
   d.vat7=!!(document.getElementById('iw_vat')&&document.getElementById('iw_vat').checked);
   d.lines=lines;d.subtotal=lines.reduce((s,l)=>s+l.qty*l.price,0);d.vat=d.vat7?d.subtotal*0.07:0;d.total=d.subtotal+d.vat;d.totalQty=lines.reduce((s,l)=>s+l.qty,0);
-  if(status==='approved'){for(const l of lines){const p=P(l.productId);if(p&&l.qty>p.onHand){toast(`${p.pn}: ขายเกินคงเหลือ (${fmt(p.onHand)})`,'err');return}}const r=doApprove(d);if(!r.ok){toast('อนุมัติไม่สำเร็จ: '+r.err,'err');return}toast('บันทึก+อนุมัติ (ตัดยอด): '+(d.invNo||d.no),'ok');}
+  if(status==='approved'){for(const l of lines){const p=P(l.productId);const av=(p.onHand||0)+(p.passedQC||0)+(p.wip||0);if(p&&l.qty>av){toast(`${p.pn}: ขายเกินยอดที่ผลิต/รับมา (ส่งได้สูงสุด ${fmt(av)} รวม Q-Time)`,'err');return}}const r=doApprove(d);if(!r.ok){toast('อนุมัติไม่สำเร็จ: '+r.err,'err');return}toast('บันทึก+อนุมัติ (ตัดยอด): '+(d.invNo||d.no),'ok');}
   else toast((editId?'บันทึกการแก้ไข ':'สร้าง Invoice ')+(d.invNo||d.no)+' (รออนุมัติ)','ok');
   iwLines=[];closeModal();render();
 }
@@ -2297,7 +2311,7 @@ function submitIV2(status,editId){
   d.invNo=(v('iv_no')||'').trim();d.date=v('iv_date')||todayISO();d.customer=cust;d.custCode=(v('iv_custcode')||'').trim();d.custPO=(v('iv_custpo')||'').trim();
   d.vat7=!!(document.getElementById('iv_vat')&&document.getElementById('iv_vat').checked);
   d.lines=lines;d.subtotal=lines.reduce((s,l)=>s+l.qty*l.price,0);d.vat=d.vat7?d.subtotal*0.07:0;d.total=d.subtotal+d.vat;d.totalQty=lines.reduce((s,l)=>s+l.qty,0);
-  if(status==='approved'){for(const l of lines){const p=P(l.productId);if(p&&l.qty>p.onHand){toast(`${p.pn}: ขายเกินคงเหลือ (${fmt(p.onHand)})`,'err');return}}const r=doApprove(d);if(!r.ok){toast('อนุมัติไม่สำเร็จ: '+r.err,'err');return}toast('บันทึก+อนุมัติ (ตัดยอด): '+(d.invNo||d.no),'ok');}
+  if(status==='approved'){for(const l of lines){const p=P(l.productId);const av=(p.onHand||0)+(p.passedQC||0)+(p.wip||0);if(p&&l.qty>av){toast(`${p.pn}: ขายเกินยอดที่ผลิต/รับมา (ส่งได้สูงสุด ${fmt(av)} รวม Q-Time)`,'err');return}}const r=doApprove(d);if(!r.ok){toast('อนุมัติไม่สำเร็จ: '+r.err,'err');return}toast('บันทึก+อนุมัติ (ตัดยอด): '+(d.invNo||d.no),'ok');}
   else toast((editId?'บันทึกการแก้ไข ':'สร้าง Invoice ')+(d.invNo||d.no)+' (รออนุมัติ)','ok');
   ivLines=[];closeModal();render();
 }
@@ -4807,13 +4821,14 @@ function viewDoc(id){
   `,footer:`${d.status==='pending'?`<button class="btn danger" onclick="deleteDoc('${d.id}')">ลบ</button><button class="btn ok" onclick="approveDoc('${d.id}')">✓ อนุมัติ</button>`:d.status==='approved'?`<button class="btn danger" onclick="cancelDoc('${d.id}')">ยกเลิก (คืนยอด)</button>`:''}<button class="btn pri" onclick="closeModal()">ปิด</button>`});
 }
 function doApprove(d){
+  if(d.type==='INV'||d.type==='IV2'){try{invDrawFromQTime(d);}catch(e){}}
   const r=applyDoc(d);if(!r.ok)return r;
   d.status='approved';d.approvedAt=new Date().toLocaleString('th-TH');return {ok:true};
 }
 function approveDoc(id){const d=DB.docs.find(x=>x.id===id);if(!d||d.status!=='pending')return;
   // re-validate single-bucket docs
   if(!DT[d.type].multi&&d.productId){const err=validateStage(d.type,d,P(d.productId));if(err){toast('อนุมัติไม่ได้: '+err,'err');return}}
-  if(DT[d.type].multi&&(d.type==='INV'||d.type==='WD')){for(const l of d.lines){const p=P(l.productId);if(p&&l.qty>p.onHand){toast(`${p.pn}: ยอดไม่พอ (${fmt(p.onHand)})`,'err');return}}}
+  if(DT[d.type].multi&&(d.type==='INV'||d.type==='IV2'||d.type==='WD')){for(const l of d.lines){const p=P(l.productId);if(!p)continue;const av=(d.type==='WD')?(p.onHand||0):((p.onHand||0)+(p.passedQC||0)+(p.wip||0));if(l.qty>av){toast(`${p.pn}: ยอดไม่พอ (มีได้ ${fmt(av)}${d.type==='WD'?'':' รวม Q-Time'})`,'err');return}}}
   const r=doApprove(d);if(r.ok){closeModal();render();toast('อนุมัติแล้ว: '+d.no+' — ยอดอัปเดตอัตโนมัติ','ok')}else toast('ผิดพลาด: '+r.err,'err')}
 function cancelDoc(id){const d=DB.docs.find(x=>x.id===id);if(!d||d.status!=='approved')return;
   confirmBox('ยกเลิกเอกสาร '+d.no+'?','ระบบจะคืนยอดสต๊อคที่เคยปรับกลับทั้งหมด',()=>{reverseDoc(d);d.status='cancelled';closeModal();render();toast('ยกเลิกและคืนยอดแล้ว','ok')})}
