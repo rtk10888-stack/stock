@@ -270,7 +270,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.27g (ติดตามสถานะ: sort เลขที่, ค้นหา PO, RMC, Subtotal)';
+const APP_BUILD='SEMIQC-2026.06.27h (ติดตามสถานะ: ผู้ผลิตแสดงชื่อย่อ)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -5639,7 +5639,7 @@ function jtBuildRows(){
       return;
     }
     (d.lines||[]).forEach((l,li)=>{ const pid=l.productId||l.fgId; const p=pid?P(pid):null; if(!p)return;
-      const po=l.poNo||(t==='PRD'?d.no:'')||''; const ref=d.no||''; const mk=l.maker||d.maker||'';
+      const po=l.poNo||(t==='PRD'?d.no:'')||''; const ref=d.no||''; const _mk0=l.maker||d.maker||''; const mk=_mk0?makerShort(_mk0):'';
       const base={pid:p.id,pn:p.pn,name:p.name||'',ts:d.ts||0};
       const JT_DEFOPER={po:'วัชราภรณ์',gr:'มิตรอังคาร',wd:'วัชราภรณ์',prd:'อลิสา',rw:'มิตรอังคาร',pls:'วัชราภรณ์',plr:'วัชราภรณ์',inv:'ขวัญใจ'};
       function push(sub,date,maker,cols){ const operDef=(sub==='qc'?(maker||''):(JT_DEFOPER[sub]||'')); rows.push(Object.assign({},base,{sub:sub,date:date||l.date||d.date||'',maker:maker||'',po:po,ref:ref,cols:cols,operDef:operDef,key:d.id+'#'+li+'#'+sub})); }
