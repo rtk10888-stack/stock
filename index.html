@@ -270,7 +270,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.27e (OK TAG ชื่อย่อลูกค้า)';
+const APP_BUILD='SEMIQC-2026.06.27f (NG TAG QR รอโหลด+fallback)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -1933,7 +1933,7 @@ function printMvTags(preview){
    +".mvtag .hl{background:#f5e2c9}.mvtag .qty{font-weight:800;font-size:11px}.mvtag .pn2 b{font-size:10px}"
    +".mvtag .fm{font-size:5.5px;text-align:right;color:#444;border:none;padding:0 3px 0 0}"
    +"@media print{.noprint{display:none}}";
-  const auto=preview?'':'setTimeout(function(){window.print();},250);';
+  const auto=preview?'':'setTimeout(function(){window.print();},900);';
   const html='<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"><title>TAG ควบคุมการเคลื่อนที่</title><style>'+css+'</style></head><body>'
    +'<div class="noprint" style="text-align:center;padding:8px;font-family:Tahoma"><b>TAG ควบคุมการเคลื่อนที่ '+fmt(n)+' ดวง</b> (A4 = 12 ดวง/แผ่น) &nbsp; <button onclick="window.print()" style="padding:6px 18px;cursor:pointer">🖨️ พิมพ์</button></div>'
    +'<div class="sheet">'+tags+'</div><scr'+'ipt>'+auto+'</scr'+'ipt></body></html>';
@@ -2018,7 +2018,7 @@ function printPlTag(preview){
    +".mvtag .hl{background:#f5e2c9}.mvtag .qty{font-weight:800;font-size:11px}.mvtag .pn2 b{font-size:10px}"
    +".mvtag .fm{font-size:5.5px;text-align:right;color:#444;border:none;padding:0 3px 0 0}"
    +"@media print{.noprint{display:none}}";
-  const auto=preview?'':'setTimeout(function(){window.print();},250);';
+  const auto=preview?'':'setTimeout(function(){window.print();},900);';
   const html='<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"><title>TAG ส่งชุบ/รับชุบ</title><style>'+css+'</style></head><body>'
    +'<div class="noprint" style="text-align:center;padding:8px;font-family:Tahoma"><b>TAG ส่งชุบ / รับชุบ '+fmt(n)+' ดวง</b> (A4 = 12 ดวง/แผ่น) &nbsp; <button onclick="window.print()" style="padding:6px 18px;cursor:pointer">🖨️ พิมพ์</button></div>'
    +'<div class="sheet">'+tags+'</div><scr'+'ipt>'+auto+'</scr'+'ipt></body></html>';
@@ -3128,12 +3128,12 @@ function printNgTags(preview){
    +".ngtag .cb{display:inline-block;width:9px;height:9px;border:1.2px solid #333;vertical-align:-1px}"
    +".ngtag .fm{font-size:5.5px;text-align:right;color:#444;border:none;padding:0 3px 0 0}"
    +"@media print{.noprint{display:none}}";
-  const auto=preview?'':'setTimeout(function(){window.print();},250);';
+  const auto=preview?'':'setTimeout(function(){window.print();},900);';
   const html='<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"><title>NG TAG</title><style>'+css+'</style></head><body>'
    +'<div class="noprint" style="text-align:center;padding:8px;font-family:Tahoma"><b>NG TAG '+fmt(total)+' ดวง</b> ('+ds.length+' ปัญหา · A4 = 12 ดวง/แผ่น) &nbsp; <button onclick="window.print()" style="padding:6px 18px;cursor:pointer">🖨️ พิมพ์</button></div>'
    +'<div class="sheet">'+tags+'</div>'
    +'<scr'+'ipt src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></scr'+'ipt>'
-   +'<scr'+'ipt>function go(){if(!window.QRCode){return setTimeout(go,60);}document.querySelectorAll(".qr").forEach(function(dd){try{new QRCode(dd,{text:dd.getAttribute("data-qr")||" ",width:80,height:80,correctLevel:QRCode.CorrectLevel.M});}catch(e){}});'+auto+'}go();</scr'+'ipt></body></html>';
+   +'<scr'+'ipt>var _tries=0;function go(){if(!window.QRCode){if(_tries++<80){return setTimeout(go,80);}return;}document.querySelectorAll(".qr").forEach(function(dd){dd.innerHTML="";try{new QRCode(dd,{text:dd.getAttribute("data-qr")||" ",width:110,height:110,correctLevel:QRCode.CorrectLevel.L});}catch(e){dd.style.fontSize="5px";dd.style.wordBreak="break-all";dd.textContent=(dd.getAttribute("data-qr")||"");}});'+auto+'}go();</scr'+'ipt></body></html>';
   const w=window.open('','_blank');if(!w){toast('เบราว์เซอร์บล็อก popup','err');return}w.document.write(html);w.document.close();
 }
 function openTagDialog(docId){
