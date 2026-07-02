@@ -270,7 +270,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.27p (NG TAG: แก้ QR ไม่ขึ้น — ใช้รหัส ASCII)';
+const APP_BUILD='SEMIQC-2026.06.27q (ประเมินสมรรถนะผู้ตรวจ รายบุคคล กราฟเส้น)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -3052,9 +3052,47 @@ function qcBlank(){return {date:todayISO(),poNo:'',prdId:'',productId:'',name:''
 function qcToggle(force){const b=document.getElementById('qcFormBody');if(!b)return;const show=force!==undefined?force:(b.style.display==='none');b.style.display=show?'':'none';const t=document.getElementById('qcToggleBtn');if(t)t.textContent=show?'▲ ซ่อนฟอร์ม':'▼ เปิดฟอร์มบันทึก';}
 function qcOpenNew(){qcToggle(true);qcClear();try{window.scrollTo({top:0,behavior:'smooth'})}catch(e){}}
 function qcClear(){qcLines=[qcBlank()];const set=(k,v)=>{const e=document.getElementById(k);if(e)e.value=v;};set('qc_editid','');set('qc_note','');set('qc_date',todayISO());set('qc_no','(สร้างอัตโนมัติ)');const et=document.getElementById('qcEditTag');if(et)et.textContent='รายการใหม่';renderQcLines();}
+var INSP_COLORS=['#2563eb','#dc2626','#059669','#d97706','#7c3aed','#0891b2','#db2777','#65a30d','#e11d48','#0d9488','#9333ea','#ca8a04','#4f46e5','#16a34a'];
+function inspEvalData(months){
+  var insps=[],data={};
+  DB.docs.filter(function(d){return d.type==='QC'&&d.status!=='cancelled'&&d.date;}).forEach(function(d){
+    var mi=months.indexOf(d.date.slice(0,7)); if(mi<0)return;
+    (d.lines||[]).forEach(function(l){
+      var nm=((l.inspector||d.inspector||'').trim())||'(ไม่ระบุ)';
+      if(!data[nm]){data[nm]={total:months.map(function(){return 0;}),ng:months.map(function(){return 0;})};insps.push(nm);}
+      var tot=Number(l.total)||((Number(l.ok)||0)+(Number(l.ng)||0));
+      data[nm].total[mi]+=tot; data[nm].ng[mi]+=Number(l.ng)||0;
+    });
+  });
+  return {insps:insps,data:data};
+}
+function inspEvalModal(metric){
+  metric=metric||'total';
+  var months=monitorMonths();
+  if(!months.length){toast('ยังไม่มีข้อมูลการตรวจ','err');return;}
+  var lab=months.map(monThaiLabel);
+  var ed=inspEvalData(months);
+  if(!ed.insps.length){toast('ยังไม่มีข้อมูลผู้ตรวจ','err');return;}
+  ed.insps.sort(function(a,b){var sa=ed.data[a].total.reduce(function(x,y){return x+y;},0),sb=ed.data[b].total.reduce(function(x,y){return x+y;},0);return sb-sa;});
+  var series=ed.insps.map(function(nm,idx){var d=ed.data[nm];var arr;
+    if(metric==='ng')arr=d.ng;
+    else if(metric==='rate')arr=d.total.map(function(t,i){return t?Math.round(d.ng[i]/t*1000)/10:0;});
+    else arr=d.total;
+    return {name:nm,color:INSP_COLORS[idx%INSP_COLORS.length],data:arr};});
+  var fy=metric==='rate'?function(v){return (Math.round(v*10)/10)+'%';}:function(v){return fmt(Math.round(v));};
+  var title=metric==='ng'?'จำนวนของเสีย (NG) ที่ตรวจพบ':metric==='rate'?'อัตราพบของเสีย % (NG ÷ ตรวจ)':'ปริมาณการตรวจ (ชิ้น)';
+  var btn=function(k,t){return '<button class="btn sm'+(metric===k?' pri':'')+'" onclick="inspEvalModal(\''+k+'\')">'+t+'</button>';};
+  var rows=ed.insps.map(function(nm,idx){var d=ed.data[nm];var tt=d.total.reduce(function(x,y){return x+y;},0),tn=d.ng.reduce(function(x,y){return x+y;},0);var rt=tt?Math.round(tn/tt*1000)/10:0;return '<tr><td style="padding:4px 8px"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:'+INSP_COLORS[idx%INSP_COLORS.length]+'"></span> '+esc(nm)+'</td><td style="text-align:right;padding:4px 8px">'+fmt(tt)+'</td><td style="text-align:right;padding:4px 8px;color:var(--red)">'+fmt(tn)+'</td><td style="text-align:right;padding:4px 8px">'+rt+'%</td></tr>';}).join('');
+  var body='<div class="hint" style="margin-bottom:8px"><span class="i">📈</span><div>ประเมินสมรรถนะพนักงานฝ่ายตรวจสอบ <b>รายบุคคล</b> ต่อเดือน · เลือกตัวชี้วัดได้ 3 แบบ</div></div>'
+    +'<div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap">'+btn('total','ปริมาณการตรวจ')+btn('ng','จำนวน NG พบ')+btn('rate','อัตราพบ NG %')+'</div>'
+    +'<div style="font-weight:700;margin-bottom:2px">'+esc(title)+'</div>'
+    +lineChart(lab,series,{height:260,fy:fy})
+    +'<table style="width:100%;border-collapse:collapse;margin-top:10px;font-size:12px"><thead><tr style="background:var(--panel2)"><th style="text-align:left;padding:5px 8px">ผู้ตรวจ</th><th style="text-align:right;padding:5px 8px">รวมตรวจ</th><th style="text-align:right;padding:5px 8px">รวม NG</th><th style="text-align:right;padding:5px 8px">อัตรา NG</th></tr></thead><tbody>'+rows+'</tbody></table>';
+  modal({title:'👷 ประเมินสมรรถนะพนักงานฝ่ายตรวจสอบ',size:'lg',body:body,footer:'<button class="btn" onclick="closeModal()">ปิด</button>'});
+}
 function qcPanelHTML(){
   return `<div class="panel" style="margin-bottom:14px;border:1.5px solid var(--brand)">
-    <div class="panel-h"><h2>🔎 บันทึกคัดแยก OK/NG (ใบตรวจประจำวัน)</h2><div style="display:flex;gap:10px;align-items:center"><span class="desc" id="qcEditTag">รายการใหม่</span><button class="btn sm" id="qcToggleBtn" onclick="qcToggle()">▼ เปิดฟอร์มบันทึก</button></div></div>
+    <div class="panel-h"><h2>🔎 บันทึกคัดแยก OK/NG (ใบตรวจประจำวัน)</h2><div style="display:flex;gap:10px;align-items:center"><span class="desc" id="qcEditTag">รายการใหม่</span><button class="btn sm" onclick="inspEvalModal()">👷 ประเมินผู้ตรวจ</button><button class="btn sm" id="qcToggleBtn" onclick="qcToggle()">▼ เปิดฟอร์มบันทึก</button></div></div>
     <div class="panel-b" id="qcFormBody" style="display:none">
       <div class="row c3">
         <div class="field"><label>เลขที่ (Doc No.)</label><input id="qc_no" value="(สร้างอัตโนมัติ)" readonly style="background:var(--panel2);color:var(--ink3)"></div>
