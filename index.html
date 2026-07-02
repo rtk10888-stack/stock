@@ -270,7 +270,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.26m (PO: ชิ้น/กก. + หัวข้อวัสดุสิ้นเปลือง)';
+const APP_BUILD='SEMIQC-2026.06.26n (DP เฟส1: กระบวนการย่อย+ผู้ตรวจ)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -1311,7 +1311,7 @@ function viewDocs(type){
     </div>
     <div class="panel-b nopad">
       ${docs.length?`<div class="tbl-wrap"><table><thead><tr>
-        ${isGR?`<th>เลขที่</th><th>วันที่</th><th>เลขที่ใบกำกับ</th><th>PO เลขที่</th><th>รายละเอียด</th><th class="num">จำนวน/ชิ้น</th><th class="num">จำนวน/กก.</th><th class="num">ราคา/หน่วย</th><th class="num">จำนวนเงิน</th><th>สถานะ</th><th></th>`:isPL?`<th>วันที่</th><th>เลขที่ใบสั่ง</th><th>Maker</th><th>Part Number</th><th>Part Name</th><th class="num">ส่งชุบ</th><th>TAG</th><th>วันที่รับ</th><th class="num">รับชุบ</th><th class="num">คงค้าง</th><th>ครบกำหนด</th><th>สถานะ</th><th>โรงชุบ</th><th></th>`:isADJ?`<th>เลขที่</th><th>วันที่</th><th>สินค้า</th><th>วิธีปรับ</th><th class="num">จำนวน</th><th class="num">ผลต่าง</th><th>สถานะ</th><th></th>`:`<th>เลขที่</th><th>วันที่</th>${(isRW||isDP||isQC||isSI)?'<th>PO เลขที่</th>':''}<th>รายละเอียด</th>${isPO?'<th class="num">ชิ้น</th><th class="num">กก.</th>':''}${isSI?'<th>ลูกค้า</th><th class="num">QC OK</th><th class="num">QC NG</th>':''}${isQC?((qcC('insp')?'<th>ผู้ตรวจ'+qcColEye('insp')+'</th>':'')+(qcC('point')?'<th>จุดตรวจ'+qcColEye('point')+'</th>':'')+(qcC('tool')?'<th>เครื่องมือ'+qcColEye('tool')+'</th>':'')):''}${(isPRD||isRW)?'<th class="num">ราคาผลิต</th>':''}${isQC?((qcC('stg')?'<th class="num">ยอดรอคัด'+qcColEye('stg')+'</th>':'')+(qcC('tot')?'<th class="num">รวมคัด'+qcColEye('tot')+'</th>':'')+'<th class="num">OK</th><th>TAG</th><th class="num">NG</th><th>NG TAG</th>'):'<th class="num">จำนวน</th>'+(isRW?'<th>TAG</th>':'')}<th>สถานะ</th>${isPO?`<th>วันที่ครบกำหนด</th><th>หมายเหตุ/สลิป</th><th>วันที่จ่าย</th><th class="num">ยอดจ่าย</th>`:''}<th></th>${isINV&&ivShowFlow?'<th>สถานะการไหล&nbsp;🐌 <span style="cursor:pointer;opacity:.5;font-size:11px" onclick="ivFlowColToggle()" title="ซ่อนคอลัมน์นี้">🙈</span></th>':''}${(isPO||isIP||isSP||isPRD||isRW||isQC)&&ordFlowShow(type)?'<th>การไหล&nbsp;🐌 <span style="cursor:pointer;opacity:.5;font-size:11px" onclick="ordFlowToggle(\''+type+'\')" title="ซ่อนคอลัมน์นี้">🙈</span></th>':''}`}
+        ${isGR?`<th>เลขที่</th><th>วันที่</th><th>เลขที่ใบกำกับ</th><th>PO เลขที่</th><th>รายละเอียด</th><th class="num">จำนวน/ชิ้น</th><th class="num">จำนวน/กก.</th><th class="num">ราคา/หน่วย</th><th class="num">จำนวนเงิน</th><th>สถานะ</th><th></th>`:isPL?`<th>วันที่</th><th>เลขที่ใบสั่ง</th><th>Maker</th><th>Part Number</th><th>Part Name</th><th class="num">ส่งชุบ</th><th>TAG</th><th>วันที่รับ</th><th class="num">รับชุบ</th><th class="num">คงค้าง</th><th>ครบกำหนด</th><th>สถานะ</th><th>โรงชุบ</th><th></th>`:isADJ?`<th>เลขที่</th><th>วันที่</th><th>สินค้า</th><th>วิธีปรับ</th><th class="num">จำนวน</th><th class="num">ผลต่าง</th><th>สถานะ</th><th></th>`:`<th>เลขที่</th><th>วันที่</th>${(isRW||isDP||isQC||isSI)?'<th>PO เลขที่</th>':''}<th>รายละเอียด</th>${isPO?'<th class="num">ชิ้น</th><th class="num">กก.</th>':''}${isSI?'<th>ลูกค้า</th><th class="num">QC OK</th><th class="num">QC NG</th>':''}${isQC?((qcC('insp')?'<th>ผู้ตรวจ'+qcColEye('insp')+'</th>':'')+(qcC('point')?'<th>จุดตรวจ'+qcColEye('point')+'</th>':'')+(qcC('tool')?'<th>เครื่องมือ'+qcColEye('tool')+'</th>':'')):''}${(isPRD||isRW)?'<th class="num">ราคาผลิต</th>':''}${isQC?((qcC('stg')?'<th class="num">ยอดรอคัด'+qcColEye('stg')+'</th>':'')+(qcC('tot')?'<th class="num">รวมคัด'+qcColEye('tot')+'</th>':'')+'<th class="num">OK</th><th>TAG</th><th class="num">NG</th><th>NG TAG</th>'):'<th class="num">จำนวน</th>'+(isRW?'<th>TAG</th>':'')+(isDP?'<th>วันที่เสร็จ</th><th class="num">OK</th><th class="num">NG</th><th>ผู้ตรวจ</th>':'')}<th>สถานะ</th>${isPO?`<th>วันที่ครบกำหนด</th><th>หมายเหตุ/สลิป</th><th>วันที่จ่าย</th><th class="num">ยอดจ่าย</th>`:''}<th></th>${isINV&&ivShowFlow?'<th>สถานะการไหล&nbsp;🐌 <span style="cursor:pointer;opacity:.5;font-size:11px" onclick="ivFlowColToggle()" title="ซ่อนคอลัมน์นี้">🙈</span></th>':''}${(isPO||isIP||isSP||isPRD||isRW||isQC)&&ordFlowShow(type)?'<th>การไหล&nbsp;🐌 <span style="cursor:pointer;opacity:.5;font-size:11px" onclick="ordFlowToggle(\''+type+'\')" title="ซ่อนคอลัมน์นี้">🙈</span></th>':''}`}
       </tr></thead><tbody id="docRows">
       ${docs.map(d=>docRow(d)).join('')}
       </tbody>${isPO?`<tfoot><tr style="font-weight:700;background:var(--panel2);border-top:2px solid var(--line)"><td colspan="3">SUBTOTAL (รวมยอดเงินตามที่กรอง)</td><td class="num" id="poSubtotal">${fmt2(poTotal)}</td><td colspan="${(ordFlowShow('PO')?3:2)+4}"></td></tr></tfoot>`:''}${isPRD?`<tfoot><tr style="font-weight:700;background:var(--panel2);border-top:2px solid var(--line)"><td colspan="3">SUBTOTAL (รวมจำนวนผลิตตามที่กรอง)</td><td class="num"></td><td class="num" id="prdSubtotal">${fmt(prdTotal)}</td><td colspan="${ordFlowShow('PRD')?3:2}"></td></tr></tfoot>`:''}${isGR?`<tfoot><tr style="font-weight:700;background:var(--panel2);border-top:2px solid var(--line)"><td colspan="8" style="text-align:right">SUBTOTAL (รวมจำนวนเงินตามที่กรอง)</td><td class="num" id="grSubtotal">${fmt2(grTotal)}</td><td colspan="2"></td></tr></tfoot>`:''}${isRW?`<tfoot><tr style="font-weight:700;background:var(--panel2);border-top:2px solid var(--line)"><td colspan="4">SUBTOTAL (รวมจำนวนรับชิ้นงานตามที่กรอง)</td><td class="num"></td><td class="num" id="rwSubtotal">${fmt(rwTotal)}</td><td colspan="${ordFlowShow('RW')?4:3}"></td></tr></tfoot>`:''}${isDP?`<tfoot><tr style="font-weight:700;background:var(--panel2);border-top:2px solid var(--line)"><td colspan="4">SUBTOTAL (รวมจำนวนส่งตามที่กรอง)</td><td class="num" id="dpSubtotal">${fmt(dpTotal)}</td><td colspan="2"></td></tr></tfoot>`:''}${isPL?`<tfoot><tr style="font-weight:700;background:#fff7a8;border-top:2px solid var(--line)"><td colspan="5" style="text-align:right">รวมตามที่กรอง</td><td class="num" id="plTotSent">${fmt(docs.reduce((s,d)=>s+(d.lines||[]).reduce((a,l)=>a+(Number(l.sentQty)||0),0),0))}</td><td></td><td></td><td class="num" id="plTotRecv">${fmt(docs.reduce((s,d)=>s+(d.lines||[]).reduce((a,l)=>a+(Number(l.recvQty)||0),0),0))}</td><td class="num" id="plTotPend">${fmt(docs.reduce((s,d)=>s+(d.lines||[]).reduce((a,l)=>{const sn=Number(l.sentQty)||0,rc=Number(l.recvQty)||0;return a+((l.pending!=null&&l.pending!=='')?Number(l.pending):(sn-rc));},0),0))}</td><td colspan="4"></td></tr></tfoot>`:''}${isQC?`<tfoot><tr style="font-weight:700;background:var(--panel2);border-top:2px solid var(--line)"><td colspan="${4+(qcC('insp')?1:0)+(qcC('point')?1:0)+(qcC('tool')?1:0)}">SUBTOTAL</td>${qcC('stg')?`<td class="num" id="qcSubStg">${fmt(qcStgSum)}</td>`:''}${qcC('tot')?`<td class="num" id="qcSubTotF">${fmt(qcTotSum)}</td>`:''}<td class="num" id="qcSubOkF">${fmt(qcOkSum)}</td><td class="num" id="qcSubtotal" style="color:var(--red)">${fmt(qcTotal)}</td><td colspan="${ordFlowShow('QC')?3:2}"></td></tr></tfoot>`:''}${isSI?`<tfoot><tr style="font-weight:700;background:var(--panel2);border-top:2px solid var(--line)"><td colspan="4">SUBTOTAL</td><td></td><td class="num" id="siSubOkF">${fmt(siOkSum)}</td><td class="num" id="siSubNgF" style="color:var(--red)">${fmt(siNgSum)}</td><td class="num" id="siSubtotal">${fmt(siTotal)}</td><td colspan="2"></td></tr></tfoot>`:''}${isIP?`<tfoot><tr style="font-weight:700;background:var(--panel2);border-top:2px solid var(--line)"><td colspan="3">SUBTOTAL (รวมมูลค่า USD ตามที่กรอง)</td><td class="num" id="ipSubtotal">US$ ${fmt2(ipTotal)}</td><td colspan="${ordFlowShow('IP')?3:2}"></td></tr></tfoot>`:''}${isSP?`<tfoot><tr style="font-weight:700;background:var(--panel2);border-top:2px solid var(--line)"><td colspan="3">SUBTOTAL (รวมมูลค่า บาท ตามที่กรอง)</td><td class="num" id="spSubtotal">฿ ${fmt2(spTotal)}</td><td colspan="${ordFlowShow('SP')?3:2}"></td></tr></tfoot>`:''}${isINV?`<tfoot><tr style="font-weight:700;background:var(--panel2);border-top:2px solid var(--line)"><td colspan="3">SUBTOTAL (รวมจำนวนส่งตามที่กรอง)</td><td class="num" id="ivSubtotal">${fmt(ivTotal)}</td><td colspan="${ivShowFlow?3:2}"></td></tr></tfoot>`:''}${isIV2?`<tfoot><tr style="font-weight:700;background:var(--panel2);border-top:2px solid var(--line)"><td colspan="3">SUBTOTAL (รวมจำนวนส่งตามที่กรอง)</td><td class="num" id="iwSubtotal">${fmt(iwTotal)}</td><td colspan="2"></td></tr></tfoot>`:''}${isWD?`<tfoot><tr style="font-weight:700;background:var(--panel2);border-top:2px solid var(--line)"><td colspan="3">SUBTOTAL (รวมจำนวนเบิกตามที่กรอง)</td><td class="num" id="wdSubtotal">${fmt(wdTotal)}</td><td colspan="2"></td></tr></tfoot>`:''}</table></div>`:`<div class="empty"><div class="big">${cfg.icon}</div><div class="t">ยังไม่มีเอกสาร</div><div>กดปุ่ม "สร้าง${cfg.label}" เพื่อเริ่มต้น</div></div>`}
@@ -3634,11 +3634,17 @@ function dpRow(d){
   const poNos=[...new Set((d.lines||[]).map(l=>l.poNo).filter(Boolean))];
   const poTxt=poNos.length?poNos.join(', '):'-';
   const step=(d.lines&&d.lines[0]&&d.lines[0].step)||'';
+  const agg=dpStepAgg(d); const orderTotal=(d.lines||[]).reduce((s,l)=>s+(Number(l.orderQty)||0),0)||sent;
   return `<tr data-no="${esc(d.no)}" data-ts="${d.ts||0}" data-amt="${sent}" data-mon="${(d.date||'').slice(0,7)}" data-mk="${esc(mkAll)}" data-item="${esc(itemAll)}" data-po="${esc(poTxt)}">
     <td class="pn linkish" onclick="viewDoc('${d.id}')">${d.no}</td><td class="muted">${d.date}</td>
     <td><span class="tag violet">${esc(poTxt)}</span></td>
     <td><span class="tag amber">${esc(d.maker||'-')}</span> <span class="muted">${esc(head)}${step?' · '+esc(step):''}</span></td>
-    <td class="num">${fmt(sent)}</td><td>${statusTag(d.status)}</td>
+    <td class="num">${fmt(orderTotal)}</td>
+    <td class="linkish" onclick="dpStepsOpen('${d.id}')" title="คลิกกรอก/ดูกระบวนการผลิต">${agg.finish?esc(agg.finish):'<span class="muted">— กรอก</span>'}</td>
+    <td class="num" style="color:var(--teal)">${agg.ok?fmt(agg.ok):'-'}</td>
+    <td class="num" style="color:var(--red)">${agg.ng?fmt(agg.ng):'-'}</td>
+    <td><input value="${esc(d.inspector||'')}" onchange="dpSet('${d.id}','inspector',this.value)" placeholder="ผู้ตรวจ" style="width:88px;padding:3px 5px"></td>
+    <td>${statusTag(d.status)}</td>
     <td style="text-align:right;white-space:nowrap">
       <button class="btn sm" onclick="viewDoc('${d.id}')">ดู</button>
       <button class="btn sm" onclick="editDPInline('${d.id}')">✏️</button>
@@ -3657,6 +3663,46 @@ function filterDpRows(){
   const tb=document.getElementById('docRows');
   if(tb){const rows=[...tb.querySelectorAll('tr')];rows.sort((a,b)=>{const A=a.dataset||{},B=b.dataset||{};if(sortv==='no_asc')return (A.no||'').localeCompare(B.no||'',undefined,{numeric:true});if(sortv==='no_desc')return (B.no||'').localeCompare(A.no||'',undefined,{numeric:true});const at=Number(A.ts||0),bt=Number(B.ts||0);return sortv==='ts_asc'?at-bt:bt-at;});rows.forEach(r=>tb.appendChild(r));}
 }
+/* ===== ผลิตประจำวัน: กระบวนการผลิตย่อย (steps) + ผู้ตรวจ ===== */
+function dpStepAgg(d){
+  var st=(d&&d.steps)||[];
+  if(st.length){ var finish='',ng=0,okv=0;
+    st.forEach(function(s){ if(s.end&&s.end>finish)finish=s.end; ng+=Number(s.ng)||0; });
+    for(var i=st.length-1;i>=0;i--){ if(Number(st[i].ok)){okv=Number(st[i].ok);break;} }
+    if(!okv) okv=st.reduce(function(m,s){return Math.max(m,Number(s.ok)||0);},0);
+    return {finish:finish,ok:okv,ng:ng};
+  }
+  var ok=(d.lines||[]).reduce(function(s,l){return s+(Number(l.ok)||0);},0);
+  var ng2=(d.lines||[]).reduce(function(s,l){return s+(Number(l.ng)||0);},0);
+  var fin=''; (d.lines||[]).forEach(function(l){if(l.endDate&&l.endDate>fin)fin=l.endDate;});
+  return {finish:fin,ok:ok,ng:ng2};
+}
+function dpSet(id,f,v){ var d=DB.docs.find(function(x){return x.id===id;}); if(!d)return; d[f]=(typeof v==='string'?v.trim():v); saveDB(); }
+var _dpStepDoc=null;
+var DP_PROC=['ตัด','กลึง','เจาะ','รีดเกลียว','ดำปะเกลียว','ตัด+กลึง','ชุบ','ประกอบ','ตรวจ'];
+function dpStepsOpen(id){ var d=DB.docs.find(function(x){return x.id===id;}); if(!d)return; if(!Array.isArray(d.steps))d.steps=[]; if(!d.steps.length)d.steps.push({name:'',start:todayISO(),end:'',ok:'',ng:'',maker:d.maker||''}); _dpStepDoc=id; dpStepsModal(d); }
+function dpStepsModal(d){
+  var rows=d.steps.map(function(s,i){return '<tr>'
+    +'<td style="text-align:center">'+(i+1)+'</td>'
+    +'<td><input list="dl_dpproc" value="'+esc(s.name||'')+'" onchange="dpStepField('+i+',\'name\',this.value)" style="width:120px;padding:3px"></td>'
+    +'<td><input type="date" value="'+esc(s.start||'')+'" onchange="dpStepField('+i+',\'start\',this.value)" style="padding:3px"></td>'
+    +'<td><input type="date" value="'+esc(s.end||'')+'" onchange="dpStepField('+i+',\'end\',this.value)" style="padding:3px"></td>'
+    +'<td><input type="number" value="'+esc(s.ok||'')+'" onchange="dpStepField('+i+',\'ok\',this.value)" style="width:72px;padding:3px;text-align:right"></td>'
+    +'<td><input type="number" value="'+esc(s.ng||'')+'" onchange="dpStepField('+i+',\'ng\',this.value)" style="width:62px;padding:3px;text-align:right;color:#dc2626"></td>'
+    +'<td><input value="'+esc(s.maker||'')+'" onchange="dpStepField('+i+',\'maker\',this.value)" placeholder="ชื่อผู้ผลิต" style="width:120px;padding:3px"></td>'
+    +'<td><button class="btn sm danger" onclick="dpStepDel('+i+')">✕</button></td>'
+    +'</tr>';}).join('');
+  modal({title:'⚙️ การผลิต (กระบวนการย่อย) — '+esc(d.no||''),size:'lg',
+    body:'<datalist id="dl_dpproc">'+DP_PROC.map(function(p){return '<option value="'+esc(p)+'">';}).join('')+'</datalist>'
+      +'<div class="hint" style="margin-bottom:8px"><span class="i">💡</span><div>พนักงานกรอกแต่ละกระบวนการ · กด "+ การผลิต" เพิ่มขั้นตอน · <b>วันที่เสร็จ</b>=วันล่าสุด · <b>OK</b>=ยอดขั้นสุดท้าย · <b>NG</b>=รวมทุกขั้น</div></div>'
+      +'<div class="tbl-wrap" style="max-height:none"><table style="font-size:12.5px;white-space:nowrap"><thead><tr><th>ลำดับ</th><th>รายการ</th><th>วันที่เริ่ม</th><th>วันที่เสร็จ</th><th>OK</th><th>NG</th><th>ชื่อผู้ผลิต</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div>'
+      +'<div style="margin-top:10px;text-align:right"><button class="btn pri" onclick="dpStepAdd()">+ การผลิต</button></div>',
+    footer:'<button class="btn pri" onclick="dpStepsSaveClose()">✓ บันทึก & ปิด</button>'});
+}
+function dpStepField(i,f,v){ var d=DB.docs.find(function(x){return x.id===_dpStepDoc;}); if(!d||!d.steps||!d.steps[i])return; d.steps[i][f]=v; saveDB(); }
+function dpStepAdd(){ var d=DB.docs.find(function(x){return x.id===_dpStepDoc;}); if(!d)return; d.steps=d.steps||[]; d.steps.push({name:'',start:todayISO(),end:'',ok:'',ng:'',maker:d.maker||''}); saveDB(); dpStepsModal(d); }
+function dpStepDel(i){ var d=DB.docs.find(function(x){return x.id===_dpStepDoc;}); if(!d)return; d.steps.splice(i,1); saveDB(); dpStepsModal(d); }
+function dpStepsSaveClose(){ saveDB(); closeModal(); render(); }
 function applyDPImport(input){
   const f=input.files[0];if(!f)return;const r=new FileReader();
   r.onload=e=>{
