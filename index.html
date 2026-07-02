@@ -270,7 +270,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.27o (คัดแยก NG: +เพิ่มรายการต่อประเภท + แก้ไข/ลบ บันทึกถาวร)';
+const APP_BUILD='SEMIQC-2026.06.27p (NG TAG: แก้ QR ไม่ขึ้น — ใช้รหัส ASCII)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -3229,7 +3229,7 @@ function renderNgDefs(){const root=document.getElementById('ng_deflist');if(!roo
 function ngDefAdd(){(window.__ngDefs=window.__ngDefs||[]).push({type:'',qty:0});renderNgDefs();ngTagCalc();}
 function ngDefDel(i){window.__ngDefs.splice(i,1);if(!window.__ngDefs.length)window.__ngDefs.push({type:'',qty:0});renderNgDefs();ngTagCalc();}
 function ngTagCalc(){const per=Number((document.getElementById('ng_per')||{}).value)||0;const ds=window.__ngDefs||[];let n=0;if(per>0)ds.forEach(x=>{const q=Number(x.qty)||0;if(q>0)n+=Math.ceil(q/per);});const e=document.getElementById('ng_count');if(e)e.textContent=fmt(n);return n;}
-function ngTagOne(t){const box='<span class="cb"></span>';const qr=esc((t.pno||'')+'|PO:'+(t.po||'')+'|'+(t.date||'')+'|จำนวน:'+(t.qty||'')+'|NG:'+(t.prob||''));
+function ngTagOne(t){const box='<span class="cb"></span>';const qr=esc('PART:'+(t.pno||'')+'|PO:'+(t.po||'')+'|DATE:'+(t.date||'')+'|QTY:'+(t.qty||'')+'|NG');
   return '<div class="ngtag"><table>'
    +'<tr><td class="rtk" rowspan="3">RTK</td><td class="ngh" colspan="2">NG TAG</td><td class="qrc" rowspan="3"><div class="qr" data-qr="'+qr+'"></div></td></tr>'
    +'<tr><td class="l">PO.</td><td>'+esc(t.po)+'</td></tr>'
@@ -3961,7 +3961,7 @@ function okTagCell(t){ var qr='PART:'+t.part+'|PO:'+t.po+'|DATE:'+t.date+'|QTY:'
    +'<div class="mid"><table class="bd"><tr><td class="l">PO.</td><td class="v">'+esc(t.po)+'</td></tr><tr><td class="l">P/NO-.</td><td class="v">'+esc(t.part)+'</td></tr><tr><td class="l">LOT/DATE</td><td class="v">'+esc(tagDate(t.lot))+'</td></tr><tr><td class="l">CUSTOMER</td><td class="v">'+esc(t.cust)+'</td></tr></table><div class="qr"><div class="q" data-qr="'+esc(qr)+'"></div></div></div>'
    +'<table class="bd bd2"><tr><td class="l">ผู้ผลิต</td><td class="v">'+esc(t.maker)+'</td><td class="l">ขั้นตอน</td><td class="v">'+esc(t.step)+'</td></tr><tr><td class="l">ส่ง/ชิ้น</td><td class="v"><b>'+fmt(t.qty)+'</b></td><td class="l">ส่ง/กก.</td><td class="v">-</td></tr><tr><td class="l">รับ/ชิ้น</td><td class="v"></td><td class="l">รับ/กก.</td><td class="v"></td></tr></table>'
    +'<div class="foot">FM-ST-04 REV.00</div></div>'; }
-function ngTagCell(t){ var qr='PART:'+t.part+'|PO:'+t.po+'|DATE:'+t.date+'|QTY:'+t.qty+'|NG:'+t.problem;
+function ngTagCell(t){ var qr='PART:'+t.part+'|PO:'+t.po+'|DATE:'+t.date+'|QTY:'+t.qty+'|NG';
   return '<div class="tag ng"><div class="hd ngh"><span class="lg">RTK</span><span class="tt">NG TAG</span><span class="qrtop"><div class="q" data-qr="'+esc(qr)+'"></div></span></div>'
    +'<table class="bd"><tr><td class="l">PO.</td><td class="v" colspan="3">'+esc(t.po)+'</td></tr><tr><td class="l">P/NO-.</td><td class="v" colspan="3">'+esc(t.part)+'</td></tr><tr><td class="l">LOT/DATE</td><td class="v" colspan="3">'+esc(tagDate(t.lot))+'</td></tr><tr><td class="l">CUSTOMER</td><td class="v" colspan="3">'+esc(t.cust)+'</td></tr>'
    +'<tr><td class="l">ผู้ผลิต</td><td class="v">'+esc(t.maker)+'</td><td class="l">จำนวนชิ้น</td><td class="v"><b>'+fmt(t.qty)+'</b></td></tr>'
