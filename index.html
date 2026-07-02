@@ -270,7 +270,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.26p (TAG รูปแบบ FM-ST-04 / FM-QC-14)';
+const APP_BUILD='SEMIQC-2026.06.26q (OK TAG กำหนดจำนวนบรรจุได้)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -3708,7 +3708,11 @@ function dpStepsSaveClose(){ saveDB(); closeModal(); render(); }
 /* ===== พิมพ์ TAG (OK/NG) + รายงานผลิต ===== */
 function dpPartInfo(d){ var l=(d.lines||[])[0]||{}; var p=l.productId?P(l.productId):(typeof findProdByName==='function'?findProdByName(l.name,'FG'):null); var st=(d.steps||[]); var last=st.length?st[st.length-1]:null; var agg=dpStepAgg(d); return {part:(p?p.pn:(l.name||'')), pack:(p&&(p.moq||p.reorder))||0, po:(l.poNo||''), date:(d.date||''), cust:(p&&p.customer)||l.cust||'', maker:makerShort((last&&last.maker)||d.maker||l.maker||''), step:(last&&last.name)||'', lot:agg.finish||d.date||'', insp:d.inspector||'' }; }
 function tagDate(iso){ if(!iso)return ''; var s=String(iso).slice(0,10).split('-'); if(s.length<3)return iso; return parseInt(s[2],10)+'/'+parseInt(s[1],10)+'/'+s[0].slice(2); }
-function printOkTag(id){ var d=DB.docs.find(function(x){return x.id===id;}); if(!d)return; var info=dpPartInfo(d); var okTotal=dpStepAgg(d).ok||0; if(okTotal<=0){toast('ยังไม่มียอด OK','err');return;} var pack=info.pack>0?info.pack:okTotal; var cells='',remain=okTotal,n=0; while(remain>0&&n<300){ var q=Math.min(pack,remain); cells+=okTagCell({po:info.po,part:info.part,lot:info.lot,cust:info.cust,maker:info.maker,step:info.step,qty:q,date:info.date}); remain-=q; n++; } printTagSheet(cells,9,5,'OK TAG'); }
+function printOkTag(id){ var d=DB.docs.find(function(x){return x.id===id;}); if(!d)return; var info=dpPartInfo(d); var okTotal=dpStepAgg(d).ok||0; if(okTotal<=0){toast('ยังไม่มียอด OK','err');return;}
+  var def=Number(d.packQty)||info.pack||okTotal;
+  var ans=prompt('กำหนดจำนวนบรรจุต่อ 1 ใบ TAG\n(ยอด OK รวม '+fmt(okTotal)+' ชิ้น · จำนวนใบ = OK ÷ บรรจุ)',def);
+  if(ans===null)return; var pack=Number(ans)||def; if(pack<=0)pack=okTotal; d.packQty=pack; saveDB();
+  var cells='',remain=okTotal,n=0; while(remain>0&&n<1000){ var q=Math.min(pack,remain); cells+=okTagCell({po:info.po,part:info.part,lot:info.lot,cust:info.cust,maker:info.maker,step:info.step,qty:q,date:info.date}); remain-=q; n++; } printTagSheet(cells,9,5,'OK TAG ('+n+' ใบ · บรรจุ '+fmt(pack)+'/ใบ)'); }
 function printNgTag(id){ var d=DB.docs.find(function(x){return x.id===id;}); if(!d)return; var info=dpPartInfo(d); var steps=(d.steps||[]).filter(function(s){return Number(s.ng)>0;}); var cells=''; if(steps.length){ steps.forEach(function(s){ cells+=ngTagCell({po:info.po,part:info.part,lot:info.lot,cust:info.cust,maker:makerShort(s.maker||info.maker),step:s.name||'',problem:s.name||'',qty:Number(s.ng)||0,insp:info.insp,date:info.date}); }); } else { var ng=dpStepAgg(d).ng||0; if(ng>0)cells+=ngTagCell({po:info.po,part:info.part,lot:info.lot,cust:info.cust,maker:info.maker,step:info.step,problem:'',qty:ng,insp:info.insp,date:info.date}); } if(!cells){toast('ไม่มีรายการ NG','err');return;} printTagSheet(cells,8.5,4.5,'NG TAG'); }
 function okTagCell(t){ var qr='PART:'+t.part+'|PO:'+t.po+'|DATE:'+t.date+'|QTY:'+t.qty;
   return '<div class="tag ok"><div class="hd okh"><span class="lg">RTK</span><span class="tt">TAG ควบคุมการเคลื่อนที่ของชิ้นงาน</span><span class="dt">DATE: '+esc(tagDate(t.date))+'</span></div>'
