@@ -270,7 +270,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.27j (สแกน QR เติมฟอร์มรับชิ้นงานอัตโนมัติ)';
+const APP_BUILD='SEMIQC-2026.06.27k (สแกน QR แสดงหน้าต่างสรุป + บันทึกรับชิ้นงาน)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -1953,34 +1953,71 @@ function runPendingScan(_n){ if(!window.__rwScan)return; _n=_n||0;
   if((!DB||!Array.isArray(DB.docs)||!DB.docs.length) && _n<40){ return setTimeout(function(){runPendingScan(_n+1);},400); }
   var pl=window.__rwScan; window.__rwScan=null; try{rwScanHandler(pl);}catch(e){}
 }
-/* สแกน QR (LINE) จาก DELIVERY TAG → เปิดโมดูล "รับชิ้นงาน" + เติมข้อมูลทุกช่องอัตโนมัติ */
+/* สแกน QR (LINE) จาก DELIVERY TAG → เปิดหน้าต่างสรุปให้ตรวจ แล้วเติม/บันทึกรับชิ้นงาน */
 function rwScanHandler(payload){
   try{
     var parts=String(payload||'').split('|');
     var pno=parts[1]||'', qtyN=Number(parts[2])||0, po=parts[3]||'', pdate=parts[4]||'';
+    /* ดึงข้อมูลจาก PO สั่งผลิต (PRD) */
+    var key=String(po||'').replace(/^PO/i,'').trim();
+    var prd=key?(DB.docs||[]).find(function(d){return d.type==='PRD'&&String(d.no).replace(/^PO/i,'')===key;}):null;
+    var it=prd?((prd.lines||[])[0]||{}):{};
+    var pid=it.fgId||''; if(!pid&&it.name){var pp=findProdByName(it.name,'FG');pid=pp?pp.id:'';}
+    var p=pid?P(pid):null;
+    var name=p?(p.pn+(p.name&&p.name!=='-'?' '+p.name:'')):(it.name||pno);
+    var maker=prd?makerShort(prd.maker||''):'';
+    var ordered=Number(it.qty||(prd&&prd.qty)||0)||0;
+    var unit=it.unit||'Pcs.';
+    var due=prd?(prd.due||it.dueDate||''):'';
+    window.__scan={po:po,pno:pno,name:name,pid:pid,maker:maker,ordered:ordered,unit:unit,due:due,qty:qtyN,found:!!prd};
     route='rw'; try{render();}catch(e){}
     setTimeout(function(){
       try{
-        rwToggle(true);
-        if(!Array.isArray(rwLines))rwLines=[];
-        /* ล้างบรรทัดว่างที่ระบบสร้างไว้ */
-        rwLines=rwLines.filter(function(l){return (l.poNo||l.name)&&Number(l.receivedQty)>0;});
-        var keyOf=function(s){return String(s||'').replace(/^PO/i,'').trim();};
-        /* ถ้ามีบรรทัด PO เดียวกันอยู่แล้ว → บวกจำนวนถุงเข้าไป (สแกนหลายถุง) */
-        var ex=rwLines.find(function(l){return keyOf(l.poNo)===keyOf(po)&&keyOf(po)!=='';});
-        if(ex){ ex.receivedQty=(Number(ex.receivedQty)||0)+qtyN; renderRwLines(); rwTotals();
-          toast('📷 สแกนเพิ่ม '+esc(pno)+' +'+fmt(qtyN)+' → รวม '+fmt(ex.receivedQty)+' ชิ้น','ok'); return; }
-        /* บรรทัดใหม่ + ดึงข้อมูลจาก PO สั่งผลิต (รายการ/จำนวนสั่ง/หน่วย/ผู้ผลิต/กำหนดส่ง) */
-        var nl=rwBlank(); nl.poNo=po; nl.date=todayISO(); rwLines.push(nl); var idx=rwLines.length-1;
-        if(po){ try{ rwPoLookup(idx,po); }catch(e){} }
-        rwLines[idx].receivedQty=qtyN;
-        if(!(rwLines[idx].name||'').trim() && pno) rwLines[idx].name=pno;
-        renderRwLines(); rwTotals();
-        try{window.scrollTo({top:0,behavior:'smooth'});}catch(e){}
-        toast('📷 สแกนสำเร็จ: '+esc(pno)+' × '+fmt(qtyN)+' · PO '+esc(po)+' — ตรวจแล้วกด "บันทึก"','ok');
-      }catch(e){ try{toast('อ่าน QR ไม่สำเร็จ','err');}catch(_){} }
+        var s=window.__scan; var row=function(k,v,hl){return '<tr><td style="padding:6px 8px;color:var(--ink2);white-space:nowrap">'+k+'</td><td style="padding:6px 8px;font-weight:700'+(hl?';color:var(--brand);font-size:16px':'')+'">'+v+'</td></tr>';};
+        var warn=s.found?'':'<div class="hint" style="background:#fff4e5"><span class="i">⚠️</span><div>ไม่พบ PO ในใบสั่งผลิต — ตรวจ/แก้รายการก่อนบันทึก</div></div>';
+        modal({title:'📷 สแกน DELIVERY TAG สำเร็จ',size:'md',body:
+          warn
+          +'<table style="width:100%;border-collapse:collapse;margin:4px 0 8px">'
+          +row('เลขที่ PO สั่งผลิต',esc(s.po||'-'))
+          +row('รายการ (Part)',esc(s.name||'-'))
+          +row('ผู้ผลิต',esc(s.maker||'-'))
+          +row('จำนวนสั่งผลิต',fmt(s.ordered)+' '+esc(s.unit))
+          +row('กำหนดส่ง',esc(s.due||'-'))
+          +'</table>'
+          +'<div class="field" style="max-width:220px"><label>จำนวนที่รับ (แก้ไขได้) <span class="req">*</span></label><input id="scan_qty" type="number" value="'+s.qty+'" style="font-weight:700;font-size:16px"></div>'
+          ,footer:'<button class="btn" onclick="closeModal()">ปิด</button>'
+            +'<button class="btn" onclick="scanApplyForm()">➕ เพิ่มลงฟอร์ม (สแกนถุงต่อ)</button>'
+            +'<button class="btn pri" onclick="scanSaveNow()">✅ บันทึก + อนุมัติ (รับเข้า WIP)</button>'});
+      }catch(e){ toast('แสดงผลสแกนไม่สำเร็จ','err'); }
     },500);
   }catch(e){ try{toast('อ่าน QR ไม่สำเร็จ','err');}catch(_){} }
+}
+/* เพิ่มรายการที่สแกนลงฟอร์มรับชิ้นงาน (รวมยอดถ้า PO เดิม) — ไว้สแกนหลายถุงก่อนบันทึก */
+function scanApplyForm(){
+  var s=window.__scan||{}; var q=Number((document.getElementById('scan_qty')||{}).value)||s.qty||0;
+  try{ rwToggle(true); }catch(e){}
+  if(!Array.isArray(rwLines))rwLines=[];
+  rwLines=rwLines.filter(function(l){return (l.poNo||l.name)&&Number(l.receivedQty)>0;});
+  var keyOf=function(x){return String(x||'').replace(/^PO/i,'').trim();};
+  var ex=rwLines.find(function(l){return keyOf(l.poNo)===keyOf(s.po)&&keyOf(s.po)!=='';});
+  if(ex){ ex.receivedQty=(Number(ex.receivedQty)||0)+q; }
+  else{ var nl=rwBlank(); nl.date=todayISO(); nl.poNo=s.po||''; nl.productId=s.pid||''; nl.name=s.name||s.pno||''; nl.orderedQty=s.ordered||''; nl.unit=s.unit||'Pcs.'; nl.maker=s.maker||''; nl.dueDate=s.due||''; nl.receivedQty=q; rwLines.push(nl); }
+  closeModal(); renderRwLines(); rwTotals();
+  try{var r=document.getElementById('rwRoot');if(r)r.scrollIntoView({behavior:'smooth',block:'center'});}catch(e){}
+  toast('➕ เพิ่มลงฟอร์มแล้ว: '+esc(s.name||s.pno)+' × '+fmt(q)+' — สแกนถุงต่อ หรือกดบันทึกในฟอร์ม','ok');
+}
+/* บันทึก + อนุมัติ รับชิ้นงานจากการสแกนทันที */
+function scanSaveNow(){
+  var s=window.__scan||{}; var q=Number((document.getElementById('scan_qty')||{}).value)||s.qty||0;
+  if(!(s.po||s.name)||q<=0){toast('ข้อมูลไม่พอสำหรับบันทึก','err');return;}
+  var line={date:todayISO(),deliveryNote:'',poNo:(s.po||'').trim(),prdId:'',productId:(s.pid||(findProdByName(s.name,'FG')||{}).id||''),
+    name:(s.name||s.pno||'').trim(),orderedQty:Number(s.ordered)||0,unit:s.unit||'Pcs.',maker:(s.maker||'').trim(),dueDate:s.due||'',
+    qty:q,receivedQty:q,bars:0,remark:'สแกน QR',sampleCount:0,sampleWeight:0,totalWeight:0,computed:0};
+  var d={id:uid(),type:'RW',ts:Date.now(),status:'pending',no:nextNo('RW'),date:todayISO(),note:'รับด้วยสแกน QR',receiver:'',maker:line.maker,lines:[line],totalQty:q,totalWeight:0};
+  DB.docs.push(d);
+  var r=doApprove(d);
+  if(!r.ok){ d.status='pending'; saveDB(); closeModal(); toast('บันทึกแล้ว (รออนุมัติ) '+d.no+' — อนุมัติไม่สำเร็จ: '+r.err,'err'); render(); return; }
+  closeModal(); toast('✅ รับชิ้นงานเข้า WIP แล้ว: '+d.no+' · '+esc(line.name)+' × '+fmt(q),'ok'); render();
 }
 function openPlTagDialog(docId,idx){
   const d=DB.docs.find(x=>x.id===docId);if(!d)return;
