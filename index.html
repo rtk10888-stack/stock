@@ -270,7 +270,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.27c (OK TAG QR พอดีไม่ทับ)';
+const APP_BUILD='SEMIQC-2026.06.27d (NG TAG QR ช่องแยกไม่ทับ)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -3091,9 +3091,10 @@ function ngDefAdd(){(window.__ngDefs=window.__ngDefs||[]).push({type:'',qty:0});
 function ngDefDel(i){window.__ngDefs.splice(i,1);if(!window.__ngDefs.length)window.__ngDefs.push({type:'',qty:0});renderNgDefs();ngTagCalc();}
 function ngTagCalc(){const per=Number((document.getElementById('ng_per')||{}).value)||0;const ds=window.__ngDefs||[];let n=0;if(per>0)ds.forEach(x=>{const q=Number(x.qty)||0;if(q>0)n+=Math.ceil(q/per);});const e=document.getElementById('ng_count');if(e)e.textContent=fmt(n);return n;}
 function ngTagOne(t){const box='<span class="cb"></span>';const qr=esc((t.pno||'')+'|PO:'+(t.po||'')+'|'+(t.date||'')+'|จำนวน:'+(t.qty||'')+'|NG:'+(t.prob||''));
-  return '<div class="ngtag"><div class="qrov"><div class="qr" data-qr="'+qr+'"></div></div><table>'
-   +'<tr><td class="rtk" rowspan="2">RTK</td><td class="ngh" colspan="3">NG TAG</td></tr>'
-   +'<tr><td class="l">PO.</td><td>'+esc(t.po)+'</td><td class="pn2"><span class="l2">P/NO.</span> <b>'+esc(t.pno)+'</b></td></tr>'
+  return '<div class="ngtag"><table>'
+   +'<tr><td class="rtk" rowspan="3">RTK</td><td class="ngh" colspan="2">NG TAG</td><td class="qrc" rowspan="3"><div class="qr" data-qr="'+qr+'"></div></td></tr>'
+   +'<tr><td class="l">PO.</td><td>'+esc(t.po)+'</td></tr>'
+   +'<tr><td class="l">P/NO.</td><td><b>'+esc(t.pno)+'</b></td></tr>'
    +'<tr><td class="l">LOT/DATE</td><td class="hl">'+esc(t.lot)+'</td><td class="l">CUSTOMER</td><td>'+esc(t.cust)+'</td></tr>'
    +'<tr><td class="l">ผู้ผลิต</td><td>'+esc(t.maker)+'</td><td class="l">จำนวนชิ้น</td><td class="qty">'+fmt(t.qty)+'</td></tr>'
    +'<tr><td class="l">ขั้นตอน</td><td colspan="3">'+esc(t.step)+'</td></tr>'
@@ -3115,8 +3116,8 @@ function printNgTags(preview){
   if(!tags){toast('ไม่มี TAG','err');return;}
   const total=ds.reduce((s,x)=>s+Math.ceil((Number(x.qty)||0)/per),0);
   const css="@page{size:A4;margin:7mm}*{box-sizing:border-box;font-family:'Tahoma',sans-serif}body{margin:0}.sheet{font-size:0}"
-   +".ngtag{display:inline-block;vertical-align:top;position:relative;width:80mm;height:45mm;border:1.6px solid #c0202e;page-break-inside:avoid;margin:0 1mm 1mm 0;overflow:hidden}"
-   +".ngtag .qrov{position:absolute;top:1mm;right:1mm;width:14mm;height:14mm;background:#fff;border:.5px solid #999;z-index:3}.ngtag .qrov .qr{width:100%;height:100%}.ngtag .qrov .qr img,.ngtag .qrov .qr canvas{width:13mm !important;height:13mm !important;display:block;margin:auto}"
+   +".ngtag{display:inline-block;vertical-align:top;width:85mm;height:48mm;border:1.6px solid #c0202e;page-break-inside:avoid;margin:0 1mm 1mm 0;overflow:hidden}"
+   +".ngtag .qrc{width:22%;text-align:center;vertical-align:middle;background:#fff}.ngtag .qrc .qr{width:13mm;height:13mm;margin:0 auto}.ngtag .qrc .qr img,.ngtag .qrc .qr canvas{width:13mm !important;height:13mm !important;display:block;margin:auto}"
    +".ngtag table{width:100%;height:100%;border-collapse:collapse;table-layout:fixed}"
    +".ngtag td{border:.6px solid #555;font-size:8px;padding:1px 3px;line-height:1.1;text-align:left}"
    +".ngtag .rtk{font-weight:800;font-size:13px;color:#c0202e;text-align:center;width:16%;background:#fff;border:1.6px solid #c0202e}"
