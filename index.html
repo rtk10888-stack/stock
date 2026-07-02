@@ -270,7 +270,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.27b (คัดแยก OK/NG TAG + QR ใหม่)';
+const APP_BUILD='SEMIQC-2026.06.27c (OK TAG QR พอดีไม่ทับ)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -3185,7 +3185,7 @@ function printTags(preview){
    +".tag .okh{background:#7ed957;color:#0d63c4;font-weight:800;font-size:9.5px;letter-spacing:.5px}"
    +".tag .dt{font-size:5px;width:24%}.tag .dt b{font-size:6px}"
    +".tag .l{font-weight:700;background:#f4f4f4;width:20%}"
-   +".tag .qrc{width:28%}.tag .qr{width:13mm;height:13mm;margin:0 auto}.tag .qr img,.tag .qr canvas{width:13mm !important;height:13mm !important;display:block;margin:auto}"
+   +".tag .qrc{width:30%;vertical-align:middle}.tag .qr{width:11mm;height:11mm;margin:0 auto}.tag .qr img,.tag .qr canvas{width:11mm !important;height:11mm !important;display:block;margin:auto}"
    +".tag .cu{font-weight:700;font-size:6px}.tag .stp{font-weight:600}.tag .qty{font-weight:800;font-size:8.5px}"
    +".tag .fm{font-size:4px;text-align:right;color:#444;border:none;height:5px;padding:0 2px 0 0}"
    +"@media print{.noprint{display:none}}";
