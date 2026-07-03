@@ -270,7 +270,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.27zb (สแกน: แสดงรายการแต่ละบรรจุ + ลบทีละใบ ตรวจยอดตรงเป๊ะ)';
+const APP_BUILD='SEMIQC-2026.06.27zc (Job Tracking: คงเหลือไม่ติดลบ=0 + เรียงตาม PART NUMBER)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -6029,7 +6029,7 @@ function jtRender(){
      +(jtC('ok')?'<td class="num">'+sn(S.okQ,'var(--teal)')+'</td>':'')
      +(jtC('ship')?'<td class="num">'+sn(S.ship,'var(--red)')+'</td>':'')
      +(jtC('ng2')?'<td class="num"></td>':'')
-     +'<td class="num" style="background:#ecfdf5">'+sn(S.okQ-S.ship)+'</td>';
+     +'<td class="num" style="background:#ecfdf5">'+sn(Math.max(0,S.okQ-S.ship))+'</td>';
   }
   const cnt=document.getElementById('jtCount'); if(cnt)cnt.textContent=fmt(total)+' รายการ';
   const more=document.getElementById('jtMore'); if(more)more.innerHTML=(total>shown.length)?('<button class="btn sm" onclick="jtShowMore()">แสดงเพิ่ม ('+fmt(total-shown.length)+' รายการ)</button> <button class="btn sm" onclick="jtShowAll()">แสดงทั้งหมด</button>'):'';
@@ -6045,7 +6045,7 @@ function viewJobTrack(el){
   const _mons=[...new Set(_all.map(r=>(r.date||'').slice(0,7)).filter(Boolean))].sort().reverse();
   el.innerHTML=`<div class="panel"><div class="panel-h" style="flex-wrap:wrap;gap:8px"><h2>🧭 Job Tracking : การติดตามสถานะ</h2>
     <div class="right" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-      <select id="jtSort" onchange="jtRender()" style="max-width:150px;width:auto"><option value="no_desc">เลขที่: มาก → น้อย</option><option value="no_asc">เลขที่: น้อย → มาก</option><option value="date_desc">วันที่: ใหม่ → เก่า</option><option value="date_asc">วันที่: เก่า → ใหม่</option></select>
+      <select id="jtSort" onchange="jtRender()" style="max-width:170px;width:auto"><option value="part_asc">PART NUMBER: ก → ฮ</option><option value="part_desc">PART NUMBER: ฮ → ก</option><option value="no_desc">เลขที่: มาก → น้อย</option><option value="no_asc">เลขที่: น้อย → มาก</option><option value="date_desc">วันที่: ใหม่ → เก่า</option><option value="date_asc">วันที่: เก่า → ใหม่</option></select>
       <input id="jtPart" list="dl_jtpart" placeholder="🔢 Part Number" oninput="jtRender()" style="max-width:150px">
       <datalist id="dl_jtpart">${prods.slice(0,1600).map(p=>'<option value="'+esc(p.pn)+'">'+esc(p.name||'')+'</option>').join('')}</datalist>
       <input id="jtPo" list="dl_jtpo" placeholder="🔢 เลขที่ PO (พิมพ์ค้นหา)" oninput="jtRender()" style="max-width:150px"><datalist id="dl_jtpo">${_pos.map(p=>'<option value="'+esc(p)+'">').join('')}</datalist>
@@ -8264,4 +8264,11 @@ function tryGate(){
         try{ if(!gatePassed()){renderNav();renderGate();} else render(); }catch(e){}
         try{ setSyncStatus(cloudOK?'synced':'offline'); }catch(e){}
         if(cloudOK){ try{ subscribeRealtime(); }catch(e){} }
-        else {
+        else { try{ toast('⚠️ เชื่อมต่อคลาวด์ไม่ได้ (Supabase) — ทำงานออฟไลน์ด้วยข้อมูลล่าสุด','err'); }catch(e){} }
+      }).catch(function(e){ console.warn('cloud sync failed',e); try{ setSyncStatus('offline'); }catch(_){} });
+    } else { try{ setSyncStatus('offline'); }catch(e){} }
+  });
+})();
+</script>
+</body>
+</html>
