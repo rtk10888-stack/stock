@@ -270,7 +270,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.27w (สแกนกล้องในแอปต่อเนื่อง: สแกน 1 ถุง = +1 บรรจุ)';
+const APP_BUILD='SEMIQC-2026.06.27x (สแกนกล้อง: เลือกกล้องอัตโนมัติ + แสดงสถานะ/ใส่มือสำรอง)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -2065,28 +2065,46 @@ function scanPackClear(){window.__packs=[];scanPackRender();}
 function scanPackRender(){var p=window.__packs||[];var tot=p.reduce(function(a,b){return a+b;},0);var el=document.getElementById('scan_plist');if(el)el.innerHTML=p.length?p.map(function(x,i){return '<span style="display:inline-block;background:#dbeafe;border-radius:5px;padding:1px 7px;margin:2px 3px 0 0">บรรจุ'+(i+1)+' = '+fmt(x)+'</span>';}).join('')+' <b>= รวม '+fmt(tot)+'</b>':'<span class="muted">ยังไม่เพิ่มบรรจุ (ถ้าไม่กด จะใช้ยอดในช่อง จำนวน/บรรจุ)</span>';var t=document.getElementById('scan_ptotal');if(t)t.textContent=fmt(tot);}
 /* ── สแกนกล้องในแอปแบบต่อเนื่อง: สแกน 1 ถุง = +1 บรรจุ (ดึงจำนวนจาก QR) ── */
 function scanPackQtyFromText(txt){var m=String(txt).match(/rwscan=([^&]+)/);var pl=m?decodeURIComponent(m[1]):String(txt);var parts=pl.split('|');var q=Number(parts[2])||0;if(!q){var qm=String(txt).match(/QTY[:=](\d+)/i);if(qm)q=Number(qm[1])||0;}return q;}
+function scanPackStatus(msg,err){var el=document.getElementById('qrScanStat');if(el){el.innerHTML=msg;el.style.color=err?'#dc2626':'#555';}}
 function scanPackScanner(){
+  /* แสดง overlay ทันที ให้เห็นว่ากดติด แล้วค่อยโหลด/เปิดกล้อง */
+  var ov=document.getElementById('qrScanOv'); if(ov)ov.remove();
+  ov=document.createElement('div'); ov.id='qrScanOv';
+  ov.style.cssText='position:fixed;inset:0;z-index:99999;background:rgba(15,23,41,.92);display:flex;align-items:center;justify-content:center;padding:14px';
+  ov.innerHTML='<div style="background:#fff;border-radius:14px;max-width:420px;width:100%;padding:14px;text-align:center">'
+    +'<div style="font-weight:800;font-size:15px;margin-bottom:4px">📷 สแกนบาร์โค้ดถุง (ต่อเนื่อง)</div>'
+    +'<div style="font-size:12px;color:#555;margin-bottom:8px">เล็งกล้องที่ QR บนถุง — สแกน 1 ถุง = +1 บรรจุ อัตโนมัติ</div>'
+    +'<div id="qrReader" style="width:100%;min-height:60px"></div>'
+    +'<div id="qrScanStat" style="font-size:12px;margin-top:6px;color:#555">⏳ กำลังเปิดกล้อง…</div>'
+    +'<div id="qrScanInfo" style="font-size:13px;margin-top:6px;min-height:18px">รวม: <b>0</b> ชิ้น</div>'
+    +'<div style="display:flex;gap:6px;margin-top:8px;align-items:center;justify-content:center;flex-wrap:wrap">'
+    +'  <input id="qrManual" type="number" placeholder="ใส่จำนวนมือ" style="width:110px;padding:6px 8px;border:1px solid var(--line);border-radius:7px">'
+    +'  <button class="btn" onclick="var v=Number((document.getElementById(\'qrManual\')||{}).value)||0;if(v>0){window.__packs=window.__packs||[];window.__packs.push(v);scanPackOnManual(v);}">➕ เพิ่ม</button>'
+    +'</div>'
+    +'<button class="btn pri" style="margin-top:8px;width:100%" onclick="scanPackScannerStop()">✅ เสร็จ (รวมยอดเข้าฟอร์ม)</button>'
+    +'</div>';
+  document.body.appendChild(ov);
   loadScript('https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js').then(function(){
-    if(!window.Html5Qrcode){toast('โหลดตัวสแกนไม่สำเร็จ','err');return;}
-    var ov=document.getElementById('qrScanOv'); if(ov)ov.remove();
-    ov=document.createElement('div'); ov.id='qrScanOv';
-    ov.style.cssText='position:fixed;inset:0;z-index:99999;background:rgba(15,23,41,.92);display:flex;align-items:center;justify-content:center;padding:14px';
-    ov.innerHTML='<div style="background:#fff;border-radius:14px;max-width:420px;width:100%;padding:14px;text-align:center">'
-      +'<div style="font-weight:800;font-size:15px;margin-bottom:4px">📷 สแกนบาร์โค้ดถุง (ต่อเนื่อง)</div>'
-      +'<div style="font-size:12px;color:#555;margin-bottom:8px">เล็งกล้องที่ QR บนถุง — สแกน 1 ถุง = +1 บรรจุ อัตโนมัติ</div>'
-      +'<div id="qrReader" style="width:100%"></div>'
-      +'<div id="qrScanInfo" style="font-size:13px;margin-top:8px;min-height:20px">รวม: <b>0</b> ชิ้น</div>'
-      +'<button class="btn pri" style="margin-top:8px;width:100%" onclick="scanPackScannerStop()">✅ เสร็จ (รวมยอดเข้าฟอร์ม)</button>'
-      +'</div>';
-    document.body.appendChild(ov);
-    try{
+    if(!window.Html5Qrcode){scanPackStatus('❌ โหลดตัวสแกนไม่สำเร็จ — ใช้ "ใส่จำนวนมือ" แทนได้',true);return;}
+    var start=function(camCfg){
       var h=new Html5Qrcode('qrReader'); window.__qrCam=h;
-      h.start({facingMode:'environment'},{fps:10,qrbox:{width:230,height:230}},function(txt){scanPackOnDecode(txt);},function(){}).catch(function(e){
-        toast('เปิดกล้องไม่ได้ — อนุญาตกล้อง/เปิดใน Chrome','err'); scanPackScannerStop();
+      return h.start(camCfg,{fps:10,qrbox:{width:230,height:230}},function(txt){scanPackOnDecode(txt);},function(){});
+    };
+    Html5Qrcode.getCameras().then(function(cams){
+      var cfg={facingMode:'environment'};
+      if(cams&&cams.length){var back=cams.filter(function(c){return /back|rear|environment/i.test(c.label);});cfg=(back[0]||cams[cams.length-1]).id;}
+      start(cfg).then(function(){scanPackStatus('✅ กล้องพร้อม — เล็งที่ QR บนถุง');}).catch(function(e){
+        scanPackStatus('❌ เปิดกล้องไม่ได้: '+((e&&e.message)||e)+' — ลองอนุญาตสิทธิ์กล้อง หรือเปิดใน Chrome / ใช้ "ใส่จำนวนมือ"',true);
       });
-    }catch(e){toast('เปิดกล้องไม่ได้','err');scanPackScannerStop();}
-  }).catch(function(){toast('โหลดตัวสแกนไม่ได้ — ตรวจอินเทอร์เน็ต','err');});
+    }).catch(function(e){
+      /* getCameras ล้มเหลว → ลอง facingMode ตรงๆ */
+      start({facingMode:'environment'}).then(function(){scanPackStatus('✅ กล้องพร้อม — เล็งที่ QR บนถุง');}).catch(function(e2){
+        scanPackStatus('❌ ไม่พบ/เปิดกล้องไม่ได้ — อนุญาตสิทธิ์กล้อง หรือใช้ "ใส่จำนวนมือ"',true);
+      });
+    });
+  }).catch(function(){scanPackStatus('❌ โหลดตัวสแกนไม่ได้ — ตรวจอินเทอร์เน็ต หรือใช้ "ใส่จำนวนมือ"',true);});
 }
+function scanPackOnManual(v){var tot=(window.__packs||[]).reduce(function(a,b){return a+b;},0);var info=document.getElementById('qrScanInfo');if(info)info.innerHTML='เพิ่มแล้ว <b>'+(window.__packs||[]).length+'</b> บรรจุ · รวม <b style="color:#2563eb;font-size:17px">'+fmt(tot)+'</b> ชิ้น';var m=document.getElementById('qrManual');if(m)m.value='';toast('➕ บรรจุ '+fmt(v)+' → รวม '+fmt(tot),'ok');}
 function scanPackOnDecode(txt){
   var q=scanPackQtyFromText(txt);
   if(q<=0){toast('อ่านจำนวนจาก QR ไม่ได้','err');return;}
