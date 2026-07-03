@@ -270,7 +270,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.27t (NC: ผู้ผลิตตัวย่อ + ซ่อน/แสดง LOT/จำนวนสั่ง/NG)';
+const APP_BUILD='SEMIQC-2026.06.27u (สแกน QR → บันทึก NC + นับตามบรรจุ)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -1995,9 +1995,23 @@ function rwScanHandler(payload){
           +'<div class="field" style="max-width:90px;margin:0"><label>NG</label><input id="scan_ng" type="number" value="0" style="font-weight:700;color:var(--red)"></div>'
           +'<button class="btn" onclick="scanApplyQC()">📝 เปิดฟอร์ม (กรอก NG ละเอียด)</button>'
           +'</div>'
+          +'<div style="border-top:2px solid var(--line);margin:12px 0 4px;padding-top:6px;font-weight:800;color:#dc2626">🚫 บันทึก NC (งานไม่ตรงข้อกำหนด)</div>'
+          +'<div style="background:#fff5f5;border:1px solid #fecaca;border-radius:8px;padding:8px">'
+          +'  <div style="font-size:12px;color:var(--ink2);margin-bottom:6px">วิธีนับตามบรรจุ: ใส่จำนวนต่อ 1 บรรจุ (เช่น 100) แล้วกด <b>"+ เพิ่มบรรจุ"</b> ทีละถุง — ระบบรวมยอดให้เอง (บรรจุ1=100, บรรจุ2=100, บรรจุ3=100 → รวม 300)</div>'
+          +'  <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">'
+          +'    <div class="field" style="max-width:120px;margin:0"><label>จำนวน/บรรจุ</label><input id="scan_ncpack" type="number" value="'+s.qty+'" style="font-weight:700"></div>'
+          +'    <button class="btn" onclick="scanNcAddPack()">➕ เพิ่มบรรจุ</button>'
+          +'    <button class="btn" onclick="scanNcClear()">↺ ล้าง</button>'
+          +'    <div style="font-size:13px">รวม NG: <b id="scan_nctotal" style="color:#dc2626;font-size:18px">0</b> ชิ้น</div>'
+          +'  </div>'
+          +'  <div id="scan_nclist" style="font-size:12px;color:var(--ink2);margin-top:5px;min-height:16px"></div>'
+          +'  <div class="field" style="margin-top:6px"><label>ปัญหา NG (ระบุ)</label><input id="scan_ncprob" placeholder="เช่น รูเล็กไม่เจาะ / สีชุบเป็นคราบ"></div>'
+          +'</div>'
           ,footer:'<button class="btn" onclick="closeModal()">ปิด</button>'
-            +'<button class="btn pri" onclick="scanSaveNow()">✅ บันทึกรับชิ้นงาน (WIP)</button>'
-            +'<button class="btn pri" style="background:#b45309" onclick="scanSaveQC(\'approved\')">✅ บันทึกคัดแยก OK/NG</button>'});
+            +'<button class="btn pri" onclick="scanSaveNow()">✅ รับชิ้นงาน (WIP)</button>'
+            +'<button class="btn pri" style="background:#b45309" onclick="scanSaveQC(\'approved\')">✅ คัดแยก OK/NG</button>'
+            +'<button class="btn pri" style="background:#dc2626" onclick="scanSaveNC()">✅ บันทึก NC</button>'});
+        window.__ncPacks=[]; setTimeout(scanNcRender,10);
       }catch(e){ toast('แสดงผลสแกนไม่สำเร็จ','err'); }
     },500);
   }catch(e){ try{toast('อ่าน QR ไม่สำเร็จ','err');}catch(_){} }
@@ -2049,6 +2063,35 @@ function scanSaveQC(status){
       total:total,ok:ok,ng:ng,defects:[]})];
     try{ submitQC2(status||'approved',''); }catch(e){ toast('บันทึกคัดแยกไม่สำเร็จ','err'); }
   },400);
+}
+/* ── ตัวช่วยนับจำนวนตามบรรจุ (บรรจุ1+บรรจุ2... = รวม) สำหรับบันทึก NC ── */
+function scanNcAddPack(){
+  var v=Number((document.getElementById('scan_ncpack')||{}).value)||0;
+  if(v<=0){toast('กรอกจำนวน/บรรจุ ก่อน','err');return;}
+  window.__ncPacks=window.__ncPacks||[]; window.__ncPacks.push(v); scanNcRender();
+}
+function scanNcClear(){window.__ncPacks=[]; scanNcRender();}
+function scanNcRender(){
+  var p=window.__ncPacks||[]; var tot=p.reduce(function(a,b){return a+b;},0);
+  var el=document.getElementById('scan_nclist');
+  if(el)el.innerHTML=p.length?p.map(function(x,i){return '<span style="display:inline-block;background:#fee2e2;border-radius:5px;padding:1px 7px;margin:2px 3px 0 0">บรรจุ'+(i+1)+' = '+fmt(x)+'</span>';}).join('')+' <b>= รวม '+fmt(tot)+'</b>':'<span class="muted">ยังไม่เพิ่มบรรจุ (หรือกดบันทึกเพื่อใช้ยอดในช่อง จำนวน/บรรจุ)</span>';
+  var t=document.getElementById('scan_nctotal'); if(t)t.textContent=fmt(tot);
+}
+/* บันทึกรายการ NC (งานไม่ตรงข้อกำหนด) จากการสแกน */
+function scanSaveNC(){
+  var s=window.__scan||{};
+  var packs=window.__ncPacks||[]; var tot=packs.reduce(function(a,b){return a+b;},0);
+  if(!tot){tot=Number((document.getElementById('scan_ncpack')||{}).value)||0;}
+  var prob=((document.getElementById('scan_ncprob')||{}).value||'').trim();
+  if(tot<=0){toast('กรุณาเพิ่มจำนวนบรรจุ หรือกรอกจำนวน','err');return;}
+  if(!(s.po||s.name)){toast('ข้อมูลไม่พอสำหรับบันทึก NC','err');return;}
+  var cust=(s.pid&&P(s.pid))?(P(s.pid).customer||''):'';
+  var d={id:uid(),type:'NC',ts:Date.now(),status:'active',no:nextNo('NC'),date:todayISO(),
+    po:(s.po||'').trim(),part:(s.pno||s.name||'').trim(),customer:cust,lot:'',qty:Number(s.ordered)||tot,
+    maker:(s.maker||'').trim(),reporter:'สแกน QR',loc:'',defect:prob||'(ระบุปัญหาภายหลัง)',method:'',ng:tot,cost:0,resp:''};
+  DB.docs.push(d); try{saveDB();}catch(e){}
+  closeModal(); route='nc'; try{render();}catch(e){}
+  toast('🚫 บันทึก NC แล้ว: '+esc(d.part)+' · NG '+fmt(tot)+' ('+(packs.length||1)+' บรรจุ)','ok');
 }
 /* บันทึก + อนุมัติ รับชิ้นงานจากการสแกนทันที */
 function scanSaveNow(){
