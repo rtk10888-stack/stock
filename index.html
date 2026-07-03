@@ -5944,6 +5944,7 @@ function jtBuildRows(){
     if(r.cols.adjSet!=null) bal=r.cols.adjSet;            // ตรวจนับตั้งยอด → คงเหลือ = ยอดที่นับจริง (ตรงกับสินค้าคงคลัง)
     else if(r.cols.adjDelta!=null) bal+=r.cols.adjDelta;  // ปรับเพิ่ม/ลด
     else bal+=(r.cols.okQ||0)-(r.cols.ship||0);
+    if(bal<0)bal=0;   // ติดลบ = จัดส่งแล้วยังไม่รับเข้า → ถือว่ารับเข้าพอส่ง แสดงเป็น 0 (ไม่ติดลบ)
     r.bal=bal; });
   return rows;
 }
@@ -5961,15 +5962,17 @@ function jtRender(){
   const po=((document.getElementById('jtPo')||{}).value||'').trim().toLowerCase();
   const mon=((document.getElementById('jtMon')||{}).value||'').trim();
   const q=((document.getElementById('jtQ')||{}).value||'').trim().toLowerCase();
-  const sort=((document.getElementById('jtSort')||{}).value||'no_desc');
+  const sort=((document.getElementById('jtSort')||{}).value||'part_asc');
   let rows=jtBuildRows();
   if(part) rows=rows.filter(r=>String(r.pn).toLowerCase().includes(part)||String(r.name).toLowerCase().includes(part));
   if(po) rows=rows.filter(r=>String(r.po||'').toLowerCase().includes(po)||String(r.ref||'').toLowerCase().includes(po));
   if(mon) rows=rows.filter(r=>(r.date||'').slice(0,7)===mon);
   if(q) rows=rows.filter(r=>(r.pn+' '+r.name+' '+r.maker+' '+r.po+' '+r.ref).toLowerCase().includes(q));
-  const nk=r=>String(r.po||r.ref||'');
+  const nk=r=>String(r.po||r.ref||''); const pk=r=>String(r.pn||'');
   rows=rows.slice();
-  if(sort==='no_desc')rows.sort((a,b)=>nk(b).localeCompare(nk(a),undefined,{numeric:true})||(b.date||'').localeCompare(a.date||''));
+  if(sort==='part_asc')rows.sort((a,b)=>pk(a).localeCompare(pk(b),undefined,{numeric:true})||nk(a).localeCompare(nk(b),undefined,{numeric:true})||(a.date||'').localeCompare(b.date||''));
+  else if(sort==='part_desc')rows.sort((a,b)=>pk(b).localeCompare(pk(a),undefined,{numeric:true})||nk(b).localeCompare(nk(a),undefined,{numeric:true})||(b.date||'').localeCompare(a.date||''));
+  else if(sort==='no_desc')rows.sort((a,b)=>nk(b).localeCompare(nk(a),undefined,{numeric:true})||(b.date||'').localeCompare(a.date||''));
   else if(sort==='no_asc')rows.sort((a,b)=>nk(a).localeCompare(nk(b),undefined,{numeric:true})||(a.date||'').localeCompare(b.date||''));
   else if(sort==='date_asc')rows.sort((a,b)=>(a.date||'').localeCompare(b.date||'')||(a.ts-b.ts));
   else rows.sort((a,b)=>(b.date||'').localeCompare(a.date||'')||(b.ts-a.ts)); /* date_desc */
@@ -8261,11 +8264,4 @@ function tryGate(){
         try{ if(!gatePassed()){renderNav();renderGate();} else render(); }catch(e){}
         try{ setSyncStatus(cloudOK?'synced':'offline'); }catch(e){}
         if(cloudOK){ try{ subscribeRealtime(); }catch(e){} }
-        else { try{ toast('⚠️ เชื่อมต่อคลาวด์ไม่ได้ (Supabase) — ทำงานออฟไลน์ด้วยข้อมูลล่าสุด','err'); }catch(e){} }
-      }).catch(function(e){ console.warn('cloud sync failed',e); try{ setSyncStatus('offline'); }catch(_){} });
-    } else { try{ setSyncStatus('offline'); }catch(e){} }
-  });
-})();
-</script>
-</body>
-</html>
+        else {
