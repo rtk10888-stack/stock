@@ -270,7 +270,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.27y (สแกนกล้องต่อเนื่องในแอป + ปุ่มสแกนถุงในหน้ารับชิ้นงาน)';
+const APP_BUILD='SEMIQC-2026.06.27z (สแกน: ล็อกนับ 1 ถุง/1 ครั้ง กันนับซ้ำตอนแช่ค้าง)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -2090,9 +2090,12 @@ function scanPackScanner(){
   document.body.appendChild(ov);
   loadScript('https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js').then(function(){
     if(!window.Html5Qrcode){scanPackStatus('❌ โหลดตัวสแกนไม่สำเร็จ — ใช้ "ใส่จำนวนมือ" แทนได้',true);return;}
+    window.__qrArmed=true; window.__qrEmpty=0;
     var start=function(camCfg){
       var h=new Html5Qrcode('qrReader'); window.__qrCam=h;
-      return h.start(camCfg,{fps:10,qrbox:{width:230,height:230}},function(txt){scanPackOnDecode(txt);},function(){});
+      return h.start(camCfg,{fps:10,qrbox:{width:230,height:230}},
+        function(txt){scanPackOnDecode(txt);},
+        function(){ /* เฟรมที่ไม่พบ QR → นับว่าง ครบ 3 เฟรม = พร้อมนับใบถัดไป */ if(window.__qrEmpty!=null){window.__qrEmpty++; if(window.__qrEmpty>=3){window.__qrArmed=true; var st=document.getElementById('qrScanStat'); if(st&&/นับแล้ว/.test(st.innerHTML)){st.innerHTML='✅ พร้อมยิงถุงถัดไป';st.style.color='#059669';}}} });
     };
     Html5Qrcode.getCameras().then(function(cams){
       var cfg={facingMode:'environment'};
@@ -2110,15 +2113,18 @@ function scanPackScanner(){
 }
 function scanPackOnManual(v){var tot=(window.__packs||[]).reduce(function(a,b){return a+b;},0);var info=document.getElementById('qrScanInfo');if(info)info.innerHTML='เพิ่มแล้ว <b>'+(window.__packs||[]).length+'</b> บรรจุ · รวม <b style="color:#2563eb;font-size:17px">'+fmt(tot)+'</b> ชิ้น';var m=document.getElementById('qrManual');if(m)m.value='';toast('➕ บรรจุ '+fmt(v)+' → รวม '+fmt(tot),'ok');}
 function scanPackOnDecode(txt){
+  /* ล็อกตามบาร์โค้ด: นับ 1 ครั้งต่อการยิง 1 ถุง — ต้องเอาถุงออกจากเฟรมก่อน (re-arm) จึงนับใบถัดไป */
+  if(window.__qrArmed===false){ window.__qrEmpty=0; return; }
   var q=scanPackQtyFromText(txt);
   if(q<=0){toast('อ่านจำนวนจาก QR ไม่ได้','err');return;}
-  var now=Date.now(); if(window.__qrLast&&window.__qrLast.txt===txt&&(now-window.__qrLast.t)<1800)return; window.__qrLast={txt:txt,t:now};
+  window.__qrArmed=false; window.__qrEmpty=0;
   /* โหมดสแกนต่อเนื่องในแอป: ถุงแรกตั้งข้อมูลงานให้เอง */
   if(!window.__scan||!window.__scan.po){ try{var m=String(txt).match(/rwscan=([^&]+)/); var pl=m?decodeURIComponent(m[1]):String(txt); window.__scan=scanBuildInfo(pl);}catch(e){} }
   window.__packs=window.__packs||[]; window.__packs.push(q);
   try{navigator.vibrate&&navigator.vibrate(70);}catch(e){}
   var tot=window.__packs.reduce(function(a,b){return a+b;},0);
   var info=document.getElementById('qrScanInfo'); if(info)info.innerHTML='เพิ่มแล้ว <b>'+window.__packs.length+'</b> บรรจุ · รวม <b style="color:#2563eb;font-size:17px">'+fmt(tot)+'</b> ชิ้น (ถุงล่าสุด '+fmt(q)+')';
+  var st=document.getElementById('qrScanStat'); if(st){st.innerHTML='🔒 นับแล้ว — เอาถุงออกจากกรอบ แล้วยิงถุงถัดไป';st.style.color='#b45309';}
   toast('➕ บรรจุ '+fmt(q)+' → รวม '+fmt(tot),'ok');
 }
 function scanPackScannerStop(){
