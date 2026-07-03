@@ -270,7 +270,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.27za (สแกน: กันนับซ้ำตอนแช่ค้าง — รีเซ็ตนาฬิกาทุกเฟรมที่เห็น)';
+const APP_BUILD='SEMIQC-2026.06.27zb (สแกน: แสดงรายการแต่ละบรรจุ + ลบทีละใบ ตรวจยอดตรงเป๊ะ)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -2081,9 +2081,10 @@ function scanPackScanner(){
     +'<div id="qrReader" style="width:100%;min-height:60px"></div>'
     +'<div id="qrScanStat" style="font-size:12px;margin-top:6px;color:#555">⏳ กำลังเปิดกล้อง…</div>'
     +'<div id="qrScanInfo" style="font-size:13px;margin-top:6px;min-height:18px">รวม: <b>0</b> ชิ้น</div>'
+    +'<div id="qrScanList" style="text-align:left;max-height:120px;overflow:auto;margin-top:6px"></div>'
     +'<div style="display:flex;gap:6px;margin-top:8px;align-items:center;justify-content:center;flex-wrap:wrap">'
     +'  <input id="qrManual" type="number" placeholder="ใส่จำนวนมือ" style="width:110px;padding:6px 8px;border:1px solid var(--line);border-radius:7px">'
-    +'  <button class="btn" onclick="var v=Number((document.getElementById(\'qrManual\')||{}).value)||0;if(v>0){window.__packs=window.__packs||[];window.__packs.push(v);scanPackOnManual(v);}">➕ เพิ่ม</button>'
+    +'  <button class="btn" onclick="var v=Number((document.getElementById(\'qrManual\')||{}).value)||0;if(v>0){window.__packs=window.__packs||[];window.__packs.push(v);var m=document.getElementById(\'qrManual\');if(m)m.value=\'\';scanPackOverlayRender();}">➕ เพิ่ม</button>'
     +'</div>'
     +'<button class="btn pri" style="margin-top:8px;width:100%" onclick="scanPackScannerStop()">✅ เสร็จ (รวมยอดเข้าฟอร์ม)</button>'
     +'</div>';
@@ -2124,11 +2125,19 @@ function scanPackOnDecode(txt){
   if(!window.__scan||!window.__scan.po){ try{var m=String(txt).match(/rwscan=([^&]+)/); var pl=m?decodeURIComponent(m[1]):String(txt); window.__scan=scanBuildInfo(pl);}catch(e){} }
   window.__packs=window.__packs||[]; window.__packs.push(q);
   try{navigator.vibrate&&navigator.vibrate(70);}catch(e){}
-  var tot=window.__packs.reduce(function(a,b){return a+b;},0);
-  var info=document.getElementById('qrScanInfo'); if(info)info.innerHTML='เพิ่มแล้ว <b>'+window.__packs.length+'</b> บรรจุ · รวม <b style="color:#2563eb;font-size:17px">'+fmt(tot)+'</b> ชิ้น (ถุงล่าสุด '+fmt(q)+')';
+  scanPackOverlayRender();
   var st=document.getElementById('qrScanStat'); if(st){st.innerHTML='🔒 นับแล้ว — เอาถุงออกจากกรอบ แล้วยิงถุงถัดไป';st.style.color='#b45309';}
+  var tot=window.__packs.reduce(function(a,b){return a+b;},0);
   toast('➕ บรรจุ '+fmt(q)+' → รวม '+fmt(tot),'ok');
 }
+/* แสดงรายการแต่ละบรรจุในหน้าสแกน + ลบทีละใบได้ (ตรวจ/แก้ให้ตรง) */
+function scanPackOverlayRender(){
+  var p=window.__packs||[]; var tot=p.reduce(function(a,b){return a+b;},0);
+  var info=document.getElementById('qrScanInfo'); if(info)info.innerHTML='นับได้ <b>'+p.length+'</b> บรรจุ · รวม <b style="color:#2563eb;font-size:18px">'+fmt(tot)+'</b> ชิ้น';
+  var list=document.getElementById('qrScanList');
+  if(list)list.innerHTML=p.length?p.map(function(x,i){return '<div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #eee;padding:3px 4px;font-size:13px"><span>บรรจุ '+(i+1)+'</span><span style="font-weight:700">'+fmt(x)+'</span><span class="rm-x" style="cursor:pointer;color:#dc2626" onclick="scanPackDel('+i+')">✕</span></div>';}).join(''):'<div class="muted" style="font-size:12px;padding:4px">ยังไม่มีบรรจุ</div>';
+}
+function scanPackDel(i){if(!window.__packs)return;window.__packs.splice(i,1);scanPackOverlayRender();toast('ลบบรรจุแล้ว','ok');}
 function scanPackScannerStop(){
   try{ if(window.__qrCam){window.__qrCam.stop().then(function(){try{window.__qrCam.clear();}catch(e){}window.__qrCam=null;}).catch(function(){window.__qrCam=null;}); } }catch(e){}
   var ov=document.getElementById('qrScanOv'); if(ov)ov.remove();
