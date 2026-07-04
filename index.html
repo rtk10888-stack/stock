@@ -270,7 +270,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.27zi (TAG ชุบ: จัดตารางใหม่อ่านง่าย + ปุ่มดูตัวอย่าง)';
+const APP_BUILD='SEMIQC-2026.06.27zj (TAG ชุบ: ดึงโรงชุบ/ชุบสี จากสินค้าคงคลังตาม Part)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -4187,7 +4187,7 @@ function openPlateTagDialog(docId,idx){
   var po=l.poNo||d.no||''; var maker=makerShort(l.maker||d.maker||'');
   var lot=l.lot||l.date||d.date||'';
   var qty=isPL?(Number(l.sentQty)||0):(Number(l.receivedQty||l.qty)||0);
-  var plating=(p&&p.plating)||''; var plant=l.vendor||'';
+  var plating=(p&&p.colorPlate)||(p&&p.plating)||''; var plant=(p&&p.plateTPI)||l.vendor||'';
   window.__plateTag={docId:docId,idx:idx||0,part:part,pname:pname,po:po,maker:maker,lot:lot,qty:qty,isPL:isPL,pid:pid||''};
   modal({title:'🏷️ TAG ชุบ (FM-ST-16) 4.3×8.5 ซม.',size:'md',body:
     '<div class="hint" style="margin-bottom:8px"><span class="i">💡</span><div>พิมพ์ตามจำนวนบรรจุ (จำนวน ÷ บรรจุ) · A4 = 10 ใบ · มี QR (บาร์โค้ด)</div></div>'
