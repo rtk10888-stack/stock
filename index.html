@@ -270,7 +270,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.27zv (อ่าน Excel/ตาราง อิงหัวคอลัมน์ ITEM NO.(SM)/Part No. แม่นยำ)';
+const APP_BUILD='SEMIQC-2026.06.27zw (Invoice: เลือก Part จากค่า "ขาย" สำเร็จรูปเท่านั้น ตัดตัวเก่าออก)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -2536,7 +2536,7 @@ function ivPanelHTML(){ensureSettings();
 }
 function ivAddLine(){ivLines.push(ivBlank());renderIvLines();}
 function ivRmLine(i){ivLines.splice(i,1);if(!ivLines.length)ivAddLine();else renderIvLines();}
-function ivPick(i,val){ivLines[i].name=val;const code=(val||'').split(' ')[0];const p=DB.products.find(x=>(x.type==='FG'||x.type==='ASM')&&(x.pn===code||x.pn===val))||findProdByName(val,'FG')||findProdByName(val,'ASM');ivLines[i].productId=p?p.id:'';if(p&&!ivLines[i].price&&p.salePrice){ivLines[i].price=p.salePrice;}renderIvLines();}
+function ivPick(i,val){ivLines[i].name=val;const vv=String(val||'').trim();let p=DB.products.find(x=>x.type==='FG'&&(x.saleName||'').trim()===vv);if(!p){const code=vv.split(' ')[0];p=DB.products.find(x=>(x.type==='FG'||x.type==='ASM')&&(x.pn===code||x.pn===vv))||findProdByName(vv,'FG')||findProdByName(vv,'ASM');}ivLines[i].productId=p?p.id:'';if(p&&!ivLines[i].price&&p.salePrice){ivLines[i].price=p.salePrice;}renderIvLines();}
 function ivPoLookup(i,val){ivLines[i].prodPO=(val||'').trim();const key=ivLines[i].prodPO.replace(/^PO/i,'');const prd=DB.docs.find(d=>d.type==='PRD'&&d.no.replace(/^PO/i,'')===key);if(prd){ivLines[i].maker=prd.maker||ivLines[i].maker;const it=(prd.lines||[])[0]||{};if(!ivLines[i].name&&it.fgId&&P(it.fgId)){ivLines[i].name=P(it.fgId).pn;ivLines[i].productId=it.fgId;}}renderIvLines();}
 function ivLineCalc(i){const l=ivLines[i];const e=document.getElementById('ivamt_'+i);if(e)e.textContent=fmt2((Number(l.price)||0)*(Number(l.qty)||0));ivTotals();}
 function ivTotals(){let q=0,sub=0;ivLines.forEach(l=>{q+=Number(l.qty)||0;sub+=(Number(l.qty)||0)*(Number(l.price)||0);});const vat=(document.getElementById('iv_vat')&&document.getElementById('iv_vat').checked)?sub*0.07:0;const grand=sub+vat;const el=document.getElementById('ivTotalsBox');if(!el)return;el.innerHTML=`<div class="panel" style="box-shadow:none;margin:0"><div class="panel-b" style="padding:10px 14px"><div class="kv"><span class="k">รวมจำนวน</span><b>${fmt(q)}</b></div><div class="kv"><span class="k">รวมเงิน (Subtotal)</span><b>${fmt2(sub)}</b></div>${vat?`<div class="kv"><span class="k">VAT 7%</span><b>${fmt2(vat)}</b></div>`:''}<div class="kv"><span class="k">ยอดสุทธิ</span><b style="color:var(--teal);font-size:15px">${fmt2(grand)} บาท</b></div></div></div>`;}
@@ -2556,7 +2556,7 @@ function renderIvLines(){
   </tr>`).join('')}
   </tbody></table></div>
   <datalist id="dl_ivpo">${DB.docs.filter(x=>x.type==='PRD').sort((a,b)=>b.ts-a.ts).slice(0,400).map(x=>`<option value="${esc(x.no)}">${esc(x.maker||'')}</option>`).join('')}</datalist>
-  <datalist id="dl_ivfg">${DB.products.filter(p=>p.type==='FG'||p.type==='ASM').slice(0,1800).map(p=>`<option value="${esc(p.pn+(p.name&&p.name!=='-'?' '+p.name:''))}">`).join('')}</datalist>`;
+  <datalist id="dl_ivfg">${[...new Set(DB.products.filter(p=>p.type==='FG'&&(p.saleName||'').trim()).map(p=>p.saleName.trim()))].slice(0,1800).map(v=>`<option value="${esc(v)}">`).join('')}</datalist>`;
   ivTotals();
 }
 function submitIVInline(status){const id=(document.getElementById('iv_editid')||{}).value||'';submitIV2(status,id);}
