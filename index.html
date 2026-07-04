@@ -270,7 +270,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.27zj (TAG ชุบ: ดึงโรงชุบ/ชุบสี จากสินค้าคงคลังตาม Part)';
+const APP_BUILD='SEMIQC-2026.06.27zk (ผู้ผลิต: แสดงตัวย่อเสมอ เลขที่แมปไม่ได้แสดง - ทุกฟอร์ม)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -351,7 +351,8 @@ function makerShort(v){ if(v===0)v='0'; if(!v)return '-'; v=String(v).trim(); if
   var ms=(DB.settings&&DB.settings.makers)||[];
   var m=ms.find(function(x){return String(x.code)===v;})||ms.find(function(x){return (x.abbr||'')===v;})||ms.find(function(x){return (x.name||'')===v;});
   if(m&&(m.abbr||'').trim())return m.abbr.trim();
-  if(/^\d+$/.test(v)){ if(m&&(m.name||'').trim())return m.name.trim(); return v; }
+  if(m&&(m.name||'').trim())return m.name.trim();
+  if(/^\d+$/.test(v))return '-';   /* เลขที่แมปชื่อย่อ/ชื่อไม่ได้ → ไม่แสดงเป็นตัวเลข */
   return v; }
 function fmt2(n){return (Number(n)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}
 function prodFlow(p){if(!p)return'';if(p.flow)return p.flow;if(p.type==='RM'||p.type==='SUP'||p.type==='ASM')return'ไม่ชุบ';if(p.type==='RMC')return'รับแมทลูกค้า';const pl=(p.plating||'').trim();if(pl==='ไม่ชุบ'||pl==='ไม่ชุบ-QC'||pl==='ชุบ-QC')return pl;if(p.needPlating&&pl)return'ชุบ-QC';return'ไม่ชุบ-QC';}
