@@ -270,7 +270,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.27zp (แนบรูป: ย่ออัตโนมัติกันข้อมูลบวม + PDF/Excel อ่านอย่างเดียว)';
+const APP_BUILD='SEMIQC-2026.06.27zq (อ่านไฟล์: รู้จักหัวคอลัมน์ Part No/Code/P-NO/Item/Description = PART NUMBER)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -7997,9 +7997,16 @@ function openPlanForm(type,edit){
 }
 function addPlanLine(){planLines.push({fgId:'',name:'',qty:'',due:'',price:'',m1:'',m2:'',m3:'',m4:''});renderPlanLines(window.__planType)}
 const DATE_RE=/^\d{1,4}[-\/.]\d{1,2}[-\/.]\d{1,4}$/;
+/* คำ/หัวคอลัมน์ที่ "หมายถึง PART NUMBER" — Part No./Part Code/ITEM NO.(SM)/Description/P/NO./Item/CODE */
+const PART_LABEL=/^(partno|partcode|itemno|p\/?no|item|code|desc|description|sm|รหัส|รหัสสินค้า|เลขที่ชิ้นส่วน|หมายเลขชิ้นส่วน)$/i;
+function pnCodeLike(tk){const c=String(tk||'').replace(/,/g,'');return /\d/.test(tk)&&!/^\d{1,5}$/.test(c)&&!DATE_RE.test(tk)&&/^[A-Za-z0-9][A-Za-z0-9\-\/.]{3,}$/.test(tk);}
 function findPN(tokens){
+  /* 1) ตรงกับ Part Number ที่มีในระบบก่อน */
   for(const tk of tokens){if(DB.products.find(x=>x.type==='FG'&&x.pn===tk))return tk;}
-  for(const tk of tokens){const c=tk.replace(/,/g,'');if(/\d/.test(tk)&&!/^\d{1,5}$/.test(c)&&!DATE_RE.test(tk)&&/^[A-Za-z0-9][A-Za-z0-9\-\/.]{3,}$/.test(tk))return tk;}
+  /* 2) ถ้ามีคำหัวคอลัมน์ (Part No./Code/P/NO./Item/Description ฯลฯ) → เอาโทเคนถัดไปที่เป็นรหัส */
+  for(let i=0;i<tokens.length;i++){const lab=String(tokens[i]||'').replace(/[.:：\s]+/g,'').replace(/\(sm\)/i,'');if(PART_LABEL.test(lab)){for(let j=i+1;j<tokens.length;j++){if(pnCodeLike(tokens[j]))return tokens[j];}}}
+  /* 3) โทเคนแรกที่เป็นรหัสสินค้า */
+  for(const tk of tokens){if(pnCodeLike(tk))return tk;}
   return tokens[0]||'';
 }
 function parsePastePlan(type){
