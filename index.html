@@ -270,7 +270,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.27zf (ใบสั่งผลิต: ลูกค้า/กำหนดส่ง + ซ่อนผู้ผลิต/ราคา + ตัด PO นำหน้า)';
+const APP_BUILD='SEMIQC-2026.06.27zg (ฟอร์มใบสั่งผลิต: เพิ่มช่องลูกค้า ดึงจาก Part อัตโนมัติ)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -4488,9 +4488,10 @@ function openPRDForm(edit,prefill){
       <div class="field"><label>วันที่</label><input type="date" id="po_date" value="${edit?edit.date:todayISO()}"></div>
       <div class="field"><label>ประเภท</label><select id="po_type" onchange="renderPrdLines()"><option value="bar" ${(edit&&edit.prdType==='piece')?'':'selected'}>เส้น/ชิ้น</option><option value="piece" ${(edit&&edit.prdType==='piece')?'selected':''}>ชิ้น</option></select></div>
     </div>
-    <div class="row c2">
+    <div class="row c3">
       <div class="field"><label>MAKER (ผู้ผลิต) NO.</label><input id="po_makercode" list="dl_makercode" value="${edit?esc(edit.maker||''):''}" placeholder="ใส่รหัส → ดึงชื่อ" oninput="prdMakerFill('code')" onchange="prdMakerFill('code')"><datalist id="dl_makercode">${makers.map(m=>`<option value="${esc(m.code)}">${esc(m.name||'')}</option>`).join('')}</datalist></div>
       <div class="field"><label>MAKER (ผู้ผลิต)</label><input id="po_maker" list="dl_makers" value="${edit?esc(edit.makerAbbr||''):''}" placeholder="VS4, JARUN..." oninput="prdMakerFill('name')" onchange="prdMakerFill('name')"><datalist id="dl_makers">${makers.map(m=>`<option value="${esc(m.abbr||m.name||'')}">${esc(m.code)} · ${esc(m.name||'')}</option>`).join('')}</datalist></div>
+      <div class="field"><label>CUSTOMER (ลูกค้า)</label><input id="po_customer" list="dl_prdcust" value="${edit?esc(edit.customer||''):''}" placeholder="ดึงจาก Part อัตโนมัติ · แก้ไขได้"><datalist id="dl_prdcust">${[...new Set((DB.settings.customers||[]).concat(DB.products.map(p=>p.customer).filter(Boolean)))].map(c=>`<option value="${esc(c)}">`).join('')}</datalist></div>
     </div>
     <div class="row c2">
       <div class="field"><label>MAKER (ผู้ผลิต) — ชื่อเต็ม <span class="req">*</span></label><input id="po_makerfull" value="${edit?esc((edit.makerInfo&&edit.makerInfo.name)||''):''}" placeholder="ชื่อผู้ผลิต (เต็ม)"></div>
@@ -4565,7 +4566,8 @@ function renderPrdLines(){
   prdTotals();
 }
 function prdPick(i,val){prdLines[i].name=val;const pn=(val||'').split(' ')[0];const p=DB.products.find(x=>x.type==='FG'&&x.pn===pn);prdLines[i].fgId=p?p.id:'';const _pp=p?(p.prodPrice||p.salePrice||0):0;const tr=document.querySelectorAll('#prdRoot tbody tr')[i];const ins=tr?tr.querySelectorAll('input'):null;if(p&&!prdLines[i].price&&_pp){prdLines[i].price=_pp;if(ins&&ins[2])ins[2].value=_pp;}
-  if(p){const wl=parseSegMM(p.dim)||0;const blmm=parseSegMM(p.steelUse)||0;const blm=blmm?Math.round(blmm/10)/100:0;prdLines[i].workLen=wl||'';prdLines[i].barLen=blm||'';if(ins&&ins[4])ins[4].value=wl||'';if(ins&&ins[5])ins[5].value=blm||'';prdBars(i);}
+  if(p){const wl=parseSegMM(p.dim)||0;const blmm=parseSegMM(p.steelUse)||0;const blm=blmm?Math.round(blmm/10)/100:0;prdLines[i].workLen=wl||'';prdLines[i].barLen=blm||'';if(ins&&ins[4])ins[4].value=wl||'';if(ins&&ins[5])ins[5].value=blm||'';prdBars(i);
+    var cf=document.getElementById('po_customer');if(cf&&p.customer&&!cf.value.trim())cf.value=p.customer;}
   prdTotals();}
 function prdBars(i){const l=prdLines[i];if(!l)return;const qty=Number(l.qty)||0;const wl=Number(l.workLen)||0;const blm=Number(l.barLen)||0;const blmm=blm*1000;const per=(wl>0&&blmm>0)?Math.floor(blmm/wl):0;l.perBar=per;if(per>0&&qty>0)l.bars=Math.ceil(qty/per);const e=document.getElementById('prbars_'+i);if(e)e.value=l.bars||'';}
 function prdTotals(){
@@ -4624,7 +4626,7 @@ function submitPRD(status,editId){
   const mkBase=makerByCode(maker)||{code:maker};
   d.no=no;d.date=v('po_date')||todayISO();d.maker=maker;d.makerAbbr=(v('po_maker')||'').trim();d.prdType=(v('po_type')||'bar');
   d.makerInfo=Object.assign({},mkBase,{code:maker,name:makerFull||mkBase.name||'',taxId:(v('po_makertax')||mkBase.taxId||'').trim(),address:(v('po_makeraddr')||mkBase.address||'').trim(),tel:(v('po_makertel')||mkBase.tel||'').trim(),contact:(v('po_makercontact')||mkBase.contact||'').trim()});
-  d.producer=(v('po_producer')||'').trim();d.lines=lines;d.wht3=wht3;d.subtotal=sub;d.wht=wht;d.net=sub-wht;d.note=(v('po_note')||'').trim();
+  d.producer=(v('po_producer')||'').trim();d.customer=(v('po_customer')||'').trim();d.lines=lines;d.wht3=wht3;d.subtotal=sub;d.wht=wht;d.net=sub-wht;d.note=(v('po_note')||'').trim();
   commitPONo(no);
   if(!makerByCode(maker))DB.settings.makers.push({code:maker,name:makerFull||'',taxId:(v('po_makertax')||'').trim(),address:(v('po_makeraddr')||'').trim(),tel:(v('po_makertel')||'').trim(),contact:(v('po_makercontact')||'').trim()});
   if(status==='approved'){d.status='approved';d.approvedAt=new Date().toLocaleString('th-TH');}
