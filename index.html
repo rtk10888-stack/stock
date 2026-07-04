@@ -270,7 +270,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.27zu (OCR สแกน: เพิ่มความละเอียด+ทำขาวดำ+โหมด PSM4 ดึงตารางดีขึ้น)';
+const APP_BUILD='SEMIQC-2026.06.27zv (อ่าน Excel/ตาราง อิงหัวคอลัมน์ ITEM NO.(SM)/Part No. แม่นยำ)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -8017,7 +8017,29 @@ function parsePastePlan(type){
   if(!raw.trim()){toast('ยังไม่มีข้อมูลที่วาง','err');return}
   fillPlanFromText(type,raw);
 }
+/* อ่านแบบอิงหัวคอลัมน์ (Excel/ตารางที่มี Tab) — ใช้ ITEM NO.(SM/FG)/Part No./Part Code เป็นคอลัมน์ Part + เดือนหลัง Onhand เป็น Forecast */
+function tryColumnParse(type,lines){
+  const LAB=/item\s*no|part\s*no|part\s*code|p\/?no|^\s*code\s*$|รหัสสินค้า|หมายเลขชิ้นส่วน|เลขที่ชิ้นส่วน/i;
+  let hi=-1,H=null;
+  for(let i=0;i<lines.length;i++){const c=lines[i].split('\t');if(c.length>=3&&c.some(x=>LAB.test(x))){hi=i;H=c.map(x=>String(x).trim());break;}}
+  if(hi<0)return null;
+  const idx=re=>H.findIndex(x=>re.test(x));
+  let pc=idx(/item\s*no.*sm/i);if(pc<0)pc=idx(/item\s*no.*fg/i);if(pc<0)pc=idx(/part\s*no|part\s*code/i);if(pc<0)pc=idx(/item\s*no/i);if(pc<0)pc=idx(LAB);
+  if(pc<0)return null;
+  const oh=idx(/onhand|on\s*hand|คงเหลือ|stock/i);
+  const out=[];
+  for(let i=hi+1;i<lines.length;i++){const c=lines[i].split('\t');const pnRaw=String(c[pc]||'').trim();if(!pnRaw)continue;if(/total|รวม|หมายเหตุ|supplier|confirm|remark|note|safety|forecast\s*ของ/i.test(lines[i]))continue;
+    const numCells=[];for(let j=(oh>=0?oh+1:pc+1);j<c.length;j++){const v=String(c[j]).replace(/[^0-9.\-]/g,'');if(/^-?\d+(\.\d+)?$/.test(v))numCells.push(Math.round(parseFloat(v)));}
+    const p=findFGByPN(pnRaw);const name=p?(p.pn+(p.name&&p.name!=='-'?' '+p.name:'')):pnRaw;
+    if(type==='FC'){if(!p&&!numCells.some(n=>n>0))continue;const v=numCells.slice(0,4);while(v.length<4)v.push(0);out.push({fgId:p?p.id:'',name,m1:v[0],m2:v[1],m3:v[2],m4:v[3]});}
+    else{const q=numCells.length?numCells[0]:0;if(q>0||p)out.push({fgId:p?p.id:'',name,qty:q,due:'',price:0});}
+  }
+  return out.length?out:null;
+}
 function fillPlanFromText(type,raw){
+  /* ลองแบบอิงคอลัมน์ก่อน (Excel/ตาราง Tab) */
+  const colOut=tryColumnParse(type,raw.split(/\r?\n/));
+  if(colOut&&colOut.length){planLines=colOut;renderPlanLines(type);const mc=colOut.filter(o=>o.fgId).length;toast('อ่าน '+colOut.length+' รายการ (จับคู่ PN ได้ '+mc+')','ok');return true;}
   const rows=raw.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);const out=[];
   rows.forEach(line=>{
     /* ข้ามบรรทัดหัว/ท้ายเอกสาร (Supplier/Issued/PO/หัวตาราง ฯลฯ) กันจับเลขผิดเป็น Part */
