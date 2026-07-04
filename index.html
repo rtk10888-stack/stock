@@ -270,7 +270,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.27zr (อ่าน PDF สแกนด้วย OCR + จับคู่ Part ไม่สนขีด)';
+const APP_BUILD='SEMIQC-2026.06.27zs (อ่าน Forecast สแกน: ตัดเส้นตาราง/กันวันที่/ข้ามหัวเอกสาร แม่นขึ้น)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -7997,9 +7997,10 @@ function openPlanForm(type,edit){
 }
 function addPlanLine(){planLines.push({fgId:'',name:'',qty:'',due:'',price:'',m1:'',m2:'',m3:'',m4:''});renderPlanLines(window.__planType)}
 const DATE_RE=/^\d{1,4}[-\/.]\d{1,2}[-\/.]\d{1,4}$/;
+const MONTH_DATE=/^\d{1,2}[-\/.](jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[-\/.]?\d{0,4}$/i;
 /* คำ/หัวคอลัมน์ที่ "หมายถึง PART NUMBER" — Part No./Part Code/ITEM NO.(SM)/Description/P/NO./Item/CODE */
 const PART_LABEL=/^(partno|partcode|itemno|p\/?no|item|code|desc|description|sm|รหัส|รหัสสินค้า|เลขที่ชิ้นส่วน|หมายเลขชิ้นส่วน)$/i;
-function pnCodeLike(tk){const c=String(tk||'').replace(/,/g,'');return /\d/.test(tk)&&!/^\d{1,5}$/.test(c)&&!DATE_RE.test(tk)&&/^[A-Za-z0-9][A-Za-z0-9\-\/.]{3,}$/.test(tk);}
+function pnCodeLike(tk){const c=String(tk||'').replace(/,/g,'');return /\d/.test(tk)&&!/^\d{1,5}$/.test(c)&&!DATE_RE.test(tk)&&!MONTH_DATE.test(tk)&&/^[A-Za-z0-9][A-Za-z0-9\-\/.]{3,}$/.test(tk);}
 function normPN(s){return String(s||'').toUpperCase().replace(/[^A-Z0-9]/g,'');}
 function findFGByPN(tk){var n=normPN(tk);return DB.products.find(x=>x.type==='FG'&&x.pn===tk)||(n.length>=5?DB.products.find(x=>x.type==='FG'&&normPN(x.pn)===n):null);}
 function findPN(tokens){
@@ -8019,14 +8020,17 @@ function parsePastePlan(type){
 function fillPlanFromText(type,raw){
   const rows=raw.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);const out=[];
   rows.forEach(line=>{
-    const tokens=line.split(/[\s\t,;]+/).filter(Boolean);if(!tokens.length)return;
+    /* ข้ามบรรทัดหัว/ท้ายเอกสาร (Supplier/Issued/PO/หัวตาราง ฯลฯ) กันจับเลขผิดเป็น Part */
+    if(/supplier|issued|revision|prod\.?\s*of|attn|e-?mail|\btel\b|forecast\s*info|remark|approved|checked|packing|part\s*name|diff\.|confrim|confirm/i.test(line))return;
+    /* ตัดอักขระเส้นตาราง | ] [ และช่องว่าง แล้วตัดขยะหัว-ท้ายของแต่ละโทเคน (เช่น /Y-TEC-010 → Y-TEC-010, 12,000] → 12,000) */
+    const tokens=line.split(/[\s\t,;|\]\[]+/).map(t=>t.replace(/^[^A-Za-z0-9]+|[^A-Za-z0-9]+$/g,'')).filter(Boolean);if(!tokens.length)return;
     const pn=findPN(tokens);if(!pn)return;
     const p=findFGByPN(pn);
-    const isCode=p||(/\d/.test(pn)&&pn.length>=5&&!/^\d{1,5}$/.test(pn.replace(/,/g,''))&&!DATE_RE.test(pn));
+    const isCode=p||(/\d/.test(pn)&&pn.length>=5&&!/^\d{1,5}$/.test(pn.replace(/,/g,''))&&!DATE_RE.test(pn)&&!MONTH_DATE.test(pn));
     if(!isCode)return; // ข้ามบรรทัดหัวตาราง/วันที่/ข้อความอื่น
-    const nums=[]; line.replace(pn,' ').replace(/(\d)\s+,/g,'$1,').replace(/,(?=\d{3}(?:\D|$))/g,'').split(/[\s\t,;]+/).forEach(t=>{if(/^-?\d+(\.\d+)?$/.test(t))nums.push(Math.round(parseFloat(t)));else if(t==='-'||t==='–')nums.push(0);});
+    const nums=[]; line.replace(pn,' ').split(/[\s\t;|\]\[]+/).forEach(t=>{const c=t.replace(/[^0-9.\-]/g,'');if(/^-?\d+(\.\d+)?$/.test(c))nums.push(Math.round(parseFloat(c)));else if(t==='-'||t==='–')nums.push(0);});
     const name=p?(p.pn+(p.name&&p.name!=='-'?' '+p.name:'')):pn;
-    if(type==='FC'){const v=nums.slice(-4);while(v.length<4)v.unshift(0);out.push({fgId:p?p.id:'',name,m1:v[0],m2:v[1],m3:v[2],m4:v[3]});}
+    if(type==='FC'){if(!p&&nums.filter(n=>n>0).length<3)return; const v=nums.slice(-4);while(v.length<4)v.unshift(0);out.push({fgId:p?p.id:'',name,m1:v[0],m2:v[1],m3:v[2],m4:v[3]});}
     else {const q=nums.length?nums[nums.length-1]:0;if(q>0)out.push({fgId:p?p.id:'',name,qty:q,due:'',price:0});}
   });
   if(!out.length){toast('แปลงไม่ได้ — ไม่พบรายการ Part Number','err');return false;}
