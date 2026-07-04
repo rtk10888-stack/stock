@@ -270,7 +270,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.27zg (ฟอร์มใบสั่งผลิต: เพิ่มช่องลูกค้า ดึงจาก Part อัตโนมัติ)';
+const APP_BUILD='SEMIQC-2026.06.27zh (TAG ชุบ FM-ST-16 4.3x8.5 + QR + บันทึกส่งชุบอัตโนมัติ)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -2279,7 +2279,7 @@ function rwRow(d){
     <td><span class="tag amber">${esc(makerShort(d.maker))}</span> <span class="muted">${esc(head)}</span></td>
     <td class="num">${fp?fmt2(fp):'<span class="muted">-</span>'}</td>
     <td class="num">${fmt(totQty)}</td>
-    <td style="text-align:center"><button class="btn sm" onclick="openMvTagDialog('${d.id}')" title="พิมพ์ DELIVERY TAG 5×9ซม. (FM-ST-15) + QR สแกนเข้ารับชิ้นงาน">🏷️ TAG</button></td><td>${statusTag(d.status)}</td>
+    <td style="text-align:center;white-space:nowrap"><button class="btn sm" onclick="openMvTagDialog('${d.id}')" title="พิมพ์ DELIVERY TAG 5×9ซม. (FM-ST-15)">🏷️ TAG</button> <button class="btn sm" onclick="openPlateTagDialog('${d.id}')" title="พิมพ์ TAG ชุบ 4.3×8.5ซม. (FM-ST-16) + บันทึกส่งชุบ">🏷️ ชุบ</button></td><td>${statusTag(d.status)}</td>
     <td style="text-align:right;white-space:nowrap">
       <button class="btn sm" onclick="viewDoc('${d.id}')">ดู</button>
       <button class="btn sm" onclick="printRW('${d.id}')">🖨️</button>
@@ -3746,7 +3746,7 @@ function plRow(d){
       <td class="pn linkish" onclick="editPLInline('${d.id}')"><b>${esc(pn)}</b></td>
       <td class="muted">${esc(pname)}</td>
       <td class="num">${sent?fmt(sent):'-'}</td>
-      <td class="c"><button class="btn sm" onclick="openPlTagDialog('${d.id}',${idx})" title="พิมพ์ TAG ส่งชุบ/รับชุบ">🏷️ TAG</button></td>
+      <td class="c"><button class="btn sm" onclick="openPlateTagDialog('${d.id}',${idx})" title="พิมพ์ TAG ชุบ (FM-ST-16) 4.3×8.5ซม.">🏷️ TAG</button></td>
       <td class="muted">${esc(l.recvDate||'')}</td>
       <td class="num"><b>${recv?fmt(recv):'-'}</b></td>
       <td class="num" style="${pend>0?'color:var(--red);font-weight:700':'color:var(--ink3)'}">${pend?fmt(pend):'-'}</td>
@@ -4143,6 +4143,64 @@ function printTagSheet(cells,W,H,title){
     +'<scr'+'ipt>window.onload=function(){document.querySelectorAll(".q").forEach(function(el){try{new QRCode(el,{text:el.getAttribute("data-qr"),width:80,height:80,correctLevel:QRCode.CorrectLevel.M});}catch(e){el.style.fontSize="6px";el.textContent=el.getAttribute("data-qr");}});setTimeout(function(){try{window.print();}catch(e){}},700);};</scr'+'ipt>'
     +'</body></html>';
   var w=window.open('','_blank'); if(!w){toast('เบราว์เซอร์บล็อก popup','err');return;} w.document.write(html); w.document.close();
+}
+/* ===== TAG ชุบ (FM-ST-16) 4.3×8.5 ซม. · A4=10 ใบ · มี QR ===== */
+function plateTagCell(t){ var qr='PART:'+(t.part||'')+'|PO:'+(t.po||'')+'|LOT:'+tagDate(t.lot||'')+'|QTY:'+(t.qty||'')+'|PLATE:'+(t.plating||'');
+  var L='border:0.4px solid #999;background:#eef1f6;font-weight:700;white-space:nowrap;line-height:1.05;padding:0 2px;font-size:6px;width:1px';
+  var LE='font-size:5px;color:#333;font-weight:600';
+  var V='border:0.4px solid #999;font-weight:700;padding:0 2px;font-size:8px;line-height:1.1';
+  var lab=function(th,en){return '<td style="'+L+'">'+th+'<br><span style="'+LE+'">'+en+'</span></td>';};
+  return '<div class="tag" style="font-family:Tahoma"><table style="width:100%;height:100%;border-collapse:collapse;table-layout:fixed">'
+   +'<tr>'+lab('ชื่อโรงชุบ','PLATING NAME')+'<td style="'+V+'"><b>'+esc(t.plant||'')+'</b></td>'+lab('เลขที่ใบผลิต','P/O NO.')+'<td style="'+V+'">'+esc(t.po||'')+'</td><td rowspan="3" style="width:1.5cm;text-align:center;border:0.4px solid #999;vertical-align:middle;padding:1px"><div class="q" data-qr="'+esc(qr)+'" style="width:1.3cm;height:1.3cm;margin:auto"></div></td></tr>'
+   +'<tr>'+lab('หมายเลขชิ้นส่วน','PART NO.')+'<td colspan="3" style="'+V+'"><b>'+esc(t.part||'')+'</b></td></tr>'
+   +'<tr>'+lab('ชื่อชิ้นส่วน','PART NAME')+'<td colspan="3" style="'+V+'">'+esc(t.pname||'')+'</td></tr>'
+   +'<tr>'+lab('ล๊อตวันที่ผลิต','LOT DATE')+'<td colspan="4" style="'+V+'">'+esc(tagDate(t.lot||''))+'</td></tr>'
+   +'<tr>'+lab('ชื่อผู้ผลิต','MAKER NAME')+'<td style="'+V+'">'+esc(t.maker||'')+'</td>'+lab('ชุบสี','PLATING')+'<td colspan="2" style="'+V+'">'+esc(t.plating||'')+'</td></tr>'
+   +'<tr>'+lab('วันที่ส่ง','DELIVERY DATE')+'<td style="'+V+'">'+esc(tagDate(t.deliv||''))+'</td>'+lab('วันที่รับ','RECIVE DATE')+'<td colspan="2" style="'+V+'"></td></tr>'
+   +'<tr>'+lab('จำนวนส่ง',"Q'TY")+'<td style="'+V+'"><b>'+fmt(t.qty||0)+'</b></td>'+lab('จำนวนรับ',"Q'TY")+'<td colspan="2" style="'+V+'"></td></tr>'
+   +'<tr>'+lab('น้ำหนักส่ง','WEIGHT')+'<td style="'+V+'">'+esc(t.wt||'')+'</td>'+lab('น้ำหนักรับ','WEIGHT')+'<td colspan="2" style="'+V+'"></td></tr>'
+   +'<tr><td colspan="5" style="font-size:5.5px;text-align:right;border:none;color:#555;padding:0 2px">FM-ST-16 Rev 00</td></tr>'
+   +'</table></div>'; }
+function openPlateTagDialog(docId,idx){
+  var d=DB.docs.find(function(x){return x.id===docId;}); if(!d)return;
+  var isPL=(d.type==='PL'); var l=(d.lines||[])[idx||0]||(d.lines||[])[0]||{};
+  var pid=l.productId||l.fgId; var p=pid?P(pid):null;
+  var part=p?p.pn:(l.pn||(l.name||'')); var pname=p?(p.name||''):'';
+  var po=l.poNo||d.no||''; var maker=makerShort(l.maker||d.maker||'');
+  var lot=l.lot||l.date||d.date||'';
+  var qty=isPL?(Number(l.sentQty)||0):(Number(l.receivedQty||l.qty)||0);
+  var plating=(p&&p.plating)||''; var plant=l.vendor||'';
+  window.__plateTag={docId:docId,idx:idx||0,part:part,pname:pname,po:po,maker:maker,lot:lot,qty:qty,isPL:isPL,pid:pid||''};
+  modal({title:'🏷️ TAG ชุบ (FM-ST-16) 4.3×8.5 ซม.',size:'md',body:
+    '<div class="hint" style="margin-bottom:8px"><span class="i">💡</span><div>พิมพ์ตามจำนวนบรรจุ (จำนวน ÷ บรรจุ) · A4 = 10 ใบ · มี QR (บาร์โค้ด)</div></div>'
+    +'<div class="row c2"><div class="field"><label>ชื่อโรงชุบ (PLATING NAME)</label><input id="pt_plant" value="'+esc(plant)+'" placeholder="เช่น TPI"></div><div class="field"><label>ชุบสี (PLATING)</label><input id="pt_plating" value="'+esc(plating)+'" placeholder="เช่น MFZn8-Cf"></div></div>'
+    +'<div class="row c3"><div class="field"><label>PART NO.</label><input id="pt_part" value="'+esc(part)+'"></div><div class="field"><label>PART NAME</label><input id="pt_pname" value="'+esc(pname)+'"></div><div class="field"><label>P/O NO.</label><input id="pt_po" value="'+esc(po)+'"></div></div>'
+    +'<div class="row c3"><div class="field"><label>ผู้ผลิต (MAKER)</label><input id="pt_maker" value="'+esc(maker)+'"></div><div class="field"><label>ล๊อตวันที่ผลิต</label><input id="pt_lot" value="'+esc(lot)+'"></div><div class="field"><label>วันที่ส่ง</label><input id="pt_deliv" value="'+esc(todayISO())+'"></div></div>'
+    +'<div class="row c3"><div class="field"><label>จำนวนทั้งหมด</label><input id="pt_qty" type="number" value="'+qty+'" oninput="plateTagCalc()"></div><div class="field"><label>จำนวนบรรจุ/ใบ</label><input id="pt_pack" type="number" value="'+(qty||1)+'" oninput="plateTagCalc()"></div><div class="field"><label>น้ำหนัก/ใบ (กก.)</label><input id="pt_wt" value=""></div></div>'
+    +'<div class="kv" style="margin-top:4px;font-size:14px"><span class="k">จำนวน TAG ที่จะพิมพ์</span><b id="pt_cnt" style="color:var(--brand);font-size:18px">1</b></div>'
+    ,footer:'<button class="btn" onclick="closeModal()">ปิด</button>'
+      +(isPL?'':'<button class="btn" onclick="plateSaveSend()">✅ บันทึกส่งชุบ</button>')
+      +'<button class="btn pri" onclick="printPlateTags()">🖨️ พิมพ์ TAG</button>'});
+  setTimeout(plateTagCalc,20);
+}
+function plateTagCalc(){var q=Number((document.getElementById('pt_qty')||{}).value)||0;var per=Number((document.getElementById('pt_pack')||{}).value)||0;var n=per>0?Math.ceil(q/per):0;var e=document.getElementById('pt_cnt');if(e)e.textContent=fmt(n);return n;}
+function printPlateTags(){
+  var v=function(k){return ((document.getElementById(k)||{}).value||'').trim();};
+  var q=Number(v('pt_qty'))||0, per=Number(v('pt_pack'))||0; if(per<=0){toast('กรอกจำนวนบรรจุ/ใบ','err');return;}
+  var n=Math.ceil(q/per); if(n<=0){toast('ไม่มีจำนวน','err');return;}
+  var base={plant:v('pt_plant'),plating:v('pt_plating'),part:v('pt_part'),pname:v('pt_pname'),po:v('pt_po'),maker:v('pt_maker'),lot:v('pt_lot'),deliv:v('pt_deliv'),wt:v('pt_wt')};
+  var cells='';for(var i=0;i<n;i++){var qty=(i===n-1)?(q-per*(n-1)):per;cells+=plateTagCell(Object.assign({qty:qty},base));}
+  printTagSheet(cells,8.5,4.3,'TAG ชุบ ('+n+' ใบ · บรรจุ '+fmt(per)+'/ใบ)');
+}
+function plateSaveSend(){
+  var s=window.__plateTag||{}; var v=function(k){return ((document.getElementById(k)||{}).value||'').trim();};
+  var qty=Number(v('pt_qty'))||s.qty||0; if(qty<=0){toast('ไม่มีจำนวน','err');return;}
+  var plant=v('pt_plant'); var maker=v('pt_maker'); var po=v('pt_po');
+  var name=(v('pt_part')+(v('pt_pname')?' '+v('pt_pname'):'')).trim();
+  var line={date:todayISO(),poNo:po,prdId:'',productId:s.pid||'',name:name,maker:maker,sentQty:qty,recvDate:'',recvQty:'',pending:qty,dueDate:'',pstatus:'ส่งชุบ',vendor:plant};
+  var pl={id:uid(),type:'PL',ts:Date.now(),status:'pending',no:nextNo('PL'),date:todayISO(),maker:maker,lines:[line],totalQty:qty,note:'ส่งชุบจากรับชิ้นงาน'};
+  DB.docs.push(pl); try{saveDB();}catch(e){}
+  closeModal(); render(); toast('✅ สร้างใบส่งชุบ '+pl.no+' แล้ว → ดูที่เมนู "ส่งชุบ/รับชุบ" (รออนุมัติ)','ok');
 }
 function printDP(id){ var d=DB.docs.find(function(x){return x.id===id;}); if(!d)return; var info=dpPartInfo(d); var st=(d.steps||[]); var agg=dpStepAgg(d);
   var rows=st.map(function(s,i){return '<tr><td class="c">'+(i+1)+'</td><td>'+esc(s.name||'')+'</td><td class="c">'+esc(s.start||'')+'</td><td class="c">'+esc(s.end||'')+'</td><td class="r">'+fmt(Number(s.ok)||0)+'</td><td class="r" style="color:#c00">'+(Number(s.ng)?fmt(s.ng):'-')+'</td><td>'+esc(s.maker||'')+'</td></tr>';}).join('')||'<tr><td colspan="7" class="c" style="color:#999">— ยังไม่มีกระบวนการ —</td></tr>';
