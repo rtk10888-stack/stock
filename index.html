@@ -270,7 +270,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.27zs (อ่าน Forecast สแกน: ตัดเส้นตาราง/กันวันที่/ข้ามหัวเอกสาร แม่นขึ้น)';
+const APP_BUILD='SEMIQC-2026.06.27zt (OCR สแกน: เพิ่มความละเอียด+โหมดตาราง + โชว์ข้อความ OCR ให้แก้ได้)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -8069,7 +8069,7 @@ async function handleFileExtract(input,type){
         set('⏳ PDF สแกน — กำลัง OCR (โหลดครั้งแรกอาจนาน)...');
         await loadScript('https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js');
         let ot='';
-        for(let i=1;i<=pdf.numPages;i++){const page=await pdf.getPage(i);const vp=page.getViewport({scale:2});const cv=document.createElement('canvas');cv.width=vp.width;cv.height=vp.height;await page.render({canvasContext:cv.getContext('2d'),viewport:vp}).promise;const r=await window.Tesseract.recognize(cv,'eng',{logger:m=>{if(m.status==='recognizing text')set('OCR หน้า '+i+'/'+pdf.numPages+' '+Math.round(m.progress*100)+'%');}});ot+=r.data.text+'\n';}
+        for(let i=1;i<=pdf.numPages;i++){const page=await pdf.getPage(i);const vp0=page.getViewport({scale:1});const sc=Math.min(4,Math.max(2.5,2000/(vp0.width||800)));const vp=page.getViewport({scale:sc});const cv=document.createElement('canvas');cv.width=vp.width;cv.height=vp.height;await page.render({canvasContext:cv.getContext('2d'),viewport:vp}).promise;const r=await window.Tesseract.recognize(cv,'eng',{tessedit_pageseg_mode:'6',logger:m=>{if(m.status==='recognizing text')set('OCR หน้า '+i+'/'+pdf.numPages+' '+Math.round(m.progress*100)+'%');}});ot+=r.data.text+'\n';}
         text=ot;
       }
     } else if(/\.(xlsx|xls|csv)$/i.test(f.name)||/spreadsheet|excel|csv/.test(f.type)){
@@ -8087,7 +8087,8 @@ async function handleFileExtract(input,type){
     } else { toast('รองรับ PDF / Excel / รูปภาพ เท่านั้น','err');set('');return; }
     const okk=fillPlanFromText(type,text);
     const hasImg=window.__planAttach&&window.__planAttach.data;
-    set(okk?'✅ อ่านเสร็จ — ตรวจทาน/แก้ไขในตารางด้านล่างได้'+(hasImg?' (แนบไฟล์แล้ว)':''):(hasImg?'📎 แนบไฟล์แล้ว — ตัวหนังสืออ่านไม่ชัด กรอกรายการเองด้านล่างได้':'⚠️ อ่านไฟล์ได้แต่ไม่พบ Part Number'));
+    if(!okk&&text&&text.trim()){const pb=document.getElementById('pl_paste');if(pb)pb.value=text.trim();}
+    set(okk?'✅ อ่านเสร็จ — ตรวจทาน/แก้ไขในตารางด้านล่างได้'+(hasImg?' (แนบไฟล์แล้ว)':''):(hasImg?'📎 แนบไฟล์แล้ว · ใส่ข้อความ OCR ในช่องด้านล่างให้แล้ว — แก้/กด "แปลงข้อความลงตาราง" ได้':'⚠️ ไม่พบ Part — ใส่ข้อความ OCR ในช่องด้านล่างให้แล้ว แก้แล้วกด "แปลงข้อความลงตาราง"'));
   }catch(e){ const hasImg=window.__planAttach&&window.__planAttach.data; set(hasImg?'📎 แนบไฟล์แล้ว (อ่านตัวหนังสือไม่ได้ — กรอกรายการเองได้)':('❌ '+e.message)); if(!hasImg)toast('อ่านไฟล์ไม่สำเร็จ: '+e.message,'err'); }
 }
 function rmPlanLine(i){planLines.splice(i,1);renderPlanLines(window.__planType)}
