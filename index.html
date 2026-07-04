@@ -270,7 +270,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.27zq (อ่านไฟล์: รู้จักหัวคอลัมน์ Part No/Code/P-NO/Item/Description = PART NUMBER)';
+const APP_BUILD='SEMIQC-2026.06.27zr (อ่าน PDF สแกนด้วย OCR + จับคู่ Part ไม่สนขีด)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -8000,9 +8000,11 @@ const DATE_RE=/^\d{1,4}[-\/.]\d{1,2}[-\/.]\d{1,4}$/;
 /* คำ/หัวคอลัมน์ที่ "หมายถึง PART NUMBER" — Part No./Part Code/ITEM NO.(SM)/Description/P/NO./Item/CODE */
 const PART_LABEL=/^(partno|partcode|itemno|p\/?no|item|code|desc|description|sm|รหัส|รหัสสินค้า|เลขที่ชิ้นส่วน|หมายเลขชิ้นส่วน)$/i;
 function pnCodeLike(tk){const c=String(tk||'').replace(/,/g,'');return /\d/.test(tk)&&!/^\d{1,5}$/.test(c)&&!DATE_RE.test(tk)&&/^[A-Za-z0-9][A-Za-z0-9\-\/.]{3,}$/.test(tk);}
+function normPN(s){return String(s||'').toUpperCase().replace(/[^A-Z0-9]/g,'');}
+function findFGByPN(tk){var n=normPN(tk);return DB.products.find(x=>x.type==='FG'&&x.pn===tk)||(n.length>=5?DB.products.find(x=>x.type==='FG'&&normPN(x.pn)===n):null);}
 function findPN(tokens){
-  /* 1) ตรงกับ Part Number ที่มีในระบบก่อน */
-  for(const tk of tokens){if(DB.products.find(x=>x.type==='FG'&&x.pn===tk))return tk;}
+  /* 1) ตรงกับ Part Number ที่มีในระบบก่อน (เทียบแบบไม่สนขีด/ช่องว่าง) */
+  for(const tk of tokens){if(findFGByPN(tk))return tk;}
   /* 2) ถ้ามีคำหัวคอลัมน์ (Part No./Code/P/NO./Item/Description ฯลฯ) → เอาโทเคนถัดไปที่เป็นรหัส */
   for(let i=0;i<tokens.length;i++){const lab=String(tokens[i]||'').replace(/[.:：\s]+/g,'').replace(/\(sm\)/i,'');if(PART_LABEL.test(lab)){for(let j=i+1;j<tokens.length;j++){if(pnCodeLike(tokens[j]))return tokens[j];}}}
   /* 3) โทเคนแรกที่เป็นรหัสสินค้า */
@@ -8019,7 +8021,7 @@ function fillPlanFromText(type,raw){
   rows.forEach(line=>{
     const tokens=line.split(/[\s\t,;]+/).filter(Boolean);if(!tokens.length)return;
     const pn=findPN(tokens);if(!pn)return;
-    const p=DB.products.find(x=>x.type==='FG'&&x.pn===pn);
+    const p=findFGByPN(pn);
     const isCode=p||(/\d/.test(pn)&&pn.length>=5&&!/^\d{1,5}$/.test(pn.replace(/,/g,''))&&!DATE_RE.test(pn));
     if(!isCode)return; // ข้ามบรรทัดหัวตาราง/วันที่/ข้อความอื่น
     const nums=[]; line.replace(pn,' ').replace(/(\d)\s+,/g,'$1,').replace(/,(?=\d{3}(?:\D|$))/g,'').split(/[\s\t,;]+/).forEach(t=>{if(/^-?\d+(\.\d+)?$/.test(t))nums.push(Math.round(parseFloat(t)));else if(t==='-'||t==='–')nums.push(0);});
@@ -8058,6 +8060,14 @@ async function handleFileExtract(input,type){
         Object.keys(rmap).map(Number).sort((a,b)=>b-a).forEach(y=>{lines.push(rmap[y].sort((a,b)=>a.x-b.x).map(o=>o.s).join(' '))});
       }
       text=lines.join('\n');
+      /* PDF สแกน (ไม่มีชั้นตัวอักษร) → เรนเดอร์เป็นรูปแล้ว OCR */
+      if(text.replace(/\s/g,'').length<20){
+        set('⏳ PDF สแกน — กำลัง OCR (โหลดครั้งแรกอาจนาน)...');
+        await loadScript('https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js');
+        let ot='';
+        for(let i=1;i<=pdf.numPages;i++){const page=await pdf.getPage(i);const vp=page.getViewport({scale:2});const cv=document.createElement('canvas');cv.width=vp.width;cv.height=vp.height;await page.render({canvasContext:cv.getContext('2d'),viewport:vp}).promise;const r=await window.Tesseract.recognize(cv,'eng',{logger:m=>{if(m.status==='recognizing text')set('OCR หน้า '+i+'/'+pdf.numPages+' '+Math.round(m.progress*100)+'%');}});ot+=r.data.text+'\n';}
+        text=ot;
+      }
     } else if(/\.(xlsx|xls|csv)$/i.test(f.name)||/spreadsheet|excel|csv/.test(f.type)){
       set('⏳ กำลังอ่าน Excel...');
       await loadScript('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js');
