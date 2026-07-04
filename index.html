@@ -270,7 +270,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.27zn (ซ่อน/แสดงผู้ผลิต: เบิกวัตถุดิบ/ส่งชุบ/รับเข้าสต๊อค/NC)';
+const APP_BUILD='SEMIQC-2026.06.27zo (Forecast/PO/PL: แนบรูปเก็บได้แม้ตัวหนังสือไม่ชัด + เปิดดูได้)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -7978,7 +7978,8 @@ function openPlanForm(type,edit){
       <div style="margin-top:8px">
         <input type="file" id="pl_file" accept=".pdf,.xlsx,.xls,.csv,image/*" style="display:none" onchange="handleFileExtract(this,'${type}')">
         <button class="btn sm pri" onclick="document.getElementById('pl_file').click()">📎 เลือกไฟล์ PDF / Excel / รูปภาพ</button>
-        <span id="pl_fileStatus" class="muted" style="font-size:11.5px;margin-left:8px">ระบบจะอ่านตัวเลขและจับคู่ Part Number ให้อัตโนมัติ</span>
+        <span id="pl_fileStatus" class="muted" style="font-size:11.5px;margin-left:8px">ระบบจะอ่านตัวเลขและจับคู่ Part Number ให้อัตโนมัติ · รูปเบลอก็แนบเก็บไว้ได้</span>
+        <div id="pl_attachInfo" style="font-size:12px;margin-top:6px">${edit&&edit.attach?planAttachInfoHtml(edit.attach):'<span class="muted" style="font-size:11.5px">ยังไม่มีไฟล์แนบ</span>'}</div>
       </div>
       <div style="margin-top:8px;border-top:1px dashed var(--line);padding-top:8px">
         <textarea id="pl_paste" rows="3" placeholder="หรือวางข้อความที่นี่ — แต่ละบรรทัดมี Part Number ตามด้วยตัวเลข&#10;เช่น  40051607  4394 4820 3960 4380" style="font-family:monospace;font-size:12px;width:100%"></textarea>
@@ -7990,6 +7991,7 @@ function openPlanForm(type,edit){
     <div id="planRoot"></div>
     <button class="btn sm" style="margin-top:6px" onclick="addPlanLine()">+ เพิ่มรายการ</button>
   `,footer:`<button class="btn" onclick="closeModal()">ยกเลิก</button><button class="btn pri" onclick="submitPlan('${type}','${edit?edit.id:''}')">บันทึก</button>`});
+  window.__planAttach=(edit&&edit.attach)?edit.attach:null;
   planLines=edit&&edit.lines?edit.lines.map(l=>({...l})):[{fgId:'',name:'',qty:'',due:'',price:'',m1:'',m2:'',m3:'',m4:''}];
   setTimeout(()=>renderPlanLines(type),15);
 }
@@ -8024,9 +8026,14 @@ function fillPlanFromText(type,raw){
   toast('อ่าน '+out.length+' รายการ (จับคู่ PN ได้ '+matched+')','ok');return true;
 }
 function loadScript(src){return new Promise((res,rej)=>{if(document.querySelector('script[data-src="'+src+'"]')){res();return}const s=document.createElement('script');s.src=src;s.setAttribute('data-src',src);s.onload=()=>res();s.onerror=()=>rej(new Error('โหลดไลบรารีไม่ได้ (ตรวจอินเทอร์เน็ต)'));document.head.appendChild(s);});}
+function planViewAttach(){var a=window.__planAttach;if(!a||!a.data)return;var w=window.open('');if(!w)return;if(/^image\//.test(a.type||'')||/\.(png|jpe?g|gif|bmp|webp)$/i.test(a.name||''))w.document.write('<title>'+esc(a.name||'')+'</title><img src="'+a.data+'" style="max-width:100%">');else w.location=a.data;}
+function planRmAttach(){window.__planAttach=null;var el=document.getElementById('pl_attachInfo');if(el)el.innerHTML='<span class="muted" style="font-size:11.5px">ยังไม่มีไฟล์แนบ</span>';}
+function planAttachInfoHtml(a){return a&&a.data?('📎 แนบไฟล์แล้ว: <b>'+esc(a.name||'ไฟล์')+'</b> <span class="linkish" style="color:var(--brand);cursor:pointer" onclick="planViewAttach()">👁 ดู</span> &nbsp;<span style="cursor:pointer;color:#c00" onclick="planRmAttach()">✕ เอาออก</span>'):'<span class="muted" style="font-size:11.5px">ยังไม่มีไฟล์แนบ</span>';}
 async function handleFileExtract(input,type){
   const f=input.files[0];if(!f)return;input.value='';
   const st=document.getElementById('pl_fileStatus');const set=m=>{if(st)st.textContent=m};
+  /* เก็บไฟล์ (รูป/PDF) เป็นไฟล์แนบเสมอ แม้ OCR อ่านตัวหนังสือไม่ออก */
+  try{ if(/^image\//.test(f.type)||/\.(png|jpe?g|gif|bmp|webp|pdf)$/i.test(f.name)){ const rd=new FileReader(); rd.onload=function(){ window.__planAttach={name:f.name,type:f.type,data:rd.result}; const el=document.getElementById('pl_attachInfo'); if(el)el.innerHTML=planAttachInfoHtml(window.__planAttach); }; rd.readAsDataURL(f); } }catch(e){}
   try{
     let text='';
     if(f.type==='application/pdf'||/\.pdf$/i.test(f.name)){
@@ -8053,8 +8060,9 @@ async function handleFileExtract(input,type){
       text=r.data.text;
     } else { toast('รองรับ PDF / Excel / รูปภาพ เท่านั้น','err');set('');return; }
     const okk=fillPlanFromText(type,text);
-    set(okk?'✅ อ่านเสร็จ — ตรวจทาน/แก้ไขในตารางด้านล่างได้':'⚠️ อ่านไฟล์ได้แต่ไม่พบ Part Number');
-  }catch(e){ set('❌ '+e.message); toast('อ่านไฟล์ไม่สำเร็จ: '+e.message,'err'); }
+    const hasImg=window.__planAttach&&window.__planAttach.data;
+    set(okk?'✅ อ่านเสร็จ — ตรวจทาน/แก้ไขในตารางด้านล่างได้'+(hasImg?' (แนบไฟล์แล้ว)':''):(hasImg?'📎 แนบไฟล์แล้ว — ตัวหนังสืออ่านไม่ชัด กรอกรายการเองด้านล่างได้':'⚠️ อ่านไฟล์ได้แต่ไม่พบ Part Number'));
+  }catch(e){ const hasImg=window.__planAttach&&window.__planAttach.data; set(hasImg?'📎 แนบไฟล์แล้ว (อ่านตัวหนังสือไม่ได้ — กรอกรายการเองได้)':('❌ '+e.message)); if(!hasImg)toast('อ่านไฟล์ไม่สำเร็จ: '+e.message,'err'); }
 }
 function rmPlanLine(i){planLines.splice(i,1);renderPlanLines(window.__planType)}
 function renderPlanLines(type){
@@ -8085,6 +8093,7 @@ function submitPlan(type,editId){
   if(editId){d=DB.docs.find(x=>x.id===editId);if(!d)return;}
   else{d={id:uid(),type,ts:Date.now(),status:'active'};DB.docs.push(d);DB.counters['PLAN_'+type]=(DB.counters['PLAN_'+type]||0)+1;}
   d.no=(v('pl_no')||'').trim()||d.no;d.customer=cust;d.lines=lines;
+  d.attach=window.__planAttach||d.attach||null;
   if(type==='CPO')d.custPo=(v('pl_custpo')||'').trim();
   if(type==='PL')d.shipDate=v('pl_ship')||todayISO();
   if(!DB.settings.customers.includes(cust))DB.settings.customers.push(cust);
@@ -8096,10 +8105,11 @@ function viewPlan(id){
   if(d.type==='FC')rows=`<table style="margin-top:8px"><thead><tr><th>Part</th><th class="num">${ml[0]}</th><th class="num">${ml[1]}</th><th class="num">${ml[2]}</th><th class="num">${ml[3]}</th><th class="num">รวม</th></tr></thead><tbody>${d.lines.map(l=>{const pn=l.fgId&&P(l.fgId)?P(l.fgId).pn+' '+P(l.fgId).name:(l.name||'');return `<tr><td>${esc(pn)}</td><td class="num">${fmt(l.m1)}</td><td class="num">${fmt(l.m2)}</td><td class="num">${fmt(l.m3)}</td><td class="num">${fmt(l.m4)}</td><td class="num"><b>${fmt((l.m1||0)+(l.m2||0)+(l.m3||0)+(l.m4||0))}</b></td></tr>`}).join('')}</tbody></table>`;
   else rows=`<table style="margin-top:8px"><thead><tr><th>Part</th><th class="num">จำนวน</th>${d.type==='CPO'?'<th>กำหนดส่ง</th><th class="num">ราคา</th>':''}</tr></thead><tbody>${d.lines.map(l=>{const pn=l.fgId&&P(l.fgId)?P(l.fgId).pn+' '+P(l.fgId).name:(l.name||'');return `<tr><td>${esc(pn)}</td><td class="num">${fmt(l.qty)}</td>${d.type==='CPO'?'<td class="muted">'+(l.due||'-')+'</td><td class="num">'+fmt2(l.price)+'</td>':''}</tr>`}).join('')}</tbody></table>`;
   modal({title:PLAN[d.type].icon+' '+d.no,size:'lg',body:`
-    <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap"><span class="tag violet">${PLAN[d.type].label}</span><span class="tag gray">ลูกค้า: ${esc(d.customer||'-')}</span>${d.custPo?'<span class="tag gray">PO ลูกค้า: '+esc(d.custPo)+'</span>':''}${d.shipDate?'<span class="tag gray">ส่ง: '+d.shipDate+'</span>':''}</div>
+    <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap"><span class="tag violet">${PLAN[d.type].label}</span><span class="tag gray">ลูกค้า: ${esc(d.customer||'-')}</span>${d.custPo?'<span class="tag gray">PO ลูกค้า: '+esc(d.custPo)+'</span>':''}${d.shipDate?'<span class="tag gray">ส่ง: '+d.shipDate+'</span>':''}${d.attach&&d.attach.data?'<span class="tag cyan linkish" style="cursor:pointer" onclick="planViewDocAttach(\''+d.id+'\')">📎 ไฟล์แนบ: '+esc(d.attach.name||'ดูไฟล์')+'</span>':''}</div>
     ${rows}`,
-    footer:`<button class="btn" onclick="closeModal();openPlanForm('${d.type}',DB.docs.find(x=>x.id==='${d.id}'))">✏️ แก้ไข</button><button class="btn danger" onclick="delPlan('${d.id}')">ลบ</button><button class="btn" onclick="printPlanDoc('${d.id}','image')">📤 ส่งรูป (LINE)</button><button class="btn pri" onclick="printPlanDoc('${d.id}')">🖨️ พิมพ์ / PDF</button>`});
+    footer:`<button class="btn" onclick="closeModal();openPlanForm('${d.type}',DB.docs.find(x=>x.id==='${d.id}'))">✏️ แก้ไข</button><button class="btn danger" onclick="delPlan('${d.id}')">ลบ</button>${d.attach&&d.attach.data?`<button class="btn" onclick="planViewDocAttach('${d.id}')">📎 ดูไฟล์แนบ</button>`:''}<button class="btn" onclick="printPlanDoc('${d.id}','image')">📤 ส่งรูป (LINE)</button><button class="btn pri" onclick="printPlanDoc('${d.id}')">🖨️ พิมพ์ / PDF</button>`});
 }
+function planViewDocAttach(id){var d=DB.docs.find(function(x){return x.id===id;});if(!d||!d.attach||!d.attach.data)return;var a=d.attach;var w=window.open('');if(!w)return;if(/^image\//.test(a.type||'')||/\.(png|jpe?g|gif|bmp|webp)$/i.test(a.name||''))w.document.write('<title>'+esc(a.name||'')+'</title><img src="'+a.data+'" style="max-width:100%">');else w.location=a.data;}
 function delPlan(id){confirmBox('ลบเอกสารนี้?','',()=>{DB.docs=DB.docs.filter(x=>x.id!==id);closeModal();render();toast('ลบแล้ว','ok')})}
 function printPlanDoc(id,mode){
   const d=DB.docs.find(x=>x.id===id);if(!d)return;ensureSettings();const co=DB.settings.company||{};const ml=monthLabels();
