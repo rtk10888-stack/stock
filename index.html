@@ -270,7 +270,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.27zo (Forecast/PO/PL: แนบรูปเก็บได้แม้ตัวหนังสือไม่ชัด + เปิดดูได้)';
+const APP_BUILD='SEMIQC-2026.06.27zp (แนบรูป: ย่ออัตโนมัติกันข้อมูลบวม + PDF/Excel อ่านอย่างเดียว)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -7978,7 +7978,7 @@ function openPlanForm(type,edit){
       <div style="margin-top:8px">
         <input type="file" id="pl_file" accept=".pdf,.xlsx,.xls,.csv,image/*" style="display:none" onchange="handleFileExtract(this,'${type}')">
         <button class="btn sm pri" onclick="document.getElementById('pl_file').click()">📎 เลือกไฟล์ PDF / Excel / รูปภาพ</button>
-        <span id="pl_fileStatus" class="muted" style="font-size:11.5px;margin-left:8px">ระบบจะอ่านตัวเลขและจับคู่ Part Number ให้อัตโนมัติ · รูปเบลอก็แนบเก็บไว้ได้</span>
+        <span id="pl_fileStatus" class="muted" style="font-size:11.5px;margin-left:8px">อ่านตัวเลข+จับคู่ Part ให้อัตโนมัติ · รูปเบลอก็แนบได้ (ระบบย่อรูปให้เล็กอัตโนมัติ) · PDF/Excel อ่านอย่างเดียว</span>
         <div id="pl_attachInfo" style="font-size:12px;margin-top:6px">${edit&&edit.attach?planAttachInfoHtml(edit.attach):'<span class="muted" style="font-size:11.5px">ยังไม่มีไฟล์แนบ</span>'}</div>
       </div>
       <div style="margin-top:8px;border-top:1px dashed var(--line);padding-top:8px">
@@ -8026,14 +8026,19 @@ function fillPlanFromText(type,raw){
   toast('อ่าน '+out.length+' รายการ (จับคู่ PN ได้ '+matched+')','ok');return true;
 }
 function loadScript(src){return new Promise((res,rej)=>{if(document.querySelector('script[data-src="'+src+'"]')){res();return}const s=document.createElement('script');s.src=src;s.setAttribute('data-src',src);s.onload=()=>res();s.onerror=()=>rej(new Error('โหลดไลบรารีไม่ได้ (ตรวจอินเทอร์เน็ต)'));document.head.appendChild(s);});}
+function planCompressImg(file,maxDim,q){return new Promise(function(res,rej){try{var img=new Image();var url=URL.createObjectURL(file);img.onload=function(){try{URL.revokeObjectURL(url);}catch(e){}var w=img.width||1,h=img.height||1;var sc=Math.min(1,(maxDim||1000)/Math.max(w,h));var cw=Math.max(1,Math.round(w*sc)),ch=Math.max(1,Math.round(h*sc));var cv=document.createElement('canvas');cv.width=cw;cv.height=ch;var ctx=cv.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,cw,ch);ctx.drawImage(img,0,0,cw,ch);try{res(cv.toDataURL('image/jpeg',q||0.55));}catch(e){rej(e);}};img.onerror=function(){try{URL.revokeObjectURL(url);}catch(e){}rej(new Error('img'));};img.src=url;}catch(e){rej(e);}});}
+function attachKB(data){return Math.max(1,Math.round((String(data||'').length)/1365));}
 function planViewAttach(){var a=window.__planAttach;if(!a||!a.data)return;var w=window.open('');if(!w)return;if(/^image\//.test(a.type||'')||/\.(png|jpe?g|gif|bmp|webp)$/i.test(a.name||''))w.document.write('<title>'+esc(a.name||'')+'</title><img src="'+a.data+'" style="max-width:100%">');else w.location=a.data;}
 function planRmAttach(){window.__planAttach=null;var el=document.getElementById('pl_attachInfo');if(el)el.innerHTML='<span class="muted" style="font-size:11.5px">ยังไม่มีไฟล์แนบ</span>';}
 function planAttachInfoHtml(a){return a&&a.data?('📎 แนบไฟล์แล้ว: <b>'+esc(a.name||'ไฟล์')+'</b> <span class="linkish" style="color:var(--brand);cursor:pointer" onclick="planViewAttach()">👁 ดู</span> &nbsp;<span style="cursor:pointer;color:#c00" onclick="planRmAttach()">✕ เอาออก</span>'):'<span class="muted" style="font-size:11.5px">ยังไม่มีไฟล์แนบ</span>';}
 async function handleFileExtract(input,type){
   const f=input.files[0];if(!f)return;input.value='';
   const st=document.getElementById('pl_fileStatus');const set=m=>{if(st)st.textContent=m};
-  /* เก็บไฟล์ (รูป/PDF) เป็นไฟล์แนบเสมอ แม้ OCR อ่านตัวหนังสือไม่ออก */
-  try{ if(/^image\//.test(f.type)||/\.(png|jpe?g|gif|bmp|webp|pdf)$/i.test(f.name)){ const rd=new FileReader(); rd.onload=function(){ window.__planAttach={name:f.name,type:f.type,data:rd.result}; const el=document.getElementById('pl_attachInfo'); if(el)el.innerHTML=planAttachInfoHtml(window.__planAttach); }; rd.readAsDataURL(f); } }catch(e){}
+  /* เก็บเฉพาะรูป (ย่ออัตโนมัติให้เล็ก กันข้อมูลบวม) แม้ OCR อ่านไม่ออก · PDF/Excel อ่านอย่างเดียวไม่เก็บไฟล์ */
+  try{ if(/^image\//.test(f.type)||/\.(png|jpe?g|gif|bmp|webp)$/i.test(f.name)){
+    planCompressImg(f,1000,0.55).then(function(dataURL){ window.__planAttach={name:(f.name||'photo').replace(/\.[^.]+$/,'')+'.jpg',type:'image/jpeg',data:dataURL}; const el=document.getElementById('pl_attachInfo'); if(el)el.innerHTML=planAttachInfoHtml(window.__planAttach)+' <span class="muted" style="font-size:10px">~'+attachKB(dataURL)+' KB (ย่อแล้ว)</span>'; })
+    .catch(function(){ const rd=new FileReader(); rd.onload=function(){ window.__planAttach={name:f.name,type:f.type,data:rd.result}; const el=document.getElementById('pl_attachInfo'); if(el)el.innerHTML=planAttachInfoHtml(window.__planAttach); }; rd.readAsDataURL(f); });
+  } }catch(e){}
   try{
     let text='';
     if(f.type==='application/pdf'||/\.pdf$/i.test(f.name)){
