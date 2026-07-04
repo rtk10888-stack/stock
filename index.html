@@ -270,7 +270,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.27zh (TAG ชุบ FM-ST-16 4.3x8.5 + QR + บันทึกส่งชุบอัตโนมัติ)';
+const APP_BUILD='SEMIQC-2026.06.27zi (TAG ชุบ: จัดตารางใหม่อ่านง่าย + ปุ่มดูตัวอย่าง)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -4146,21 +4146,39 @@ function printTagSheet(cells,W,H,title){
 }
 /* ===== TAG ชุบ (FM-ST-16) 4.3×8.5 ซม. · A4=10 ใบ · มี QR ===== */
 function plateTagCell(t){ var qr='PART:'+(t.part||'')+'|PO:'+(t.po||'')+'|LOT:'+tagDate(t.lot||'')+'|QTY:'+(t.qty||'')+'|PLATE:'+(t.plating||'');
-  var L='border:0.4px solid #999;background:#eef1f6;font-weight:700;white-space:nowrap;line-height:1.05;padding:0 2px;font-size:6px;width:1px';
-  var LE='font-size:5px;color:#333;font-weight:600';
-  var V='border:0.4px solid #999;font-weight:700;padding:0 2px;font-size:8px;line-height:1.1';
-  var lab=function(th,en){return '<td style="'+L+'">'+th+'<br><span style="'+LE+'">'+en+'</span></td>';};
-  return '<div class="tag" style="font-family:Tahoma"><table style="width:100%;height:100%;border-collapse:collapse;table-layout:fixed">'
-   +'<tr>'+lab('ชื่อโรงชุบ','PLATING NAME')+'<td style="'+V+'"><b>'+esc(t.plant||'')+'</b></td>'+lab('เลขที่ใบผลิต','P/O NO.')+'<td style="'+V+'">'+esc(t.po||'')+'</td><td rowspan="3" style="width:1.5cm;text-align:center;border:0.4px solid #999;vertical-align:middle;padding:1px"><div class="q" data-qr="'+esc(qr)+'" style="width:1.3cm;height:1.3cm;margin:auto"></div></td></tr>'
-   +'<tr>'+lab('หมายเลขชิ้นส่วน','PART NO.')+'<td colspan="3" style="'+V+'"><b>'+esc(t.part||'')+'</b></td></tr>'
-   +'<tr>'+lab('ชื่อชิ้นส่วน','PART NAME')+'<td colspan="3" style="'+V+'">'+esc(t.pname||'')+'</td></tr>'
-   +'<tr>'+lab('ล๊อตวันที่ผลิต','LOT DATE')+'<td colspan="4" style="'+V+'">'+esc(tagDate(t.lot||''))+'</td></tr>'
-   +'<tr>'+lab('ชื่อผู้ผลิต','MAKER NAME')+'<td style="'+V+'">'+esc(t.maker||'')+'</td>'+lab('ชุบสี','PLATING')+'<td colspan="2" style="'+V+'">'+esc(t.plating||'')+'</td></tr>'
-   +'<tr>'+lab('วันที่ส่ง','DELIVERY DATE')+'<td style="'+V+'">'+esc(tagDate(t.deliv||''))+'</td>'+lab('วันที่รับ','RECIVE DATE')+'<td colspan="2" style="'+V+'"></td></tr>'
-   +'<tr>'+lab('จำนวนส่ง',"Q'TY")+'<td style="'+V+'"><b>'+fmt(t.qty||0)+'</b></td>'+lab('จำนวนรับ',"Q'TY")+'<td colspan="2" style="'+V+'"></td></tr>'
-   +'<tr>'+lab('น้ำหนักส่ง','WEIGHT')+'<td style="'+V+'">'+esc(t.wt||'')+'</td>'+lab('น้ำหนักรับ','WEIGHT')+'<td colspan="2" style="'+V+'"></td></tr>'
-   +'<tr><td colspan="5" style="font-size:5.5px;text-align:right;border:none;color:#555;padding:0 2px">FM-ST-16 Rev 00</td></tr>'
+  var lab=function(th,en){return '<td class="l">'+th+'<small>'+en+'</small></td>';};
+  return '<div class="ptag"><table><colgroup><col style="width:19%"><col style="width:24%"><col style="width:18%"><col style="width:22%"><col style="width:17%"></colgroup>'
+   +'<tr>'+lab('ชื่อโรงชุบ','PLATING NAME')+'<td class="v"><b>'+esc(t.plant||'')+'</b></td>'+lab('เลขที่ใบผลิต','P/O NO.')+'<td class="v">'+esc(t.po||'')+'</td><td class="qr" rowspan="3"><div class="q" data-qr="'+esc(qr)+'"></div></td></tr>'
+   +'<tr>'+lab('หมายเลขชิ้นส่วน','PART NO.')+'<td class="v" colspan="3"><b>'+esc(t.part||'')+'</b></td></tr>'
+   +'<tr>'+lab('ชื่อชิ้นส่วน','PART NAME')+'<td class="v" colspan="3">'+esc(t.pname||'')+'</td></tr>'
+   +'<tr>'+lab('ล๊อตวันที่ผลิต','LOT DATE')+'<td class="v" colspan="4">'+esc(tagDate(t.lot||''))+'</td></tr>'
+   +'<tr>'+lab('ชื่อผู้ผลิต','MAKER NAME')+'<td class="v">'+esc(t.maker||'')+'</td>'+lab('ชุบสี','PLATING')+'<td class="v" colspan="2">'+esc(t.plating||'')+'</td></tr>'
+   +'<tr>'+lab('วันที่ส่ง','DELIVERY DATE')+'<td class="v">'+esc(tagDate(t.deliv||''))+'</td>'+lab('วันที่รับ','RECIVE DATE')+'<td class="v" colspan="2"></td></tr>'
+   +'<tr>'+lab('จำนวนส่ง',"Q'TY")+'<td class="v"><b>'+fmt(t.qty||0)+'</b></td>'+lab('จำนวนรับ',"Q'TY")+'<td class="v" colspan="2"></td></tr>'
+   +'<tr>'+lab('น้ำหนักส่ง','WEIGHT')+'<td class="v">'+esc(t.wt||'')+'</td>'+lab('น้ำหนักรับ','WEIGHT')+'<td class="v" colspan="2"></td></tr>'
+   +'<tr><td class="fm" colspan="5">FM-ST-16 Rev 00</td></tr>'
    +'</table></div>'; }
+function printPlateSheet(cells,title,preview){
+  var css="@page{size:A4;margin:0.5cm}*{box-sizing:border-box}body{margin:0;font-family:Tahoma,'Sarabun',sans-serif}.wrap{display:flex;flex-wrap:wrap;gap:0.18cm}"
+   +".ptag{width:8.5cm;height:4.3cm;border:1.6px solid #111;overflow:hidden;page-break-inside:avoid}"
+   +".ptag table{width:100%;height:100%;border-collapse:collapse;table-layout:fixed}"
+   +".ptag td{border:0.5px solid #888;padding:0 3px;font-size:8.5px;line-height:1.05;overflow:hidden;vertical-align:middle}"
+   +".ptag .l{background:#eef1f6;font-weight:700;white-space:nowrap;font-size:7px;line-height:1}"
+   +".ptag .l small{display:block;font-size:5px;color:#555;font-weight:600}"
+   +".ptag .v{font-weight:700;font-size:9px}.ptag .v b{font-size:10px}"
+   +".ptag .qr{text-align:center;vertical-align:middle;padding:1px}.ptag .qr .q{width:1.35cm;height:1.35cm;margin:auto}"
+   +".ptag .qr .q img,.ptag .qr .q canvas,.ptag .qr .q table{width:100%!important;height:100%!important}"
+   +".ptag .fm{border:none;text-align:right;font-size:6px;color:#666;padding:0 3px}"
+   +"@media print{.noprint{display:none}}";
+  var auto=preview?'':'setTimeout(function(){try{window.print()}catch(e){}},700);';
+  var bar=preview?'<div class="noprint" style="text-align:center;padding:8px;font-family:Tahoma"><b>'+title+'</b> &nbsp; <button onclick="window.print()" style="padding:6px 18px;cursor:pointer">🖨️ พิมพ์</button></div>':'';
+  var html='<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"><title>'+title+'</title>'
+    +'<scr'+'ipt src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></scr'+'ipt>'
+    +'<style>'+css+'</style></head><body>'+bar+'<div class="wrap">'+cells+'</div>'
+    +'<scr'+'ipt>var _t=0;function go(){if(!window.QRCode){if(_t++<80){return setTimeout(go,60);}return;}document.querySelectorAll(".q").forEach(function(el){el.innerHTML="";try{new QRCode(el,{text:el.getAttribute("data-qr")||" ",width:130,height:130,correctLevel:QRCode.CorrectLevel.M});}catch(e){el.style.fontSize="5px";el.style.wordBreak="break-all";el.textContent=(el.getAttribute("data-qr")||"");}});'+auto+'}go();</scr'+'ipt>'
+    +'</body></html>';
+  var w=window.open('','_blank'); if(!w){toast('เบราว์เซอร์บล็อก popup','err');return;} w.document.write(html); w.document.close();
+}
 function openPlateTagDialog(docId,idx){
   var d=DB.docs.find(function(x){return x.id===docId;}); if(!d)return;
   var isPL=(d.type==='PL'); var l=(d.lines||[])[idx||0]||(d.lines||[])[0]||{};
@@ -4179,18 +4197,19 @@ function openPlateTagDialog(docId,idx){
     +'<div class="row c3"><div class="field"><label>จำนวนทั้งหมด</label><input id="pt_qty" type="number" value="'+qty+'" oninput="plateTagCalc()"></div><div class="field"><label>จำนวนบรรจุ/ใบ</label><input id="pt_pack" type="number" value="'+(qty||1)+'" oninput="plateTagCalc()"></div><div class="field"><label>น้ำหนัก/ใบ (กก.)</label><input id="pt_wt" value=""></div></div>'
     +'<div class="kv" style="margin-top:4px;font-size:14px"><span class="k">จำนวน TAG ที่จะพิมพ์</span><b id="pt_cnt" style="color:var(--brand);font-size:18px">1</b></div>'
     ,footer:'<button class="btn" onclick="closeModal()">ปิด</button>'
+      +'<button class="btn" onclick="printPlateTags(true)">👁️ ดูตัวอย่าง</button>'
       +(isPL?'':'<button class="btn" onclick="plateSaveSend()">✅ บันทึกส่งชุบ</button>')
-      +'<button class="btn pri" onclick="printPlateTags()">🖨️ พิมพ์ TAG</button>'});
+      +'<button class="btn pri" onclick="printPlateTags(false)">🖨️ พิมพ์ TAG</button>'});
   setTimeout(plateTagCalc,20);
 }
 function plateTagCalc(){var q=Number((document.getElementById('pt_qty')||{}).value)||0;var per=Number((document.getElementById('pt_pack')||{}).value)||0;var n=per>0?Math.ceil(q/per):0;var e=document.getElementById('pt_cnt');if(e)e.textContent=fmt(n);return n;}
-function printPlateTags(){
+function printPlateTags(preview){
   var v=function(k){return ((document.getElementById(k)||{}).value||'').trim();};
   var q=Number(v('pt_qty'))||0, per=Number(v('pt_pack'))||0; if(per<=0){toast('กรอกจำนวนบรรจุ/ใบ','err');return;}
   var n=Math.ceil(q/per); if(n<=0){toast('ไม่มีจำนวน','err');return;}
   var base={plant:v('pt_plant'),plating:v('pt_plating'),part:v('pt_part'),pname:v('pt_pname'),po:v('pt_po'),maker:v('pt_maker'),lot:v('pt_lot'),deliv:v('pt_deliv'),wt:v('pt_wt')};
   var cells='';for(var i=0;i<n;i++){var qty=(i===n-1)?(q-per*(n-1)):per;cells+=plateTagCell(Object.assign({qty:qty},base));}
-  printTagSheet(cells,8.5,4.3,'TAG ชุบ ('+n+' ใบ · บรรจุ '+fmt(per)+'/ใบ)');
+  printPlateSheet(cells,'TAG ชุบ ('+n+' ใบ · บรรจุ '+fmt(per)+'/ใบ)',preview);
 }
 function plateSaveSend(){
   var s=window.__plateTag||{}; var v=function(k){return ((document.getElementById(k)||{}).value||'').trim();};
