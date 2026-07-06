@@ -270,7 +270,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.28b (ใบสั่งผลิต: โลโก้ RTK banner + กู้ไฟล์ที่ถูกตัดท้าย)';
+const APP_BUILD='SEMIQC-2026.06.28c (รับชิ้นงาน: ใส่เลขฟอร์ม FM-QC-59 / สรุปเดือน FM-QC-22)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -2340,6 +2340,7 @@ function printRW(id,mode){
    +'<tfoot><tr><td colspan="4" style="text-align:right">SUBTOTAL</td><td class="r">'+so+'</td><td colspan="3"></td><td class="r">'+sr+'</td><td></td><td></td><td></td><td class="r">'+swt+'</td><td class="r">'+scp+'</td></tr></tfoot>'
    +'</table>'
    +'<div class="sign"><div><div class="line">ผู้ส่งงาน / MAKER</div></div><div><div class="line">ผู้ตรวจนับ / CHECKED</div></div><div><div class="line">คลังสินค้า / STORE</div></div><div><div class="line">APPROVED</div></div></div>'
+   +'<div style="text-align:right;font-size:11px;color:#555;margin-top:10px">FM-QC-59 Rev.00</div>'
    +'<div class="noprint" style="text-align:center;margin-top:16px"><button onclick="window.print()" style="padding:8px 22px;font-size:14px;cursor:pointer">🖨️ พิมพ์ / บันทึก PDF</button></div>'
    +'<scr'+'ipt>setTimeout(function(){window.print()},500)</scr'+'ipt></body></html>';
   if(mode==='image'){return shareDocImage(html.replace(/<div class="noprint"[\s\S]*?<\/script>/i,''),(d.no||'doc')+'.png',(d.no||'เอกสาร'));}
@@ -7374,6 +7375,7 @@ function doPrintRWMonth(mon){
    +'<tfoot><tr><td colspan="6" style="text-align:right">รวมมูลค่า (SUBTOTAL)</td><td class="r">'+fmt(tQty)+'</td><td class="r">'+fmt2(tAmt)+'</td></tr>'
    +'<tr><td colspan="7" style="text-align:right">หัก ณ ที่จ่าย 3%</td><td class="r">-'+fmt2(vat)+'</td></tr>'
    +'<tr><td colspan="7" style="text-align:right">ยอดสุทธิ (Net)</td><td class="r">'+fmt2(tAmt-vat)+'</td></tr></tfoot></table>'
+   +'<div style="text-align:right;font-size:11px;color:#555;margin-top:10px">FM-QC-22 Rev.00</div>'
    +'<div class="noprint" style="text-align:center;margin-top:16px"><button onclick="window.print()" style="padding:8px 22px;font-size:14px;cursor:pointer">🖨️ พิมพ์ / บันทึก PDF</button></div>'
    +'<scr'+'ipt>setTimeout(function(){window.print()},500)</scr'+'ipt></body></html>';
   const w=window.open('','_blank');if(!w){toast('เบราว์เซอร์บล็อก popup','err');return}w.document.write(html);w.document.close();closeModal();
