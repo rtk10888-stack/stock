@@ -135,8 +135,9 @@ td.num,th.num{text-align:right;font-family:'Inter',sans-serif;font-variant-numer
 .modal-h h3{font-size:16px;font-weight:600;flex:1}
 .modal-h .x{cursor:pointer;color:var(--ink3);font-size:22px;line-height:1;padding:2px 6px;border-radius:8px}
 .modal-h .x:hover{background:var(--line2);color:var(--ink)}
-.modal-b{padding:20px 22px;max-height:64vh;overflow-y:auto}
-.modal-f{padding:14px 22px;border-top:1px solid var(--line2);display:flex;gap:10px;justify-content:flex-end;background:var(--panel2);border-radius:0 0 16px 16px}
+.modal-b{padding:20px 22px;max-height:min(64vh,calc(100vh - 200px));overflow-y:auto}
+.modal-f{padding:14px 22px;border-top:1px solid var(--line2);display:flex;gap:10px;justify-content:flex-end;background:var(--panel2);border-radius:0 0 16px 16px;flex-wrap:wrap}
+@media(max-width:680px){.overlay{padding:14px 8px}.modal,.modal.lg,.modal.xl{max-width:100%}.modal-h{padding:14px 16px}.modal-b{padding:14px 16px;max-height:calc(100vh - 150px)}.modal-f{padding:12px 16px}}
 
 /* line items */
 .lineitem{display:grid;grid-template-columns:1fr 110px 110px 34px;gap:8px;align-items:end;margin-bottom:8px}
@@ -253,6 +254,7 @@ function lanStartPoll(){
   if(lanPoll)return;
   lanPoll=setInterval(async()=>{
     if(applyingRemote)return;
+    if(modalOpen()){window.__pendingSync=true;return;}
     try{ const r=await fetch(lanBase+'/api/state?meta=1',{cache:'no-store'}); if(!r.ok)throw 0;
       const j=await r.json(); const t=j.updated_at?new Date(j.updated_at).getTime():0;
       if(t>lanLastUpdated && j.client_id!==CLIENT_ID){
@@ -270,7 +272,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.28e (ส่งชุบ/รับชุบ: เพิ่มช่องชุบสี + ซ่อน/แสดง คงค้าง/ครบกำหนด/สถานะ/โรงชุบ)';
+const APP_BUILD='SEMIQC-2026.06.28f (ฟอร์ม/หน้าต่าง: ไม่หลุดระหว่างทำรายการ + ปรับขนาดตามจอ)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -427,6 +429,7 @@ async function forceCloudSync(){
 }
 async function reloadFromCloud(){
   if(!supa)return;
+  if(modalOpen()){window.__pendingSync=true;return;}
   try{
     const {data}=await supa.from('app_state').select('data,updated_at').eq('id',ROW_ID).maybeSingle();
     if(data&&data.data){ applyingRemote=true; DB=data.data; lastRemoteUpdated=new Date(data.updated_at).getTime(); lastSyncedJSON=JSON.stringify(DB); lsSet(LS_KEY,lastSyncedJSON); render(); applyingRemote=false; setSyncStatus('synced'); }
@@ -440,12 +443,13 @@ function subscribeRealtime(){
       if(row&&row.client_id===CLIENT_ID)return;
       const t=row&&row.updated_at?new Date(row.updated_at).getTime():0;
       if(t&&t<=lastRemoteUpdated)return;
-      if(row&&row.data){ applyingRemote=true; DB=row.data; lastRemoteUpdated=t; lastSyncedJSON=JSON.stringify(DB); lsSet(LS_KEY,lastSyncedJSON); render(); applyingRemote=false; toast('🔄 ข้อมูลอัปเดตจากอุปกรณ์อื่น','ok'); }
+      if(row&&row.data){ if(modalOpen()){window.__pendingSync=true;setSyncStatus('synced');return;} applyingRemote=true; DB=row.data; lastRemoteUpdated=t; lastSyncedJSON=JSON.stringify(DB); lsSet(LS_KEY,lastSyncedJSON); render(); applyingRemote=false; toast('🔄 ข้อมูลอัปเดตจากอุปกรณ์อื่น','ok'); }
       else reloadFromCloud();
     }).subscribe();
   }catch(e){}
   setInterval(async()=>{
     if(!supa||applyingRemote)return;
+    if(modalOpen()){window.__pendingSync=true;return;}
     try{ const {data}=await supa.from('app_state').select('updated_at,client_id').eq('id',ROW_ID).maybeSingle();
       if(data){ const t=new Date(data.updated_at).getTime(); if(t>lastRemoteUpdated&&data.client_id!==CLIENT_ID)reloadFromCloud(); cloudOK=true; setSyncStatus('synced'); }
     }catch(e){ cloudOK=false; setSyncStatus('offline'); }
@@ -8397,7 +8401,8 @@ function modal({title,body,footer,size}){
     <div class="modal-b">${body}</div>${footer?`<div class="modal-f">${footer}</div>`:''}</div></div>`;
   try{translatePage();}catch(e){}
 }
-function closeModal(){document.getElementById('modalRoot').innerHTML=''}
+function modalOpen(){var r=document.getElementById('modalRoot');return !!(r&&r.children&&r.children.length);}
+function closeModal(){document.getElementById('modalRoot').innerHTML='';if(window.__pendingSync){window.__pendingSync=false;try{if(supa&&typeof reloadFromCloud==='function'){reloadFromCloud();}}catch(e){}}}
 function confirmBox(title,msg,onYes){
   window.__yes=onYes;
   document.getElementById('modalRoot').innerHTML=`<div class="overlay"><div class="modal" style="max-width:440px"><div class="modal-h"><h3>${title}</h3></div>
