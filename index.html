@@ -272,7 +272,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.28h (แผนจัดส่ง PL: ดึงวันที่/PO/ลูกค้า/สั่งซื้อ/ส่งจริง/กำหนดส่งจาก Customer PO อัตโนมัติ)';
+const APP_BUILD='SEMIQC-2026.06.28i (แผนจัดส่ง PL: เพิ่มคอลัมน์ใบสั่งซื้อลูกค้า + ซ่อน/แสดงคอลัมน์)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -7934,21 +7934,31 @@ function plSaveRow(id){const d=DB.docs.find(x=>x.id===id);if(!d||!d.lines||!d.li
   if(l.customer&&!DB.settings.customers.includes(l.customer))DB.settings.customers.push(l.customer);
   saveDB();closeModal();render();toast('บันทึกแล้ว','ok');}
 function plMatchCPO(l){if(!l)return null;var fg=l.fgId||'';var pn=normPN(l.name||l.pn||'');var res=null;var cpos=DB.docs.filter(function(x){return x.type==='CPO';});cpos.sort(function(a,b){return (a.ts||0)-(b.ts||0);});for(var i=0;i<cpos.length;i++){var dd=cpos[i];var ls=dd.lines||[];for(var j=0;j<ls.length;j++){var cl=ls[j];var mm=(fg&&cl.fgId===fg)||(pn&&normPN(cl.name||'')===pn);if(mm){res={doc:dd,line:cl};}}}return res;}
+function pldC(k){try{return localStorage.getItem('rtk_pld_'+k)!=='0';}catch(e){return true;}}
+function pldColToggle(k){try{localStorage.setItem('rtk_pld_'+k,pldC(k)?'0':'1');}catch(e){}render();openPldColMenu();}
+function pldColReset(){['recvpo','pono','cpodate','cpono','seq','cpodue','due'].forEach(k=>{try{localStorage.setItem('rtk_pld_'+k,'1')}catch(e){}});render();openPldColMenu();}
+function openPldColMenu(){const cols=[['recvpo','วันที่รับ PO'],['pono','PO. NO.'],['cpodate','วันที่ออกใบสั่งซื้อ'],['cpono','ใบสั่งซื้อเลขที่'],['seq','ลำดับ'],['cpodue','วันที่ส่งสินค้า'],['due','กำหนดส่ง']];modal({title:'👁 เลือกคอลัมน์ แผนจัดส่ง',body:'<div class="hint" style="margin-bottom:8px"><span class="i">💡</span><div>ติ๊ก=แสดง · เอาออก=ซ่อน (จำเฉพาะเครื่องนี้)</div></div>'+cols.map(c=>`<label style="display:flex;gap:8px;align-items:center;padding:5px 2px;font-size:13.5px"><input type="checkbox" ${pldC(c[0])?'checked':''} onchange="pldColToggle('${c[0]}')"> ${c[1]}</label>`).join(''),footer:`<button class="btn" onclick="pldColReset()">↺ แสดงทั้งหมด</button><button class="btn pri" onclick="closeModal()">ปิด</button>`});}
 function renderPLTable(){
   const wrap=document.getElementById('planList');if(!wrap)return;
   const docs=DB.docs.filter(d=>d.type==='PL').sort((a,b)=>{const sa=Number((a.lines&&a.lines[0]&&a.lines[0].seq)||0),sb=Number((b.lines&&b.lines[0]&&b.lines[0].seq)||0);return (sa-sb)||(a.ts-b.ts);});
   if(!docs.length){wrap.innerHTML=`<div class="empty"><div class="big">🚛</div><div class="t">ยังไม่มีแผนจัดส่ง</div><div>กด "นำเข้าตาราง" เพื่อโหลดไฟล์ PLANNING หรือ "+ สร้างแผนจัดส่ง"</div></div>`;return;}
   const onOrder=plOnOrderMap();let tOrder=0,tOh=0,tDeliv=0;
-  const rows=docs.map(d=>{const l=(d.lines&&d.lines[0])||{};const _m=plMatchCPO(l);const _ml=_m?_m.line:null,_md=_m?_m.doc:null;const poDate=l.poDate||(_ml&&(_ml.poDate||planDocDate(_md)))||'';const poNo=l.poNo||(_md&&(_md.custPo||_ml.poNo))||'';const cust=l.customer||d.customer||(_ml&&_ml.customer)||(_md&&_md.customer)||'';const due=l.due||(_ml&&_ml.due)||d.shipDate||'';const ordVal=(l.order!=null&&l.order!=='')?Number(l.order):(_ml?((_ml.order!=null&&_ml.order!=='')?Number(_ml.order):(Number(_ml.qty)||0)):0);const c=plCalc(Object.assign({},l,{order:ordVal,due:due}),onOrder);const enough=ordVal>0&&c.onHand>=ordVal;const delivShown=(l.deliv!=null&&l.deliv!=='')?Number(l.deliv):(ordVal>0?(enough?ordVal:c.onHand):'');const shipShown=l.shipped||(enough?due:'');tOrder+=c.order;tOh+=c.onHand;tDeliv+=Number(delivShown)||0;
+  const rows=docs.map(d=>{const l=(d.lines&&d.lines[0])||{};const _m=plMatchCPO(l);const _ml=_m?_m.line:null,_md=_m?_m.doc:null;const poDate=l.poDate||(_ml&&(_ml.poDate||planDocDate(_md)))||'';const poNo=l.poNo||(_md&&(_md.custPo||_ml.poNo))||'';const cust=l.customer||d.customer||(_ml&&_ml.customer)||(_md&&_md.customer)||'';const due=l.due||(_ml&&_ml.due)||d.shipDate||'';const cpoDate=_ml?(_ml.poDate||planDocDate(_md)):'';const cpoNo=_md?(_md.custPo||_ml.poNo||''):'';const cpoDue=_ml?(_ml.due||''):'';const ordVal=(l.order!=null&&l.order!=='')?Number(l.order):(_ml?((_ml.order!=null&&_ml.order!=='')?Number(_ml.order):(Number(_ml.qty)||0)):0);const c=plCalc(Object.assign({},l,{order:ordVal,due:due}),onOrder);const enough=ordVal>0&&c.onHand>=ordVal;const delivShown=(l.deliv!=null&&l.deliv!=='')?Number(l.deliv):(ordVal>0?(enough?ordVal:c.onHand):'');const shipShown=l.shipped||(enough?due:'');tOrder+=c.order;tOh+=c.onHand;tDeliv+=Number(delivShown)||0;
     return `<tr data-date="${esc(poDate)}" data-po="${esc(poNo)}" data-cust="${esc(cust)}" data-part="${esc(c.pn)}" data-mon="${esc((due||'').slice(0,7))}">
       <td class="pn linkish" onclick="printPlanDoc('${d.id}')">${esc(d.no)}</td>
-      <td class="c">${esc(poDate)}</td><td class="c">${esc(poNo)}</td><td>${esc(cust)}</td>
-      <td class="c">${esc(l.seq!=null&&l.seq!==''?l.seq:'')}</td><td>${esc(c.pn)}</td>
+      ${pldC('recvpo')?`<td class="c">${esc(poDate)}</td>`:''}
+      ${pldC('pono')?`<td class="c">${esc(poNo)}</td>`:''}
+      ${pldC('cpodate')?`<td class="c">${esc(cpoDate)}</td>`:''}
+      ${pldC('cpono')?`<td class="c">${esc(cpoNo)}</td>`:''}
+      <td>${esc(cust)}</td>
+      ${pldC('seq')?`<td class="c">${esc(l.seq!=null&&l.seq!==''?l.seq:'')}</td>`:''}
+      <td>${esc(c.pn)}</td>
       <td class="num">${c.order?fmt(c.order):'-'}</td>
       <td class="num" style="color:var(--brand)">${c.onHand?fmt(c.onHand):'-'}</td>
       <td style="padding:2px"><input type="number" value="${delivShown!==''&&delivShown!=null?delivShown:''}" placeholder="0" onchange="plSetDeliv('${d.id}',this.value)" style="width:74px;padding:4px 6px;text-align:right"></td>
       <td class="c" style="font-weight:700;color:${c.stc}">${c.st}</td>
-      <td class="c">${esc(due)}</td>
+      ${pldC('cpodue')?`<td class="c">${esc(cpoDue)}</td>`:''}
+      ${pldC('due')?`<td class="c">${esc(due)}</td>`:''}
       <td style="padding:2px"><input type="date" value="${esc(shipShown)}" onchange="plSetShip('${d.id}',this.value)" style="width:128px;padding:4px 6px"></td>
       <td class="num ${c.waitQC?'':'muted'}">${c.waitQC?fmt(c.waitQC):'-'}</td>
       <td class="num ${c.atPlating?'':'muted'}">${c.atPlating?fmt(c.atPlating):'-'}</td>
@@ -7957,12 +7967,13 @@ function renderPLTable(){
       <td style="color:var(--red);font-size:11px">${esc(l.note||'')}</td>
       <td style="white-space:nowrap"><button class="btn sm" onclick="printPlanDoc('${d.id}')" title="พิมพ์">🖨️</button> <button class="btn sm" onclick="plEditRow('${d.id}')" title="แก้ไข">✏️</button> <button class="btn sm danger" onclick="delPlan('${d.id}')" title="ยกเลิก">ยกเลิก</button></td>
     </tr>`;}).join('');
-  wrap.innerHTML=`<div style="padding:8px 12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><span class="muted" style="font-size:12px">ช่อง <b>มีสต๊อค/สถานะ/รอคัด-QC/รอชุบ/ผู้ผลิตยังไม่มาส่ง/รวมที่จะมี</b> = ระบบดึงสด · <b>จำนวนส่งจริง/จัดส่ง</b> = กรอกเองได้</span><span style="display:flex;gap:6px"><button class="btn sm" onclick="printAllPL()">🖨️ พิมพ์ทั้งหมด</button><button class="btn sm danger" onclick="clearAllPL()">🗑️ ล้างแผนทั้งหมด</button></span></div>${planFilterBar('PL')}
+  const labelSpan=3+['recvpo','pono','cpodate','cpono','seq'].filter(k=>pldC(k)).length;
+  const tailSpan=8+(pldC('cpodue')?1:0)+(pldC('due')?1:0);
+  wrap.innerHTML=`<div style="padding:8px 12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><span class="muted" style="font-size:12px">ช่อง <b>มีสต๊อค/สถานะ/รอคัด-QC/รอชุบ/ผู้ผลิตยังไม่มาส่ง/รวมที่จะมี</b> = ระบบดึงสด · <b>จำนวนส่งจริง/จัดส่ง</b> = กรอกเองได้</span><span style="display:flex;gap:6px"><button class="btn sm" onclick="openPldColMenu()" title="ซ่อน/แสดงคอลัมน์">👁 คอลัมน์</button><button class="btn sm" onclick="printAllPL()">🖨️ พิมพ์ทั้งหมด</button><button class="btn sm danger" onclick="clearAllPL()">🗑️ ล้างแผนทั้งหมด</button></span></div>${planFilterBar('PL')}
   <div class="tbl-wrap"><table style="font-size:11.5px;white-space:nowrap"><thead>
-    <tr><th rowspan="2">เลขที่</th><th rowspan="2">วันที่รับ PO</th><th rowspan="2">PO. NO.</th><th rowspan="2">CUSTOMER</th><th rowspan="2">ลำดับ</th><th rowspan="2">Part No.</th><th rowspan="2" class="num">สั่งซื้อ</th><th rowspan="2" class="num">มีสต๊อค</th><th rowspan="2">จำนวนส่งจริง</th><th rowspan="2">สถานะ</th><th colspan="2">วันที่</th><th colspan="4">WIP</th><th rowspan="2">หมายเหตุ</th><th rowspan="2"></th></tr>
-    <tr><th>กำหนดส่ง</th><th>จัดส่ง</th><th class="num">รอคัด/QC</th><th class="num">รอชุบ</th><th class="num">ผู้ผลิตยังไม่มาส่ง</th><th class="num">รวมที่จะมี</th></tr>
+    <tr><th>เลขที่</th>${pldC('recvpo')?'<th>วันที่รับ PO</th>':''}${pldC('pono')?'<th>PO. NO.</th>':''}${pldC('cpodate')?'<th>วันที่ออกใบสั่งซื้อ</th>':''}${pldC('cpono')?'<th>ใบสั่งซื้อเลขที่</th>':''}<th>CUSTOMER</th>${pldC('seq')?'<th>ลำดับ</th>':''}<th>Part No.</th><th class="num">สั่งซื้อ</th><th class="num">มีสต๊อค</th><th>จำนวนส่งจริง</th><th>สถานะ</th>${pldC('cpodue')?'<th>วันที่ส่งสินค้า</th>':''}${pldC('due')?'<th>กำหนดส่ง</th>':''}<th>จัดส่ง</th><th class="num">รอคัด/QC</th><th class="num">รอชุบ</th><th class="num">ผู้ผลิตยังไม่มาส่ง</th><th class="num">รวมที่จะมี</th><th>หมายเหตุ</th><th></th></tr>
   </thead><tbody id="planFilterBody">${rows}</tbody>
-  <tfoot><tr style="background:#f3f6fb;font-weight:700"><td colspan="6" style="text-align:right">รวม</td><td class="num">${fmt(tOrder)}</td><td class="num">${fmt(tOh)}</td><td class="num">${fmt(tDeliv)}</td><td colspan="8"></td></tr></tfoot>
+  <tfoot><tr style="background:#f3f6fb;font-weight:700"><td colspan="${labelSpan}" style="text-align:right">รวม</td><td class="num">${fmt(tOrder)}</td><td class="num">${fmt(tOh)}</td><td class="num">${fmt(tDeliv)}</td><td colspan="${tailSpan}"></td></tr></tfoot>
   </table></div>`;
 }
 function plSetDeliv(id,v){const d=DB.docs.find(x=>x.id===id);if(!d||!d.lines||!d.lines[0])return;d.lines[0].deliv=v===''?'':Math.round(Number(v)||0);saveDB();}
