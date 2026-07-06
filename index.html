@@ -272,7 +272,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.28f (ฟอร์ม/หน้าต่าง: ไม่หลุดระหว่างทำรายการ + ปรับขนาดตามจอ)';
+const APP_BUILD='SEMIQC-2026.06.28g (Forecast: เพิ่มวันที่ · Customer PO: วันที่+PO NO. อัตโนมัติ)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -7857,13 +7857,14 @@ function planWipCells(c){return '<td class="num '+(c.waitQC?'':'muted')+'">'+(c.
 function planStatusHtml(onHand,demand,total){let st,stc;if(onHand>=demand&&demand>0){st='พร้อมส่ง';stc='var(--teal)';}else if(onHand>0){st='ขาด '+fmt(demand-onHand);stc='var(--red)';}else{st=demand>0?'ไม่พร้อมส่ง':'-';stc=demand>0?'var(--red)':'var(--ink2)';}return '<td class="c" style="font-weight:700;color:'+stc+'">'+st+'</td>';}
 function planRowActions(d,idx){return '<td style="white-space:nowrap"><button class="btn sm" onclick="printPlanDoc(\''+d.id+'\')" title="พิมพ์">🖨️</button> <button class="btn sm" onclick="planRowEdit(\''+d.id+'\','+idx+')" title="แก้ไข">✏️</button> <button class="btn sm danger" onclick="planRowDel(\''+d.id+'\','+idx+')" title="ยกเลิก">ยกเลิก</button></td>';}
 function planToolbar(type){return '<div style="padding:8px 12px;display:flex;justify-content:flex-end;gap:6px"><button class="btn sm" onclick="printAllPlan(\''+type+'\')">🖨️ พิมพ์ทั้งหมด</button><button class="btn sm danger" onclick="clearAllPlan(\''+type+'\')">🗑️ ล้างทั้งหมด</button></div>';}
+function planDocDate(d){return (d&&d.date)||(d&&d.ts?new Date(d.ts).toISOString().slice(0,10):'');}
 function renderCPOTable(){
   const wrap=document.getElementById('planList');if(!wrap)return;
   const docs=DB.docs.filter(d=>d.type==='CPO').sort((a,b)=>b.ts-a.ts);
   if(!docs.length){wrap.innerHTML=`<div class="empty"><div class="big">📑</div><div class="t">ยังไม่มี Customer PO</div><div>กด "นำเข้าตาราง" หรือ "+ สร้าง"</div></div>`;return;}
   const onOrder=plOnOrderMap();let tQ=0,tOh=0;
   const rows=[];docs.forEach(d=>(d.lines||[]).forEach((l,idx)=>{const c=plCalc(l,onOrder);const demand=c.order;tQ+=demand;tOh+=c.onHand;const due=l.due||'';
-    rows.push(`<tr data-date="${esc(l.poDate||'')}" data-po="${esc(d.custPo||l.poNo||'')}" data-cust="${esc(l.customer||d.customer||'')}" data-part="${esc(c.pn)}" data-mon="${esc((l.due||'').slice(0,7))}"><td class="pn linkish" onclick="printPlanDoc('${d.id}')">${esc(d.no)}</td><td class="c">${esc(l.poDate||'')}</td><td>${esc(d.custPo||l.poNo||'')}</td><td>${esc(l.customer||d.customer||'')}</td><td>${esc(c.pn)}</td><td class="num"><b>${fmt(demand)}</b></td><td class="num" style="color:var(--brand)">${c.onHand?fmt(c.onHand):'-'}</td>${planStatusHtml(c.onHand,demand,c.total)}<td class="c">${esc(due)}</td>${planWipCells(c)}<td style="color:var(--red);font-size:11px">${esc(l.note||'')}</td>${planRowActions(d,idx)}</tr>`);
+    rows.push(`<tr data-date="${esc(l.poDate||'')}" data-po="${esc(d.custPo||l.poNo||'')}" data-cust="${esc(l.customer||d.customer||'')}" data-part="${esc(c.pn)}" data-mon="${esc((l.due||'').slice(0,7))}"><td class="pn linkish" onclick="printPlanDoc('${d.id}')">${esc(d.no)}</td><td class="c">${esc(l.poDate||planDocDate(d))}</td><td>${esc(d.custPo||l.poNo||d.no)}</td><td>${esc(l.customer||d.customer||'')}</td><td>${esc(c.pn)}</td><td class="num"><b>${fmt(demand)}</b></td><td class="num" style="color:var(--brand)">${c.onHand?fmt(c.onHand):'-'}</td>${planStatusHtml(c.onHand,demand,c.total)}<td class="c">${esc(due)}</td>${planWipCells(c)}<td style="color:var(--red);font-size:11px">${esc(l.note||'')}</td>${planRowActions(d,idx)}</tr>`);
   }));
   wrap.innerHTML=planToolbar('CPO')+planFilterBar('CPO')+`<div class="tbl-wrap"><table style="font-size:11.5px;white-space:nowrap"><thead><tr>
     <th>เลขที่</th><th>วันที่รับ PO</th><th>PO ลูกค้า</th><th>CUSTOMER</th><th>Part No.</th><th class="num">จำนวน</th><th class="num">มีสต๊อค</th><th>สถานะ</th><th>กำหนดส่ง</th><th class="num">รอคัด/QC</th><th class="num">รอชุบ</th><th class="num">ผู้ผลิตยังไม่มาส่ง</th><th class="num">รวมที่จะมี</th><th>หมายเหตุ</th><th></th>
@@ -7876,12 +7877,12 @@ function renderFCTable(){
   if(!docs.length){wrap.innerHTML=`<div class="empty"><div class="big">📈</div><div class="t">ยังไม่มี Forecast</div><div>กด "นำเข้าตาราง" หรือ "+ สร้าง"</div></div>`;return;}
   const onOrder=plOnOrderMap();let tF=0,tOh=0;
   const rows=[];docs.forEach(d=>(d.lines||[]).forEach((l,idx)=>{const c=plCalc(l,onOrder);const demand=(l.m1||0)+(l.m2||0)+(l.m3||0)+(l.m4||0);tF+=demand;tOh+=c.onHand;
-    rows.push(`<tr data-date="${esc(l.due||'')}" data-po="" data-cust="${esc(l.customer||d.customer||'')}" data-part="${esc(c.pn)}" data-mon="${esc((l.due||'').slice(0,7))}"><td class="pn linkish" onclick="printPlanDoc('${d.id}')">${esc(d.no)}</td><td>${esc(l.customer||d.customer||'')}</td><td>${esc(c.pn)}</td><td class="num">${fmt(l.m1)}</td><td class="num">${fmt(l.m2)}</td><td class="num">${fmt(l.m3)}</td><td class="num">${fmt(l.m4)}</td><td class="num"><b>${fmt(demand)}</b></td><td class="num" style="color:var(--brand)">${c.onHand?fmt(c.onHand):'-'}</td>${planStatusHtml(c.onHand,demand,c.total)}${planWipCells(c)}${planRowActions(d,idx)}</tr>`);
+    rows.push(`<tr data-date="${esc(l.due||'')}" data-po="" data-cust="${esc(l.customer||d.customer||'')}" data-part="${esc(c.pn)}" data-mon="${esc((l.due||'').slice(0,7))}"><td class="pn linkish" onclick="printPlanDoc('${d.id}')">${esc(d.no)}</td><td class="c">${esc(planDocDate(d))}</td><td>${esc(l.customer||d.customer||'')}</td><td>${esc(c.pn)}</td><td class="num">${fmt(l.m1)}</td><td class="num">${fmt(l.m2)}</td><td class="num">${fmt(l.m3)}</td><td class="num">${fmt(l.m4)}</td><td class="num"><b>${fmt(demand)}</b></td><td class="num" style="color:var(--brand)">${c.onHand?fmt(c.onHand):'-'}</td>${planStatusHtml(c.onHand,demand,c.total)}${planWipCells(c)}${planRowActions(d,idx)}</tr>`);
   }));
   wrap.innerHTML=planToolbar('FC')+planFilterBar('FC')+`<div class="tbl-wrap"><table style="font-size:11.5px;white-space:nowrap"><thead><tr>
-    <th>เลขที่</th><th>ลูกค้า</th><th>Part No.</th><th class="num">${ml[0]}</th><th class="num">${ml[1]}</th><th class="num">${ml[2]}</th><th class="num">${ml[3]}</th><th class="num">รวม FC</th><th class="num">มีสต๊อค</th><th>สถานะ</th><th class="num">รอคัด/QC</th><th class="num">รอชุบ</th><th class="num">ผู้ผลิตยังไม่มาส่ง</th><th class="num">รวมที่จะมี</th><th></th>
+    <th>เลขที่</th><th>วันที่</th><th>ลูกค้า</th><th>Part No.</th><th class="num">${ml[0]}</th><th class="num">${ml[1]}</th><th class="num">${ml[2]}</th><th class="num">${ml[3]}</th><th class="num">รวม FC</th><th class="num">มีสต๊อค</th><th>สถานะ</th><th class="num">รอคัด/QC</th><th class="num">รอชุบ</th><th class="num">ผู้ผลิตยังไม่มาส่ง</th><th class="num">รวมที่จะมี</th><th></th>
   </tr></thead><tbody id="planFilterBody">${rows.join('')}</tbody>
-  <tfoot><tr style="background:#f3f6fb;font-weight:700"><td colspan="7" style="text-align:right">รวม</td><td class="num">${fmt(tF)}</td><td class="num">${fmt(tOh)}</td><td colspan="6"></td></tr></tfoot></table></div>`;
+  <tfoot><tr style="background:#f3f6fb;font-weight:700"><td colspan="8" style="text-align:right">รวม</td><td class="num">${fmt(tF)}</td><td class="num">${fmt(tOh)}</td><td colspan="6"></td></tr></tfoot></table></div>`;
 }
 function planRowEdit(docId,idx){const d=DB.docs.find(x=>x.id===docId);if(!d)return;const l=(d.lines||[])[idx];if(!l)return;ensureSettings();const custs=DB.settings.customers||[];const ml=monthLabels();const t=d.type;
   let extra='';
