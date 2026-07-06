@@ -270,7 +270,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.27zx (รับชิ้นงาน: ซ่อน/แสดง คอลัมน์ราคาผลิต)';
+const APP_BUILD='SEMIQC-2026.06.27zy (ใบสั่งผลิต: ฟอร์มพิมพ์ใหม่ FM-PC-04 โลโก้/VAT/4 ลายเซ็น)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -4749,29 +4749,39 @@ function sharePOLine(id){
 function printPO(id,mode){
   const d=DB.docs.find(x=>x.id===id);if(!d)return;ensureSettings();
   const co=DB.settings.company||{};const mk=d.makerInfo||makerByCode(d.maker)||{code:d.maker};
-  const rows=(d.lines||[]).map((l,i)=>{const pn=l.fgId&&P(l.fgId)?P(l.fgId).pn+' '+P(l.fgId).name:(l.name||'');return `<tr><td style="text-align:center">${i+1}</td><td>${esc(pn)}</td><td class="r">${fmt(l.qty)}</td><td class="r">${fmt2(l.price)}</td><td class="r">${fmt2(l.qty*l.price)}</td><td style="text-align:center">${l.due||''}</td></tr>`}).join('');
+  const sub=d.subtotal||0;const vat=d.vat7?sub*0.07:0;const grand=sub+vat;const wht=d.wht3?grand*0.03:0;const net=grand-wht;
+  const rows=(d.lines||[]).map((l,i)=>{const pn=l.fgId&&P(l.fgId)?P(l.fgId).pn+' '+P(l.fgId).name:(l.name||'');return `<tr><td style="text-align:center">${i+1}</td><td>${esc(pn)}</td><td style="text-align:center">${esc(l.due||'')}</td><td class="r">${fmt(l.qty)} ชิ้น</td><td class="r">${fmt2(l.price)}</td><td class="r">${fmt2(l.qty*l.price)}</td></tr>`}).join('');
   const blanks=Array.from({length:Math.max(0,8-(d.lines||[]).length)}).map(()=>'<tr><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td></tr>').join('');
   const html='<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"><title>'+esc(d.no)+'</title><style>'
-   +"*{font-family:'Tahoma','TH Sarabun New',sans-serif;box-sizing:border-box}body{margin:0;padding:16mm 13mm;color:#111;font-size:13px}"
-   +".hd{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #111;padding-bottom:8px}"
+   +"*{font-family:'Tahoma','TH Sarabun New',sans-serif;box-sizing:border-box}body{margin:0;padding:14mm 12mm;color:#111;font-size:12.5px}"
+   +".hd{display:flex;gap:12px;align-items:flex-start;border-bottom:2px solid #111;padding-bottom:8px}.hd img{width:76px;height:auto}"
    +".co h1{font-size:16px;margin:0 0 2px}.co div{font-size:11.5px;color:#333}"
    +".title{text-align:right}.title .t1{font-size:20px;font-weight:700}.title .t2{font-size:12px;color:#555}"
    +".meta{display:flex;justify-content:space-between;margin-top:10px;gap:16px}"
    +".box{border:1px solid #999;border-radius:6px;padding:8px 10px;font-size:12px;flex:1}.box b{display:inline-block;min-width:62px;color:#555}"
-   +"table{width:100%;border-collapse:collapse;margin-top:12px;font-size:12px}th,td{border:1px solid #888;padding:6px 8px}th{background:#eee;text-align:center}td.r{text-align:right}"
-   +".sum{margin-top:8px;width:46%;margin-left:auto;font-size:12.5px}.sum div{display:flex;justify-content:space-between;padding:3px 0}"
-   +".sign{display:flex;justify-content:space-between;margin-top:46px;text-align:center;font-size:12px}.sign div{width:30%}.sign .line{border-top:1px dotted #555;margin-top:30px;padding-top:4px}"
+   +"table.it{width:100%;border-collapse:collapse;margin-top:12px;font-size:12px}table.it th,table.it td{border:1px solid #888;padding:6px 8px}table.it th{background:#eee;text-align:center}td.r{text-align:right}"
+   +".foot{display:flex;justify-content:space-between;gap:16px;margin-top:10px;align-items:stretch}"
+   +".note{flex:1;border:1px solid #999;border-radius:6px;padding:8px 10px;font-size:12px}"
+   +".sum{width:44%;font-size:12.5px}.sum div{display:flex;justify-content:space-between;padding:4px 4px;border-bottom:1px solid #eee}.sum .net{border-top:1px solid #888;font-weight:700;font-size:14px}"
+   +".sign{display:flex;justify-content:space-between;margin-top:44px;text-align:center;font-size:12px}.sign div{width:23%}.sign .line{border-top:1px dotted #555;margin-top:30px;padding-top:4px}"
+   +".formcode{text-align:right;font-size:11px;color:#555;margin-top:12px}"
    +"@media print{.noprint{display:none}}</style></head><body>"
-   +'<div class="hd"><div class="co"><h1>'+esc(co.name||'')+'</h1><div>'+esc(co.address||'')+'</div><div>TAX ID: '+esc(co.taxId||'')+' &nbsp; โทร '+esc(co.tel||'')+'</div><div>'+esc(co.email||'')+'</div></div>'
+   +'<div class="hd"><img src="'+(typeof LOGO!=='undefined'?LOGO:'')+'"><div class="co" style="flex:1"><h1>'+esc(co.name||'')+'</h1><div>'+esc(co.address||'')+'</div><div>TAX ID: '+esc(co.taxId||'')+' &nbsp; โทร '+esc(co.tel||'')+'</div>'+(co.email?'<div>'+esc(co.email)+'</div>':'')+'</div>'
    +'<div class="title"><div class="t1">ใบสั่งผลิต</div><div class="t2">PRODUCTION ORDER</div><div style="margin-top:6px;font-size:13px"><b>เลขที่:</b> '+esc(d.no)+'</div><div style="font-size:12px"><b>วันที่:</b> '+esc(d.date)+'</div></div></div>'
    +'<div class="meta"><div class="box"><div><b>ผู้ผลิต:</b> '+esc(mk.name||'')+' ('+esc(d.maker||'')+')</div><div><b>Tax ID:</b> '+esc(mk.taxId||'')+'</div><div><b>ที่อยู่:</b> '+esc(mk.address||'')+'</div><div><b>โทร:</b> '+esc(mk.tel||'')+'</div></div>'
    +'<div class="box"><div><b>PO NO.:</b> '+esc(d.no)+'</div><div><b>ผู้สั่งผลิต:</b> '+esc(d.producer||'')+'</div><div><b>สถานะ:</b> '+(d.status==='approved'?'อนุมัติแล้ว':'รออนุมัติ')+'</div></div></div>'
-   +'<table><thead><tr><th style="width:30px">#</th><th>รายการ (Part)</th><th style="width:78px">จำนวนสั่ง</th><th style="width:66px">ราคา</th><th style="width:88px">รวมเงิน</th><th style="width:84px">กำหนดส่ง</th></tr></thead><tbody>'+rows+blanks+'</tbody></table>'
-   +'<div class="sum"><div><span>รวมเงิน</span><span>'+fmt2(d.subtotal||0)+'</span></div>'+(d.wht3?'<div><span>หัก ณ ที่จ่าย 3%</span><span>-'+fmt2(d.wht||0)+'</span></div>':'')+'<div style="border-top:1px solid #888;font-weight:700"><span>ยอดสุทธิ</span><span>'+fmt2(d.net||0)+' บาท</span></div></div>'
-   +(d.note?'<div style="margin-top:10px;font-size:12px"><b>หมายเหตุ:</b> '+esc(d.note)+'</div>':'')
-   +'<div class="sign"><div><div class="line">ผู้สั่งผลิต</div></div><div><div class="line">ผู้อนุมัติ</div></div><div><div class="line">ผู้รับงาน (MAKER)</div></div></div>'
+   +'<table class="it"><thead><tr><th style="width:30px">#</th><th>รายการ (Part)</th><th style="width:84px">กำหนดส่ง</th><th style="width:84px">จำนวนสั่ง</th><th style="width:64px">ราคา</th><th style="width:90px">รวมเงิน</th></tr></thead><tbody>'+rows+blanks+'</tbody></table>'
+   +'<div class="foot"><div class="note"><b>หมายเหตุ :</b><div style="margin-top:4px;line-height:1.8">• คุณภาพต้องเป็นไปตาม Drawing<br>• จัดส่งภายในวันที่กำหนด<br>• สามารถส่งก่อนกำหนดได้'+(d.note?'<br>• '+esc(d.note):'')+'</div></div>'
+   +'<div class="sum"><div><span>รวมเงิน</span><span>'+fmt2(sub)+'</span></div>'
+   +'<div><span>VAT 7 %</span><span>'+(vat?fmt2(vat):'-')+'</span></div>'
+   +'<div><span>ยอดรวม</span><span>'+fmt2(grand)+'</span></div>'
+   +'<div><span>หัก ณ ที่จ่าย 3%</span><span>'+(wht?fmt2(wht):'-')+'</span></div>'
+   +'<div class="net"><span>ยอดสุทธิ</span><span>'+fmt2(net)+'</span></div></div></div>'
+   +'<div class="sign"><div><div class="line">ผู้รับงาน (MAKER)</div></div><div><div class="line">ผู้สั่งผลิต</div></div><div><div class="line">ผู้ตรวจสอบ</div></div><div><div class="line">ผู้อนุมัติ</div></div></div>'
+   +'<div class="formcode">FM-PC-04 Rev.01</div>'
    +'<div class="noprint" style="text-align:center;margin-top:22px"><button onclick="window.print()" style="padding:8px 22px;font-size:14px;cursor:pointer">🖨️ พิมพ์ / บันทึก PDF</button></div>'
    +'<scr'+'ipt>setTimeout(function(){window.print()},500)</scr'+'ipt></body></html>';
+  if(mode==='image'){return shareDocImage(html.replace(/<div class="noprint"[\s\S]*?<\/script>/i,''),(d.no||'PO')+'.png',(d.no||'ใบสั่งผลิต'));}
   const w=window.open('','_blank');if(!w){toast('เบราว์เซอร์บล็อก popup — กรุณาอนุญาต','err');return}
   w.document.write(html);w.document.close();
 }
