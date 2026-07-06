@@ -270,7 +270,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.28c (รับชิ้นงาน: ใส่เลขฟอร์ม FM-QC-59 / สรุปเดือน FM-QC-22)';
+const APP_BUILD='SEMIQC-2026.06.28d (เช็คความเพียงพอ: เปิดใบสั่งผลิตเลือก 4/3/2/1 เดือน ลดความเสี่ยง)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -8346,7 +8346,7 @@ function viewMRP(el){
   if(mrpOnlyShort)rows=rows.filter(r=>r.bal<0);
   const stBtn=(m,t)=>`<button class="${mode===m?'on':''}" onclick="planMrpMode='${m}';render()">${t}</button>`;
   el.innerHTML=`
-  <div class="hint"><span class="i">💡</span><div>เลือกแหล่งความต้องการด้านล่าง: <b>Forecast</b> = พยากรณ์ลูกค้า · <b>PO ลูกค้า</b> = คำสั่งซื้อจริง → ระบบเทียบกับ <b>มีสต๊อค + รอคัด/QC + รอชุบ + ผู้ผลิตยังไม่ส่ง</b> แล้วบอกว่าพอหรือไม่</div></div>
+  <div class="hint"><span class="i">💡</span><div>เลือกแหล่งความต้องการด้านล่าง: <b>Forecast</b> = พยากรณ์ลูกค้า · <b>PO ลูกค้า</b> = คำสั่งซื้อจริง → ระบบเทียบกับ <b>มีสต๊อค + รอคัด/QC + รอชุบ + ผู้ผลิตยังไม่ส่ง</b> แล้วบอกว่าพอหรือไม่<br>🛡️ ปุ่ม <b>เปิดใบสั่งผลิต 4/M · 3/M · 2/M · 1/M</b> = เลือกผลิตให้ครอบคลุมกี่เดือน (4/M เต็มพยากรณ์ · 1/M = 1/4 ของยอดขาด) เพื่อลดความเสี่ยงหากลูกค้าซื้อไม่ครบตาม Forecast · จำนวนปรับได้ในฟอร์มก่อนบันทึก</div></div>
   <div class="panel" style="margin-bottom:12px"><div class="panel-b" style="padding:10px 14px"><div class="seg">${stBtn('fc','📈 เทียบ Forecast')}${stBtn('po','📑 เทียบ PO ลูกค้า')}${stBtn('all','📊 รวมทั้งหมด')}</div></div></div>
   <div class="cards">
     <div class="card"><div class="lbl"><span class="dot d-brand">📦</span>รายการ (${esc(mrpModeLabel(mode))})</div><div class="val">${fmt(mrpRows(mode).length)}</div></div>
@@ -8371,12 +8371,17 @@ function viewMRP(el){
       <td class="num"><b>${fmt(r.total)}</b></td>
       <td class="num"><b style="color:${r.bal<0?'var(--red)':'var(--teal)'}">${r.bal>=0?'+':''}${fmt(r.bal)}</b></td>
       <td>${r.enoughNow?`<span class="tag green">✅ พอ พร้อมส่ง</span>`:(r.bal>=0?`<span class="tag amber">🟡 พอเมื่อของเข้า</span>`:`<span class="tag red">🔴 ขาด ${fmt(r.short)}</span>`)}</td>
-      <td style="white-space:nowrap">${r.bal<0&&r.pid?`<button class="btn sm pri" onclick="mrpMakePO('${r.pid}',${r.short})">เปิดใบสั่งผลิต</button>`:(!r.enoughNow&&r.makerOut>0?'<span class="muted">รอผู้ผลิตส่ง</span>':'<span class="muted">—</span>')}</td>
+      <td>${r.bal<0&&r.pid?`<div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;min-width:210px">
+        <button class="btn sm pri" onclick="mrpMakePO('${r.pid}',${r.short},4)" title="ผลิตคลุม 4 เดือน (เต็มพยากรณ์) ≈ ${fmt(r.short)} ชิ้น">ใบสั่งผลิต 4/M</button>
+        <button class="btn sm" onclick="mrpMakePO('${r.pid}',${Math.ceil(r.short*3/4)},3)" title="ผลิตคลุม 3 เดือน ≈ ${fmt(Math.ceil(r.short*3/4))} ชิ้น">ใบสั่งผลิต 3/M</button>
+        <button class="btn sm" onclick="mrpMakePO('${r.pid}',${Math.ceil(r.short*2/4)},2)" title="ผลิตคลุม 2 เดือน ≈ ${fmt(Math.ceil(r.short*2/4))} ชิ้น">ใบสั่งผลิต 2/M</button>
+        <button class="btn sm" onclick="mrpMakePO('${r.pid}',${Math.ceil(r.short/4)},1)" title="ผลิตคลุม 1 เดือน ≈ ${fmt(Math.ceil(r.short/4))} ชิ้น">ใบสั่งผลิต 1/M</button>
+      </div>`:(!r.enoughNow&&r.makerOut>0?'<span class="muted">รอผู้ผลิตส่ง</span>':'<span class="muted">—</span>')}</td>
     </tr>`).join('')}
     </tbody></table></div>`:`<div class="empty"><div class="big">📭</div><div class="t">${mrpOnlyShort?'ไม่มีรายการที่ขาด — ของพอทั้งหมด ✅':'ยังไม่มีข้อมูลความต้องการ ('+esc(mrpModeLabel(mode))+')'}</div><div>${mrpOnlyShort?'':'ไปบันทึก/นำเข้า Forecast หรือ Customer PO ที่เมนู Forecast / PO / PL ก่อน'}</div></div>`}
   </div></div>`;
 }
-function mrpMakePO(pid,qty){const p=P(pid);if(!p)return;openPRDForm(null,[{fgId:pid,name:p.pn+(p.name&&p.name!=='-'?' '+p.name:''),qty:qty}]);}
+function mrpMakePO(pid,qty,months){const p=P(pid);if(!p)return;qty=Math.max(0,Math.round(Number(qty)||0));openPRDForm(null,[{fgId:pid,name:p.pn+(p.name&&p.name!=='-'?' '+p.name:''),qty:qty}]);if(months){try{toast('เปิดใบสั่งผลิตคลุม '+months+' เดือน · จำนวน '+fmt(qty)+' ชิ้น (ปรับได้ในฟอร์ม)','ok');}catch(e){}}}
 /* ============================================================
    UI primitives: modal, toast, confirm
    ============================================================ */
