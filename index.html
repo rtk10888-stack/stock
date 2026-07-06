@@ -272,7 +272,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.28g (Forecast: เพิ่มวันที่ · Customer PO: วันที่+PO NO. อัตโนมัติ)';
+const APP_BUILD='SEMIQC-2026.06.28h (แผนจัดส่ง PL: ดึงวันที่/PO/ลูกค้า/สั่งซื้อ/ส่งจริง/กำหนดส่งจาก Customer PO อัตโนมัติ)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -7933,22 +7933,23 @@ function plSaveRow(id){const d=DB.docs.find(x=>x.id===id);if(!d||!d.lines||!d.li
   l.deliv=v('ple_deliv')===''?'':Math.round(Number(v('ple_deliv'))||0);l.shipped=v('ple_shipped');l.note=v('ple_note');
   if(l.customer&&!DB.settings.customers.includes(l.customer))DB.settings.customers.push(l.customer);
   saveDB();closeModal();render();toast('บันทึกแล้ว','ok');}
+function plMatchCPO(l){if(!l)return null;var fg=l.fgId||'';var pn=normPN(l.name||l.pn||'');var res=null;var cpos=DB.docs.filter(function(x){return x.type==='CPO';});cpos.sort(function(a,b){return (a.ts||0)-(b.ts||0);});for(var i=0;i<cpos.length;i++){var dd=cpos[i];var ls=dd.lines||[];for(var j=0;j<ls.length;j++){var cl=ls[j];var mm=(fg&&cl.fgId===fg)||(pn&&normPN(cl.name||'')===pn);if(mm){res={doc:dd,line:cl};}}}return res;}
 function renderPLTable(){
   const wrap=document.getElementById('planList');if(!wrap)return;
   const docs=DB.docs.filter(d=>d.type==='PL').sort((a,b)=>{const sa=Number((a.lines&&a.lines[0]&&a.lines[0].seq)||0),sb=Number((b.lines&&b.lines[0]&&b.lines[0].seq)||0);return (sa-sb)||(a.ts-b.ts);});
   if(!docs.length){wrap.innerHTML=`<div class="empty"><div class="big">🚛</div><div class="t">ยังไม่มีแผนจัดส่ง</div><div>กด "นำเข้าตาราง" เพื่อโหลดไฟล์ PLANNING หรือ "+ สร้างแผนจัดส่ง"</div></div>`;return;}
   const onOrder=plOnOrderMap();let tOrder=0,tOh=0,tDeliv=0;
-  const rows=docs.map(d=>{const l=(d.lines&&d.lines[0])||{};const c=plCalc(l,onOrder);tOrder+=c.order;tOh+=c.onHand;tDeliv+=Number(l.deliv)||0;const due=l.due||d.shipDate||'';
-    return `<tr data-date="${esc(l.poDate||'')}" data-po="${esc(l.poNo||'')}" data-cust="${esc(l.customer||d.customer||'')}" data-part="${esc(c.pn)}" data-mon="${esc((l.due||d.shipDate||'').slice(0,7))}">
+  const rows=docs.map(d=>{const l=(d.lines&&d.lines[0])||{};const _m=plMatchCPO(l);const _ml=_m?_m.line:null,_md=_m?_m.doc:null;const poDate=l.poDate||(_ml&&(_ml.poDate||planDocDate(_md)))||'';const poNo=l.poNo||(_md&&(_md.custPo||_ml.poNo))||'';const cust=l.customer||d.customer||(_ml&&_ml.customer)||(_md&&_md.customer)||'';const due=l.due||(_ml&&_ml.due)||d.shipDate||'';const ordVal=(l.order!=null&&l.order!=='')?Number(l.order):(_ml?((_ml.order!=null&&_ml.order!=='')?Number(_ml.order):(Number(_ml.qty)||0)):0);const c=plCalc(Object.assign({},l,{order:ordVal,due:due}),onOrder);const enough=ordVal>0&&c.onHand>=ordVal;const delivShown=(l.deliv!=null&&l.deliv!=='')?Number(l.deliv):(ordVal>0?(enough?ordVal:c.onHand):'');const shipShown=l.shipped||(enough?due:'');tOrder+=c.order;tOh+=c.onHand;tDeliv+=Number(delivShown)||0;
+    return `<tr data-date="${esc(poDate)}" data-po="${esc(poNo)}" data-cust="${esc(cust)}" data-part="${esc(c.pn)}" data-mon="${esc((due||'').slice(0,7))}">
       <td class="pn linkish" onclick="printPlanDoc('${d.id}')">${esc(d.no)}</td>
-      <td class="c">${esc(l.poDate||'')}</td><td class="c">${esc(l.poNo||'')}</td><td>${esc(l.customer||d.customer||'')}</td>
+      <td class="c">${esc(poDate)}</td><td class="c">${esc(poNo)}</td><td>${esc(cust)}</td>
       <td class="c">${esc(l.seq!=null&&l.seq!==''?l.seq:'')}</td><td>${esc(c.pn)}</td>
-      <td class="num">${fmt(c.order)}</td>
+      <td class="num">${c.order?fmt(c.order):'-'}</td>
       <td class="num" style="color:var(--brand)">${c.onHand?fmt(c.onHand):'-'}</td>
-      <td style="padding:2px"><input type="number" value="${l.deliv!=null&&l.deliv!==''?l.deliv:''}" placeholder="0" onchange="plSetDeliv('${d.id}',this.value)" style="width:74px;padding:4px 6px;text-align:right"></td>
+      <td style="padding:2px"><input type="number" value="${delivShown!==''&&delivShown!=null?delivShown:''}" placeholder="0" onchange="plSetDeliv('${d.id}',this.value)" style="width:74px;padding:4px 6px;text-align:right"></td>
       <td class="c" style="font-weight:700;color:${c.stc}">${c.st}</td>
       <td class="c">${esc(due)}</td>
-      <td style="padding:2px"><input type="date" value="${esc(l.shipped||'')}" onchange="plSetShip('${d.id}',this.value)" style="width:128px;padding:4px 6px"></td>
+      <td style="padding:2px"><input type="date" value="${esc(shipShown)}" onchange="plSetShip('${d.id}',this.value)" style="width:128px;padding:4px 6px"></td>
       <td class="num ${c.waitQC?'':'muted'}">${c.waitQC?fmt(c.waitQC):'-'}</td>
       <td class="num ${c.atPlating?'':'muted'}">${c.atPlating?fmt(c.atPlating):'-'}</td>
       <td class="num ${c.makerOut?'':'muted'}">${c.makerOut?fmt(c.makerOut):'-'}</td>
