@@ -270,7 +270,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.27zy (ใบสั่งผลิต: ฟอร์มพิมพ์ใหม่ FM-PC-04 โลโก้/VAT/4 ลายเซ็น)';
+const APP_BUILD='SEMIQC-2026.06.27zz (ใบสั่งผลิต: เพิ่มติ๊ก VAT 7% คิดจริง + ฟอร์ม FM-PC-04)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -4601,7 +4601,7 @@ function openPRDForm(edit,prefill){
     <label style="font-size:12.5px;color:var(--ink2);font-weight:600;margin:8px 0 4px;display:block">รายการสั่งผลิต</label>
     <div id="prdRoot"></div>
     <button class="btn sm" style="margin-top:6px" onclick="addPrdLine()">+ เพิ่มรายการ</button>
-    <div style="margin:14px 0 4px"><label style="font-weight:400;display:flex;gap:7px;align-items:center;font-size:13px"><input type="checkbox" id="po_wht" style="width:auto" ${edit&&edit.wht3?'checked':''} onchange="prdTotals()"> หักภาษี ณ ที่จ่าย 3%</label></div>
+    <div style="margin:14px 0 4px;display:flex;gap:20px;flex-wrap:wrap"><label style="font-weight:400;display:flex;gap:7px;align-items:center;font-size:13px"><input type="checkbox" id="po_vat" style="width:auto" ${edit&&edit.vat7?'checked':''} onchange="prdTotals()"> รวมภาษีมูลค่าเพิ่ม (VAT 7%)</label><label style="font-weight:400;display:flex;gap:7px;align-items:center;font-size:13px"><input type="checkbox" id="po_wht" style="width:auto" ${edit&&edit.wht3?'checked':''} onchange="prdTotals()"> หักภาษี ณ ที่จ่าย 3%</label></div>
     <div id="prdTotalsBox"></div>
     <div class="field" style="margin-top:8px"><label>หมายเหตุ</label><input id="po_note" value="${edit?esc(edit.note||''):''}"></div>
   `,footer:`<button class="btn" onclick="closeModal()">ยกเลิก</button>
@@ -4664,12 +4664,15 @@ function prdBars(i){const l=prdLines[i];if(!l)return;const qty=Number(l.qty)||0;
 function prdTotals(){
   let sub=0;
   prdLines.forEach((l,i)=>{const amt=(Number(l.qty)||0)*(Number(l.price)||0);sub+=amt;const e=document.getElementById('ptl_'+i);if(e)e.textContent=fmt2(amt);});
-  const wht=(document.getElementById('po_wht')&&document.getElementById('po_wht').checked)?sub*0.03:0;
+  const vat=(document.getElementById('po_vat')&&document.getElementById('po_vat').checked)?sub*0.07:0;
+  const grand=sub+vat;
+  const wht=(document.getElementById('po_wht')&&document.getElementById('po_wht').checked)?grand*0.03:0;
   const el=document.getElementById('prdTotalsBox');if(!el)return;
   el.innerHTML=`<div class="panel" style="box-shadow:none;margin:0"><div class="panel-b" style="padding:10px 14px">
     <div class="kv"><span class="k">รวมเงิน (Subtotal)</span><b>${fmt2(sub)}</b></div>
+    ${vat?`<div class="kv"><span class="k">VAT 7%</span><b>${fmt2(vat)}</b></div><div class="kv"><span class="k">ยอดรวม</span><b>${fmt2(grand)}</b></div>`:''}
     ${wht?`<div class="kv"><span class="k">หัก ณ ที่จ่าย 3%</span><b style="color:var(--red)">-${fmt2(wht)}</b></div>`:''}
-    <div class="kv"><span class="k">ยอดสุทธิ (Net)</span><b style="color:var(--teal);font-size:15px">${fmt2(sub-wht)} บาท</b></div>
+    <div class="kv"><span class="k">ยอดสุทธิ (Net)</span><b style="color:var(--teal);font-size:15px">${fmt2(grand-wht)} บาท</b></div>
   </div></div>`;
 }
 function editPRD(id){const d=DB.docs.find(x=>x.id===id);if(d)openPRDForm(d);}
@@ -4709,15 +4712,17 @@ function submitPRD(status,editId){
   if(!lines.length){toast('กรุณาเพิ่มรายการอย่างน้อย 1 บรรทัด','err');return}
   if(!editId){const dup=DB.docs.find(x=>x.type==='PRD'&&x.no===no);if(dup){toast('เลขที่ PO '+no+' มีอยู่แล้ว','err');return}}
   const sub=lines.reduce((s,l)=>s+l.qty*l.price,0);
+  const vat7=!!(document.getElementById('po_vat')&&document.getElementById('po_vat').checked);
+  const vat=vat7?sub*0.07:0;const grand=sub+vat;
   const wht3=!!(document.getElementById('po_wht')&&document.getElementById('po_wht').checked);
-  const wht=wht3?sub*0.03:0;
+  const wht=wht3?grand*0.03:0;
   let d;
   if(editId){d=DB.docs.find(x=>x.id===editId);if(!d)return;}
   else{d={id:uid(),type:'PRD',ts:Date.now(),status:'pending'};DB.docs.push(d);}
   const mkBase=makerByCode(maker)||{code:maker};
   d.no=no;d.date=v('po_date')||todayISO();d.maker=maker;d.makerAbbr=(v('po_maker')||'').trim();d.prdType=(v('po_type')||'bar');
   d.makerInfo=Object.assign({},mkBase,{code:maker,name:makerFull||mkBase.name||'',taxId:(v('po_makertax')||mkBase.taxId||'').trim(),address:(v('po_makeraddr')||mkBase.address||'').trim(),tel:(v('po_makertel')||mkBase.tel||'').trim(),contact:(v('po_makercontact')||mkBase.contact||'').trim()});
-  d.producer=(v('po_producer')||'').trim();d.customer=(v('po_customer')||'').trim();d.lines=lines;d.wht3=wht3;d.subtotal=sub;d.wht=wht;d.net=sub-wht;d.note=(v('po_note')||'').trim();
+  d.producer=(v('po_producer')||'').trim();d.customer=(v('po_customer')||'').trim();d.lines=lines;d.vat7=vat7;d.vat=vat;d.wht3=wht3;d.subtotal=sub;d.wht=wht;d.net=grand-wht;d.note=(v('po_note')||'').trim();
   commitPONo(no);
   if(!makerByCode(maker))DB.settings.makers.push({code:maker,name:makerFull||'',taxId:(v('po_makertax')||'').trim(),address:(v('po_makeraddr')||'').trim(),tel:(v('po_makertel')||'').trim(),contact:(v('po_makercontact')||'').trim()});
   if(status==='approved'){d.status='approved';d.approvedAt=new Date().toLocaleString('th-TH');}
@@ -4732,7 +4737,7 @@ function viewPO(d){
     ${mk&&mk.name?`<div class="kv"><span class="k">ผู้ผลิต</span>${esc(mk.name)}${mk.tel?' · '+esc(mk.tel):''}</div>`:''}
     ${d.producer?`<div class="kv"><span class="k">ผู้สั่งผลิต</span>${esc(d.producer)}</div>`:''}
     <table style="margin-top:10px"><thead><tr><th>รายการ</th><th class="num">จำนวนสั่ง</th><th class="num">ราคา</th><th class="num">รวมเงิน</th><th>กำหนดส่ง</th></tr></thead><tbody id="planFilterBody">${rows}</tbody></table>
-    <div style="margin-top:10px"><div class="kv"><span class="k">รวมเงิน</span><b>${fmt2(d.subtotal||0)}</b></div>${d.wht3?`<div class="kv"><span class="k">หัก ณ ที่จ่าย 3%</span><b style="color:var(--red)">-${fmt2(d.wht||0)}</b></div>`:''}<div class="kv"><span class="k">ยอดสุทธิ</span><b style="color:var(--teal)">${fmt2(d.net||0)} บาท</b></div></div>
+    <div style="margin-top:10px"><div class="kv"><span class="k">รวมเงิน</span><b>${fmt2(d.subtotal||0)}</b></div>${d.vat7?`<div class="kv"><span class="k">VAT 7%</span><b>${fmt2(d.vat||0)}</b></div><div class="kv"><span class="k">ยอดรวม</span><b>${fmt2((d.subtotal||0)+(d.vat||0))}</b></div>`:''}${d.wht3?`<div class="kv"><span class="k">หัก ณ ที่จ่าย 3%</span><b style="color:var(--red)">-${fmt2(d.wht||0)}</b></div>`:''}<div class="kv"><span class="k">ยอดสุทธิ</span><b style="color:var(--teal)">${fmt2(d.net||0)} บาท</b></div></div>
     ${d.note?`<div class="kv" style="margin-top:6px"><span class="k">หมายเหตุ</span>${esc(d.note)}</div>`:''}
   `,footer:`
     ${d.status==='pending'?`<button class="btn ok" onclick="approveDoc('${d.id}')">✓ อนุมัติ</button>`:''}
