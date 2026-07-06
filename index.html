@@ -272,7 +272,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.28i (แผนจัดส่ง PL: เพิ่มคอลัมน์ใบสั่งซื้อลูกค้า + ซ่อน/แสดงคอลัมน์)';
+const APP_BUILD='SEMIQC-2026.06.28j (เช็คความเพียงพอ: ปุ่มดู/พิมพ์ + ลบรายการที่ไม่ใช่ชิ้นงาน)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -8381,7 +8381,7 @@ function viewMRP(el){
     <div class="right"><div class="searchbox"><input id="mrpSearch" placeholder="ค้นหา PN / ชื่อ / ลูกค้า" oninput="filterMrpRows()"></div><div class="seg"><button class="${!mrpOnlyShort?'on':''}" onclick="mrpOnlyShort=false;render()">ทั้งหมด</button><button class="${mrpOnlyShort?'on':''}" onclick="mrpOnlyShort=true;render()">เฉพาะที่ขาด</button></div></div>
   </div><div class="panel-b nopad">
     ${rows.length?`<div class="tbl-wrap"><table><thead><tr>
-      <th>Part Number</th><th>ลูกค้า</th><th class="num">ต้องการ</th><th class="num">มีสต๊อค</th><th class="num">รอคัด/QC</th><th class="num">รอชุบ</th><th class="num">ผู้ผลิตยังไม่ส่ง</th><th class="num">รวมที่จะมี</th><th class="num">ขาด/เหลือ</th><th>สถานะ</th><th>ดำเนินการ</th>
+      <th>Part Number</th><th>ลูกค้า</th><th class="num">ต้องการ</th><th class="num">มีสต๊อค</th><th class="num">รอคัด/QC</th><th class="num">รอชุบ</th><th class="num">ผู้ผลิตยังไม่ส่ง</th><th class="num">รวมที่จะมี</th><th class="num">ขาด/เหลือ</th><th>สถานะ</th><th>ดำเนินการ</th><th>จัดการ</th>
     </tr></thead><tbody id="mrpRows">
     ${rows.map(r=>`<tr>
       <td><span class="pn ${r.pid?'linkish':''}" ${r.pid?`onclick="openProduct('${r.pid}')"`:''}>${esc(r.pn)}</span><br><span class="muted" style="font-size:11px">${esc(r.name||'')}</span></td>
@@ -8400,10 +8400,12 @@ function viewMRP(el){
         <button class="btn sm" onclick="mrpMakePO('${r.pid}',${Math.ceil(r.short*2/4)},2)" title="ผลิตคลุม 2 เดือน ≈ ${fmt(Math.ceil(r.short*2/4))} ชิ้น">ใบสั่งผลิต 2/M</button>
         <button class="btn sm" onclick="mrpMakePO('${r.pid}',${Math.ceil(r.short/4)},1)" title="ผลิตคลุม 1 เดือน ≈ ${fmt(Math.ceil(r.short/4))} ชิ้น">ใบสั่งผลิต 1/M</button>
       </div>`:(!r.enoughNow&&r.makerOut>0?'<span class="muted">รอผู้ผลิตส่ง</span>':'<span class="muted">—</span>')}</td>
+      <td style="white-space:nowrap">${r.pid?`<button class="btn sm" onclick="openProduct('${r.pid}')" title="ดูบัตรสินค้า">👁 ดู</button> <button class="btn sm" onclick="printProductCard('${r.pid}')" title="พิมพ์บัตรสินค้า">🖨️</button>`:`<button class="btn sm danger" onclick="mrpDelDemand('${esc(r.pn)}')" title="ลบรายการที่จับคู่สินค้าไม่ได้ (ไม่ใช่ชิ้นงาน)">🗑️ ลบ</button>`}</td>
     </tr>`).join('')}
     </tbody></table></div>`:`<div class="empty"><div class="big">📭</div><div class="t">${mrpOnlyShort?'ไม่มีรายการที่ขาด — ของพอทั้งหมด ✅':'ยังไม่มีข้อมูลความต้องการ ('+esc(mrpModeLabel(mode))+')'}</div><div>${mrpOnlyShort?'':'ไปบันทึก/นำเข้า Forecast หรือ Customer PO ที่เมนู Forecast / PO / PL ก่อน'}</div></div>`}
   </div></div>`;
 }
+function mrpDelDemand(pn){var target=normPN(pn);confirmBox('ลบรายการที่ไม่ใช่ชิ้นงาน?','ลบ "'+esc(pn)+'" (จับคู่สินค้าในระบบไม่ได้) ออกจาก Forecast / Customer PO / แผนจัดส่ง — ทำเฉพาะรายการที่ไม่มีสินค้าจริงเท่านั้น',function(){var removed=0;['FC','CPO','PL'].forEach(function(t){DB.docs.filter(function(d){return d.type===t;}).forEach(function(d){if(!d.lines)return;var before=d.lines.length;d.lines=d.lines.filter(function(l){var isReal=l.fgId&&P(l.fgId);var lp=normPN((l.name||l.pn||'').split(' ')[0]);return !(!isReal&&lp===target);});removed+=before-d.lines.length;});});DB.docs=DB.docs.filter(function(d){return !(['FC','CPO','PL'].indexOf(d.type)>=0&&(!d.lines||d.lines.length===0));});saveDB();render();toast('ลบ '+removed+' รายการที่ไม่ใช่ชิ้นงานแล้ว','ok');});}
 function mrpMakePO(pid,qty,months){const p=P(pid);if(!p)return;qty=Math.max(0,Math.round(Number(qty)||0));openPRDForm(null,[{fgId:pid,name:p.pn+(p.name&&p.name!=='-'?' '+p.name:''),qty:qty}]);if(months){try{toast('เปิดใบสั่งผลิตคลุม '+months+' เดือน · จำนวน '+fmt(qty)+' ชิ้น (ปรับได้ในฟอร์ม)','ok');}catch(e){}}}
 /* ============================================================
    UI primitives: modal, toast, confirm
