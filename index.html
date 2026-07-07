@@ -272,7 +272,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.28j (เช็คความเพียงพอ: ปุ่มดู/พิมพ์ + ลบรายการที่ไม่ใช่ชิ้นงาน)';
+const APP_BUILD='SEMIQC-2026.06.28k (สินค้าคงคลัง: ชุบ ดึงคงค้างส่งชุบ/รับชุบ · รอรับเข้า ดึงคัดแยก OK ที่ยังไม่รับเข้า)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -914,6 +914,8 @@ function viewMonitor(el){
     ${monPanel('📈','เพิ่มยอดขาย','ยอดขาย(INV) เทียบเดือนก่อน (MoM%) · YoY '+(yoySales!=null?yoySales+'%':'ยังไม่มีข้อมูลปีก่อน'),lab,[{name:'%เติบโต',color:'#16a34a',data:sGrowth}],{fy:pct,target:monTarget('sales'),tdir:'>',key:'sales'})}
   </div>`;
 }
+function platePendMap(){var m={};(DB.docs||[]).forEach(function(d){if(d.type!=='PL'||d.status==='cancelled'||!d.lines)return;d.lines.forEach(function(l){var pid=l.productId||((findProdByName(l.name,'FG')||{}).id||'');if(!pid)return;var sn=Number(l.sentQty)||0,rc=Number(l.recvQty)||0;var pend=(l.pending!=null&&l.pending!=='')?Number(l.pending):(sn-rc);if(pend>0)m[pid]=(m[pid]||0)+pend;});});return m;}
+function rcvPendMap(){var m={};(DB.docs||[]).forEach(function(d){if(d.status==='cancelled')return;var t=d.type;if(t==='QC'||t==='QI'||t==='QS'||t==='QSE'){if(d.lines&&d.lines.length){d.lines.forEach(function(l){if(l.productId)m[l.productId]=(m[l.productId]||0)+(Number(l.ok)||0);});}else if(d.productId){m[d.productId]=(m[d.productId]||0)+(Number(d.qtyOk)||0);}}else if(t==='SI'||t==='SII'||t==='SIS'||t==='SSE'){if(d.lines&&d.lines.length){d.lines.forEach(function(l){if(l.productId)m[l.productId]=(m[l.productId]||0)-(Number(l.weighed||l.qty)||0);});}else if(d.productId){m[d.productId]=(m[d.productId]||0)-(Number(d.qty)||0);}}});Object.keys(m).forEach(function(k){if(m[k]<0)m[k]=0;});return m;}
 function viewInventory(el){
   setTitle('สินค้าคงคลัง','ฐานข้อมูลหลัก — สำเร็จรูป + วัตถุดิบ');
   const custs=[...new Set(DB.products.map(p=>p.customer).filter(c=>c&&c!=='ไม่ระบุ'))].sort();
@@ -1110,7 +1112,7 @@ function renderInvTable(){
   if(!list.length){wrap.innerHTML=`<div class="empty"><div class="big">🔍</div><div class="t">ไม่พบรายการ</div></div>`;return}
   const sum=f=>list.reduce((s,p)=>s+(Number(f(p))||0),0);
   const wipMap=wipOrderMap();const wipOf=p=>Math.max(0,((wipMap[p.id]||{}).ord||0)-((wipMap[p.id]||{}).recv||0));
-  const tMoq=sum(p=>p.moq||p.reorder||0),tPrice=sum(p=>p.salePrice||0),tOn=sum(p=>p.onHand),tWip=list.reduce((s,p)=>s+wipOf(p),0),tPl=sum(p=>p.atPlating),tQC=sum(p=>p.passedQC);
+  const plMap=platePendMap(),rcMap=rcvPendMap();const platOf=p=>(p.atPlating||0)+(plMap[p.id]||0),rcvOf=p=>(rcMap[p.id]||0);const tMoq=sum(p=>p.moq||p.reorder||0),tPrice=sum(p=>p.salePrice||0),tOn=sum(p=>p.onHand),tWip=list.reduce((s,p)=>s+wipOf(p),0),tPl=sum(platOf),tQC=sum(rcvOf);
   const qtOf=p=>{if(p.type==='RM'||p.type==='SUP'||p.type==='ASM')return null;return (p.wip||0)+(p.atPlating||0)+(p.passedQC||0);}; /* Q-TIME = รอคัด + ชุบ + คัดผ่าน (รับชิ้นงานแล้วอยู่ในกระบวนการ) */
   const firstMove={};(DB.movements||[]).forEach(m=>{if(!m.productId)return;const dt=m.date||'';if(dt&&(!firstMove[m.productId]||dt<firstMove[m.productId]))firstMove[m.productId]=dt;});
   const pDate=p=>p.date||firstMove[p.id]||'';
@@ -1162,8 +1164,8 @@ function renderInvTable(){
       <td class="num"><b style="color:${low?'var(--red)':'var(--ink)'}">${fmt(p.onHand)}</b>${p.type==='RM'&&(p.barsOnHand||0)?'<br><span style="font-size:10.5px;color:var(--brand)">'+fmt(p.barsOnHand)+' เส้น</span>':''}</td>
       ${(()=>{const w=wipOf(p);return `<td class="num ${w?'':'muted'}" title="WIP = สั่งผลิต − รับชิ้นงาน (ผู้ผลิตยังไม่ส่ง)">${w?fmt(w):'-'}</td>`;})()}
       ${invCols.qtime!==false?(()=>{const v=qtOf(p);return `<td class="num ${v?'':'muted'}" title="Q-Time = รอคัด + ชุบ + คัดผ่าน (รับชิ้นงานแล้วอยู่ในกระบวนการ)">${v==null?'<span class="muted">—</span>':(v?'<b style="color:var(--amber,#b45309)">'+fmt(v)+'</b>':'0')}</td>`;})():''}
-      ${invCols.atp!==false?`<td class="num ${p.atPlating?'':'muted'}">${fmt(p.atPlating)}</td>`:''}
-      ${invCols.rcv!==false?`<td class="num ${p.passedQC?'':'muted'}">${fmt(p.passedQC)}</td>`:''}
+      ${invCols.atp!==false?`<td class="num ${platOf(p)?'':'muted'}">${fmt(platOf(p))}</td>`:''}
+      ${invCols.rcv!==false?`<td class="num ${rcvOf(p)?'':'muted'}">${fmt(rcvOf(p))}</td>`:''}
       <td style="text-align:right;white-space:nowrap"><button class="btn sm" onclick="openProduct('${p.id}')">ดู</button> <button class="btn sm" onclick="printProductCard('${p.id}')" title="พิมพ์บัตรสินค้า">🖨️</button> <button class="btn sm" onclick="openProductForm('${p.id}')">✏️ แก้ไข</button> <button class="btn sm danger" onclick="delProduct('${p.id}')">🗑️ ลบ</button></td>
     </tr>`}).join('')}
   </tbody><tfoot><tr style="font-weight:700;background:var(--panel2);border-top:2px solid var(--line)">
