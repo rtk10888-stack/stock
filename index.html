@@ -272,7 +272,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.28m (เงื่อนไขการไหล: สินค้าที่มีชุบสี/โรงชุบ = ชุบ-QC อัตโนมัติ)';
+const APP_BUILD='SEMIQC-2026.06.28n (ไม่ชุบ=เข้าคงเหลือทันที: รวมยอดในกระบวนการเป็นคงเหลือ · WIP/Q-Time/ชุบ/รอรับเข้า=0)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -1112,8 +1112,8 @@ function renderInvTable(){
   if(!list.length){wrap.innerHTML=`<div class="empty"><div class="big">🔍</div><div class="t">ไม่พบรายการ</div></div>`;return}
   const sum=f=>list.reduce((s,p)=>s+(Number(f(p))||0),0);
   const wipMap=wipOrderMap();const wipOf=p=>Math.max(0,((wipMap[p.id]||{}).ord||0)-((wipMap[p.id]||{}).recv||0));
-  const plMap=platePendMap(),rcMap=rcvPendMap();const platOf=p=>(p.atPlating||0)+(plMap[p.id]||0),rcvOf=p=>(rcMap[p.id]||0);const tMoq=sum(p=>p.moq||p.reorder||0),tPrice=sum(p=>p.salePrice||0),tOn=sum(p=>p.onHand),tWip=list.reduce((s,p)=>s+wipOf(p),0),tPl=sum(platOf),tQC=sum(rcvOf);
-  const qtOf=p=>{if(p.type==='RM'||p.type==='SUP'||p.type==='ASM')return null;return (p.wip||0)+(p.atPlating||0)+(p.passedQC||0);}; /* Q-TIME = รอคัด + ชุบ + คัดผ่าน (รับชิ้นงานแล้วอยู่ในกระบวนการ) */
+  const plMap=platePendMap(),rcMap=rcvPendMap();const platOf=p=>(p.atPlating||0)+(plMap[p.id]||0),rcvOf=p=>(rcMap[p.id]||0);const dirOf=p=>isDirectFlow(prodFlow(p));const onHandDispOf=p=>dirOf(p)?((p.onHand||0)+(p.wip||0)+(p.atPlating||0)+(p.passedQC||0)):(p.onHand||0);const platDispOf=p=>dirOf(p)?0:platOf(p);const rcvDispOf=p=>dirOf(p)?0:rcvOf(p);const tMoq=sum(p=>p.moq||p.reorder||0),tPrice=sum(p=>p.salePrice||0),tOn=sum(onHandDispOf),tWip=list.reduce((s,p)=>s+wipOf(p),0),tPl=sum(platDispOf),tQC=sum(rcvDispOf);
+  const qtOf=p=>{if(p.type==='RM'||p.type==='SUP'||p.type==='ASM')return null;if(dirOf(p))return 0;return (p.wip||0)+(p.atPlating||0)+(p.passedQC||0);}; /* Q-TIME = รอคัด + ชุบ + คัดผ่าน (รับชิ้นงานแล้วอยู่ในกระบวนการ) */
   const firstMove={};(DB.movements||[]).forEach(m=>{if(!m.productId)return;const dt=m.date||'';if(dt&&(!firstMove[m.productId]||dt<firstMove[m.productId]))firstMove[m.productId]=dt;});
   const pDate=p=>p.date||firstMove[p.id]||'';
   const ma=invMoveAgg();const mg=p=>ma[p.id]||{adj:0,tin:0,tout:0,ng:0};
@@ -1161,11 +1161,11 @@ function renderInvTable(){
       ${invCols.cond?`<td>${cond}</td>`:''}
       ${invCols.flow!==false?`<td><span class="tag" style="background:${flowStatus(p,blankPns).bg};color:#fff;cursor:pointer" onclick="flowFix('${p.id}')" title="คลิกดูวิธีแก้">${esc(flowStatus(p,blankPns).label)}</span></td>`:''}
       ${(()=>{const g=mg(p);return `${invCols.adj!==false?`<td class="num ${g.adj?'':'muted'}" title="รวมปรับยอด/ตรวจนับ">${g.adj?((g.adj>0?'+':'')+fmt(g.adj)):'0'}</td>`:''}${invCols.tin!==false?`<td class="num ${g.tin?'':'muted'}" ${g.tin?'style="color:var(--teal)"':''} title="รวมรับเข้าคงเหลือ">${fmt(g.tin||0)}</td>`:''}${invCols.tout!==false?`<td class="num ${g.tout?'':'muted'}" ${g.tout?'style="color:var(--red)"':''} title="รวมจ่ายออกจากคงเหลือ">${fmt(g.tout||0)}</td>`:''}${invCols.ng!==false?`<td class="num ${g.ng?'':'muted'}" ${g.ng?'style="color:var(--red)"':''} title="รวมของเสีย NG">${fmt(g.ng||0)}</td>`:''}`;})()}
-      <td class="num"><b style="color:${low?'var(--red)':'var(--ink)'}">${fmt(p.onHand)}</b>${p.type==='RM'&&(p.barsOnHand||0)?'<br><span style="font-size:10.5px;color:var(--brand)">'+fmt(p.barsOnHand)+' เส้น</span>':''}</td>
+      <td class="num"><b style="color:${low?'var(--red)':'var(--ink)'}">${fmt(onHandDispOf(p))}</b>${p.type==='RM'&&(p.barsOnHand||0)?'<br><span style="font-size:10.5px;color:var(--brand)">'+fmt(p.barsOnHand)+' เส้น</span>':''}</td>
       ${(()=>{const w=wipOf(p);return `<td class="num ${w?'':'muted'}" title="WIP = สั่งผลิต − รับชิ้นงาน (ผู้ผลิตยังไม่ส่ง)">${w?fmt(w):'-'}</td>`;})()}
       ${invCols.qtime!==false?(()=>{const v=qtOf(p);return `<td class="num ${v?'':'muted'}" title="Q-Time = รอคัด + ชุบ + คัดผ่าน (รับชิ้นงานแล้วอยู่ในกระบวนการ)">${v==null?'<span class="muted">—</span>':(v?'<b style="color:var(--amber,#b45309)">'+fmt(v)+'</b>':'0')}</td>`;})():''}
-      ${invCols.atp!==false?`<td class="num ${platOf(p)?'':'muted'}">${fmt(platOf(p))}</td>`:''}
-      ${invCols.rcv!==false?`<td class="num ${rcvOf(p)?'':'muted'}">${fmt(rcvOf(p))}</td>`:''}
+      ${invCols.atp!==false?`<td class="num ${platDispOf(p)?'':'muted'}">${fmt(platDispOf(p))}</td>`:''}
+      ${invCols.rcv!==false?`<td class="num ${rcvDispOf(p)?'':'muted'}">${fmt(rcvDispOf(p))}</td>`:''}
       <td style="text-align:right;white-space:nowrap"><button class="btn sm" onclick="openProduct('${p.id}')">ดู</button> <button class="btn sm" onclick="printProductCard('${p.id}')" title="พิมพ์บัตรสินค้า">🖨️</button> <button class="btn sm" onclick="openProductForm('${p.id}')">✏️ แก้ไข</button> <button class="btn sm danger" onclick="delProduct('${p.id}')">🗑️ ลบ</button></td>
     </tr>`}).join('')}
   </tbody><tfoot><tr style="font-weight:700;background:var(--panel2);border-top:2px solid var(--line)">
