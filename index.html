@@ -272,7 +272,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.29j (คัดแยก OK/NG: เพิ่มปุ่มยกเลิกตามช่วงเดือน คืนยอดรอรับเข้า)';
+const APP_BUILD='SEMIQC-2026.06.29k (แก้ปุ่มล้างรายการไม่เกี่ยวข้อง ไม่ให้ลบใบส่งชุบจริง)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -3671,7 +3671,7 @@ function plOpenNew(){plToggle(true);plClear();try{window.scrollTo({top:0,behavio
 function plPoNo(d){ try{ if(d&&d.lines&&d.lines.length){ for(var i=0;i<d.lines.length;i++){ if(d.lines[i]&&String(d.lines[i].poNo||'').trim())return String(d.lines[i].poNo).trim(); } } }catch(e){} return String((d&&(d.poNo||''))||'').trim(); }
 function plCleanJunk(){
   /* ตัดสินจาก "เลขที่ใบสั่ง" (poNo) ที่แสดงในตาราง — เก็บเฉพาะที่ขึ้นต้น PO+ตัวเลข */
-  const junk=(DB.docs||[]).filter(d=>d.type==='PL'&&!/^PO\d/i.test(plPoNo(d)));
+  const junk=(DB.docs||[]).filter(d=>d.type==='PL'&&!d.dplan&&!(d.lines||[]).some(l=>Number(l.sentQty)>0||Number(l.recvQty)>0)&&!/^PO\d/i.test(plPoNo(d)));
   if(!junk.length){toast('ไม่มีรายการที่ต้องล้าง (ทุกใบขึ้นต้นด้วย PO อยู่แล้ว)','ok');return;}
   const sample=junk.slice(0,8).map(d=>esc(plPoNo(d)||'(ไม่มีเลขใบสั่ง)')).join(', ')+(junk.length>8?' ...':'');
   confirmBox('🧹 ล้างรายการที่ไม่เกี่ยวข้อง?','พบ '+junk.length+' รายการที่ "เลขที่ใบสั่ง" ไม่ได้ขึ้นต้นด้วย PO+ตัวเลข (เช่น '+sample+') — จะลบออกถาวร โดยเก็บเฉพาะใบ PO ไว้ · เหลือ '+((DB.docs||[]).filter(d=>d.type==='PL').length-junk.length)+' ใบ ดำเนินการต่อ?',()=>{
