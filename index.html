@@ -274,7 +274,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.29o (⋯ เพิ่มเติม ครบ Forecast/PL + ใบเบิกจ่าย + ปรับ CSS เนียนขึ้น)';
+const APP_BUILD='SEMIQC-2026.06.29p (ใบเบิกจ่าย: กรองเดือน/วันที่ตามกำหนดส่ง · ค่าเริ่มต้นเลขที่ น้อย→มาก)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -8465,7 +8465,7 @@ function viewFGI(el){
       <input id="fgiDate" type="date" class="fchip" oninput="filterFgiRows()" style="max-width:150px" title="กรองวันที่">
       <input id="fgiCust" list="dl_fgicust" class="fchip" placeholder="👥 ลูกค้า" oninput="filterFgiRows()" style="max-width:150px"><datalist id="dl_fgicust">${custs.map(c=>`<option value="${esc(c)}">`).join('')}</datalist>
       <input id="fgiItem" list="dl_fgiitem" class="fchip" placeholder="📦 สินค้า" oninput="filterFgiRows()" style="max-width:160px"><datalist id="dl_fgiitem">${items.map(it=>`<option value="${esc(it)}">`).join('')}</datalist>
-      <select id="fgiSort" onchange="filterFgiRows()" style="max-width:170px;width:auto"><option value="date_desc" selected>วันที่: มาก → น้อย</option><option value="date_asc">วันที่: น้อย → มาก</option><option value="no_desc">เลขที่: มาก → น้อย</option><option value="no_asc">เลขที่: น้อย → มาก</option></select>
+      <select id="fgiSort" onchange="filterFgiRows()" style="max-width:170px;width:auto"><option value="no_asc" selected>เลขที่: น้อย → มาก</option><option value="no_desc">เลขที่: มาก → น้อย</option><option value="date_desc">กำหนดส่ง: มาก → น้อย</option><option value="date_asc">กำหนดส่ง: น้อย → มาก</option></select>
       <button class="btn tbx" onclick="printFGIDay()">🖨️ พิมพ์รายวัน</button>
       <button class="btn tbx" onclick="printFGIMonth()">🖨️ พิมพ์รายเดือน</button>
       <button class="btn" onclick="toggleTools()" title="ซ่อน/แสดงปุ่มพิมพ์">${toolsOpen()?'✕ ปิดเครื่องมือ':'⋯ เพิ่มเติม'}</button> <button class="btn pri" onclick="openFGIForm()">+ สร้างใบเบิกจ่าย</button>
@@ -8480,7 +8480,7 @@ function fgiRowHtml(d){
   const parts=(d.lines||[]).map(l=>l.name||(l.productId&&P(l.productId)?P(l.productId).pn:'')).filter(Boolean);
   const head=parts.slice(0,2).join(', ')+(parts.length>2?` +${parts.length-2}`:'');
   const acts=`<button class="btn sm" onclick="viewFGIDoc('${d.id}')">ดู</button> <button class="btn sm" onclick="printFGI('${d.id}')" title="พิมพ์">🖨️</button> <button class="btn sm" onclick="printFGI('${d.id}','image')" title="ส่งรูป">📤</button> <button class="btn sm" onclick="openFGIForm('${d.id}')">✏️</button> `+(d.status==='pending'?`<button class="btn sm ok" onclick="approveDoc('${d.id}')">อนุมัติ</button> `:'')+`<button class="btn sm danger" onclick="delFGI('${d.id}')">ลบ</button>`;
-  return `<tr data-no="${esc(d.no)}" data-ts="${d.ts||0}" data-date="${esc(d.date||'')}" data-mon="${(d.date||'').slice(0,7)}" data-cust="${esc((d.customer||'').toLowerCase())}" data-item="${esc(parts.join(' ').toLowerCase())}" data-po="${esc((d.custPo||'').toLowerCase())}">
+  return `<tr data-no="${esc(d.no)}" data-ts="${d.ts||0}" data-date="${esc(_due)}" data-mon="${(_due||'').slice(0,7)}" data-cust="${esc((d.customer||'').toLowerCase())}" data-item="${esc(parts.join(' ').toLowerCase())}" data-po="${esc((d.custPo||'').toLowerCase())}">
     <td class="pn linkish" onclick="viewFGIDoc('${d.id}')">${esc(d.no)}</td><td class="muted">${esc(d.date||'')}</td>
     <td>${esc(d.customer||'-')}</td><td><span class="tag violet">${esc(d.custPo||'-')}</span></td>
     <td class="muted">${esc(head)}</td><td class="c">${esc(_due)}</td><td class="num"><b>${fmt(tot)}</b></td>
@@ -8491,7 +8491,7 @@ function filterFgiRows(){
   const g=id=>((document.getElementById(id)||{}).value||'').trim().toLowerCase();
   const q=g('fgiSearch'),mon=((document.getElementById('fgiMon')||{}).value||'').trim(),dt=((document.getElementById('fgiDate')||{}).value||'').trim(),cust=g('fgiCust'),it=g('fgiItem');
   document.querySelectorAll('#fgiRows tr').forEach(tr=>{const ds=tr.dataset||{};const t=tr.textContent.toLowerCase();const show=(!q||t.includes(q))&&(!mon||(ds.mon||'').includes(mon))&&(!dt||(ds.date||'')===dt)&&(!cust||(ds.cust||'').includes(cust))&&(!it||(ds.item||'').includes(it));tr.style.display=show?'':'none';});
-  const sortv=((document.getElementById('fgiSort')||{}).value)||'date_desc';const tb=document.getElementById('fgiRows');
+  const sortv=((document.getElementById('fgiSort')||{}).value)||'no_asc';const tb=document.getElementById('fgiRows');
   if(tb){const rows=[...tb.querySelectorAll('tr')];rows.sort((a,b)=>{const A=a.dataset||{},B=b.dataset||{};if(sortv==='no_asc')return (A.no||'').localeCompare(B.no||'',undefined,{numeric:true});if(sortv==='no_desc')return (B.no||'').localeCompare(A.no||'',undefined,{numeric:true});if(sortv==='date_asc')return (A.date||'').localeCompare(B.date||'')||(Number(A.ts||0)-Number(B.ts||0));return (B.date||'').localeCompare(A.date||'')||(Number(B.ts||0)-Number(A.ts||0));});rows.forEach(r=>tb.appendChild(r));}
 }
 function openFGIForm(editId){
