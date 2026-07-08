@@ -274,7 +274,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.29r (ผลิตประจำวัน: รายชื่อผู้ผลิตเลือกได้ + เพิ่ม/แก้/ลบ)';
+const APP_BUILD='SEMIQC-2026.06.29s (สินค้าคงคลัง: สรุปการดำเนินการ Line Chart รายวัน/เดือน/ปี)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -1131,7 +1131,7 @@ function renderInvTable(){
   const tQt=list.reduce((s,p)=>{const v=qtOf(p);return s+(v||0);},0);
   const _full=list; const _capped=(invFilter.limit&&invFilter.limit<_full.length);
   const shown=_capped?_full.slice(0,invFilter.limit):_full;
-  const moreBar=_capped?`<div class="hint" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:8px 12px;background:var(--panel2);border-bottom:1px solid var(--line)">📋 แสดง ${fmt(shown.length)} จาก ${fmt(_full.length)} รายการ <span class="muted">(จำกัดการแสดงผลเพื่อไม่ให้ค้าง)</span> <button class="btn sm" onclick="invShowMore()">⬇️ โหลดเพิ่ม +${fmt(INV_PAGE)}</button> <button class="btn sm" onclick="invShowAll()">แสดงทั้งหมด (${fmt(_full.length)})</button></div>`:'';
+  const moreBar=`<div class="hint" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:8px 12px;background:var(--panel2);border-bottom:1px solid var(--line)">${_capped?`📋 แสดง ${fmt(shown.length)} จาก ${fmt(_full.length)} รายการ <span class="muted">(จำกัดการแสดงผลเพื่อไม่ให้ค้าง)</span> <button class="btn sm" onclick="invShowMore()">⬇️ โหลดเพิ่ม +${fmt(INV_PAGE)}</button> <button class="btn sm" onclick="invShowAll()">แสดงทั้งหมด (${fmt(_full.length)})</button>`:`<span class="muted">📋 ${fmt(_full.length)} รายการ</span>`}<button class="btn sm pri" onclick="openInvOps()" style="margin-left:auto">📈 สรุปการดำเนินการ</button></div>`;
   wrap.innerHTML=`${moreBar}<div class="tbl-wrap"><table><thead><tr>
     <th>ประเภท</th>${invCols.date!==false?`<th>วันที่${invColEye('date')}</th>`:''}<th>Part Number</th><th>ชื่อ</th>${invCols.sale!==false?`<th>ขาย${invColEye('sale')}</th>`:''}${invCols.shape!==false?`<th>แบบ/รูป${invColEye('shape')}</th>`:''}${invCols.grade!==false?`<th>เกรดเหล็ก${invColEye('grade')}</th>`:''}${invCols.dim!==false?`<th>งานโตxยาว${invColEye('dim')}</th>`:''}${invCols.steel!==false?`<th>ใช้เหล็ก${invColEye('steel')}</th>`:''}${invCols.perbar!==false?`<th class="num">1 เส้น/ชิ้นงาน${invColEye('perbar')}</th>`:''}${invCols.harden!==false?`<th>ชุบแข็ง${invColEye('harden')}</th>`:''}${invCols.color!==false?`<th>ชุบสี${invColEye('color')}</th>`:''}${invCols.wfg!==false?`<th class="num">W/FG${invColEye('wfg')}</th>`:''}${invCols.wfgtot!==false?`<th class="num">น้ำหนัก/${invFilter.wfgN||100}ชิ้น${invColEye('wfgtot')}</th>`:''}${invCols.wpk!==false?`<th class="num">น้ำหนัก/1กก.${invColEye('wpk')}</th>`:''}${invCols.plateTPI!==false?`<th>ปรับราคาชุบ${invColEye('plateTPI')}</th>`:''}${invCols.platePrice!==false?`<th class="num">ราคาชุบ/1กก.${invColEye('platePrice')}</th>`:''}<th>ลูกค้า</th><th class="num">MOQ</th>${invCols.salePrice?`<th class="num">ราคาขาย${invColEye('salePrice')}</th>`:''}${invCols.vendor!==false?`<th>ผู้ขาย/ผลิต${invColEye('vendor')}</th>`:''}${invCols.prodPrice?`<th class="num">ราคาผลิต${invColEye('prodPrice')}</th>`:''}${invCols.plating?`<th>การชุบ${invColEye('plating')}</th>`:''}${invCols.cond?`<th>เงื่อนไขวัตถุดิบ${invColEye('cond')}</th>`:''}${invCols.flow!==false?`<th>สถานะการไหล${invColEye('flow')}</th>`:''}${invCols.adj!==false?`<th class="num">ปรับยอด${invColEye('adj')}</th>`:''}${invCols.tin!==false?`<th class="num">รวมรับ${invColEye('tin')}</th>`:''}${invCols.tout!==false?`<th class="num">รวมจ่าย${invColEye('tout')}</th>`:''}${invCols.ng!==false?`<th class="num">NG${invColEye('ng')}</th>`:''}
     <th class="num">คงเหลือ</th><th class="num">WIP</th>${invCols.qtime!==false?`<th class="num">Q-Time${invColEye('qtime')}</th>`:''}${invCols.atp!==false?`<th class="num">ชุบ${invColEye('atp')}</th>`:''}${invCols.rcv!==false?`<th class="num">รอรับเข้า${invColEye('rcv')}</th>`:''}<th></th>
@@ -8675,6 +8675,28 @@ function doBulkCancel(type){
 }
 function toolsOpen(){try{return localStorage.getItem('rtk_tools_open')==='1';}catch(e){return false;}}
 function toggleTools(){var o=!toolsOpen();try{localStorage.setItem('rtk_tools_open',o?'1':'0');}catch(e){}document.body.classList.toggle('tools-open',o);render();}
+var invOpsMode='month';
+function openInvOps(){ invOpsModal(); }
+function invOpsSet(m){ invOpsMode=m; invOpsModal(); }
+function invOpsModal(){
+  var mode=invOpsMode;
+  var inTypes={GR:1,RW:1,GI:1,GS:1,SUP:1}, outTypes={INV:1,IV2:1,FGI:1,WD:1};
+  function keyOf(dt){ if(!dt)return ''; if(mode==='day')return dt.slice(0,10); if(mode==='year')return dt.slice(0,4); return dt.slice(0,7); }
+  var b={};
+  (DB.docs||[]).forEach(function(d){ if(d.status==='cancelled')return; var k=keyOf(d.date); if(!k)return; var q=(d.lines||[]).reduce(function(s,l){return s+(Number(l.qty)||0);},0); if(!q&&d.qty)q=Number(d.qty)||0; if(inTypes[d.type]){b[k]=b[k]||{i:0,o:0};b[k].i+=q;} else if(outTypes[d.type]){b[k]=b[k]||{i:0,o:0};b[k].o+=q;} });
+  var keys=Object.keys(b).sort();
+  var lim=mode==='year'?12:(mode==='day'?31:14);
+  keys=keys.slice(-lim);
+  var labels=keys.map(function(k){ if(mode==='day')return k.slice(5); if(mode==='year')return k; return k.slice(2); });
+  var sIn=keys.map(function(k){return b[k].i;}), sOut=keys.map(function(k){return b[k].o;});
+  var totIn=sIn.reduce(function(a,c){return a+c;},0), totOut=sOut.reduce(function(a,c){return a+c;},0);
+  var chart=keys.length?lineChart(labels,[{name:'รับเข้า',color:'#16a34a',data:sIn},{name:'จ่ายออก',color:'#ef4444',data:sOut}],{height:300,fy:fmt}):'<div class="empty" style="padding:30px"><div class="big">📊</div><div class="t">ยังไม่มีข้อมูลการดำเนินการ</div></div>';
+  var seg='<div class="seg">'+[['day','รายวัน'],['month','รายเดือน'],['year','รายปี']].map(function(x){return '<button class="'+(mode===x[0]?'on':'')+'" onclick="invOpsSet(\''+x[0]+'\')">'+x[1]+'</button>';}).join('')+'</div>';
+  modal({title:'📈 สรุปการดำเนินการ (รับเข้า / จ่ายออก)',size:'lg',body:
+    '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px">'+seg+'<div style="display:flex;gap:16px"><div style="text-align:right"><div class="muted" style="font-size:11px">รวมรับเข้า</div><div style="font-size:19px;font-weight:800;color:#16a34a">'+fmt(totIn)+'</div></div><div style="text-align:right"><div class="muted" style="font-size:11px">รวมจ่ายออก</div><div style="font-size:19px;font-weight:800;color:#ef4444">'+fmt(totOut)+'</div></div></div></div>'+chart
+    +'<div class="hint" style="margin-top:12px"><span class="i">i</span><div><b>รับเข้า</b> = รับวัตถุดิบ + รับชิ้นงาน + รับเข้าต่างประเทศ/พิเศษ + วัสดุสิ้นเปลือง · <b>จ่ายออก</b> = ใบเบิกจ่ายสำเร็จรูป + เบิกวัตถุดิบ + Invoice · นับตามจำนวนในเอกสาร (ไม่รวมที่ยกเลิก)</div></div>',
+    footer:'<button class="btn pri" onclick="closeModal()">ปิด</button>'});
+}
 function modal({title,body,footer,size}){
   document.getElementById('modalRoot').innerHTML=`<div class="overlay" onclick="if(event.target===this)closeModal()">
     <div class="modal ${size==='lg'?'lg':size==='xl'?'xl':''}"><div class="modal-h"><h3>${title}</h3><span class="x" onclick="closeModal()">×</span></div>
