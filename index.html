@@ -274,7 +274,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.29z (สรุปการดำเนินการครบทุกหน้า: คัดแยก/ส่งชุบ/รับเข้าสต๊อค/Invoice/เบิกวัตถุดิบ)';
+const APP_BUILD='SEMIQC-2026.07.03a (Invoice: ตั้งแต่ 3/7/2026 ไม่ตัดสต๊อค ควบคุมที่ใบเบิกจ่ายสำเร็จรูป)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -539,7 +539,7 @@ function applyDoc(d){
     else if(t==='WS'){ d.lines.forEach(l=>{const p=P(l.productId);if(p){p.onHand-=l.qty;move(p.id,'onHand',-l.qty,'WS',d.no,'เบิกวัสดุสิ้นเปลือง '+(d.issuer||''));}}); }
     else if(t==='SUP'){ d.lines.forEach(l=>{const p=P(l.productId);if(p){p.onHand+=l.qty;move(p.id,'onHand',+l.qty,'SUP',d.no,'รับวัสดุสิ้นเปลือง '+(d.supplier||''));}}); }
     else if(t==='RMC'){ const p=P(d.productId);if(p){p.onHand+=d.qty;move(p.id,'onHand',+d.qty,'RMC',d.no,'รับแมทลูกค้า '+(d.customer||''));} }
-    else if(t==='INV'){ /* ไม่ตัดสต๊อค — ตัดยอดที่ใบเบิกจ่ายสำเร็จรูป (FGI) */ }
+    else if(t==='INV'){ if((d.date||'')<'2026-07-03'){ d.lines.forEach(l=>{const p=P(l.productId);if(p){p.onHand-=l.qty;move(p.id,'onHand',-l.qty,'INV',d.no,'ขาย '+(d.customer||''));}}); } /* ตั้งแต่ 2026-07-03: ไม่ตัด — ควบคุมที่ใบเบิกจ่ายสำเร็จรูป (FGI) */ }
     else if(t==='IV2'){ d.lines.forEach(l=>{const p=P(l.productId);if(p){p.onHand-=l.qty;move(p.id,'onHand',-l.qty,'IV2',d.no,'ขายพิเศษ '+(d.customer||''));}}); }
     else if(t==='ADJ'){ const p=P(d.productId);const before=p.onHand;const after=d.mode==='set'?d.qty:before+d.qty;const delta=after-before;p.onHand=after;move(p.id,'onHand',delta,'ADJ',d.no,d.mode==='set'?'ตรวจนับตั้งยอด':'ปรับยอด'); d.delta=delta; }
     else if(t==='FGI'){ d.lines.forEach(l=>{const p=P(l.productId);if(!p)return;const need=Number(l.qty)||0;if(need<=0)return;let deficit=need-Math.max(0,p.onHand||0);if(deficit>0){const a=Math.min(deficit,p.passedQC||0);if(a>0){p.passedQC-=a;p.onHand=(p.onHand||0)+a;move(p.id,'passedQC',-a,'FGI',d.no,'ดึงจากคัดผ่าน');move(p.id,'onHand',+a,'FGI',d.no,'ดึงเข้าคงเหลือ');deficit-=a;}}if(deficit>0){const b=Math.min(deficit,p.wip||0);if(b>0){p.wip-=b;p.onHand=(p.onHand||0)+b;move(p.id,'wip',-b,'FGI',d.no,'ดึงจาก WIP');move(p.id,'onHand',+b,'FGI',d.no,'ดึงเข้าคงเหลือ');deficit-=b;}}if(deficit>0){const c=Math.min(deficit,p.atPlating||0);if(c>0){p.atPlating-=c;p.onHand=(p.onHand||0)+c;move(p.id,'atPlating',-c,'FGI',d.no,'ดึงจากระหว่างชุบ');move(p.id,'onHand',+c,'FGI',d.no,'ดึงเข้าคงเหลือ');deficit-=c;}}p.onHand=(p.onHand||0)-need;move(p.id,'onHand',-need,'FGI',d.no,'เบิกจ่ายสำเร็จรูป '+(d.customer||''));}); }
@@ -1460,7 +1460,7 @@ function docHint(type){
     DP:'รายงานจำนวนผลิตเสร็จประจำวัน → เข้าบัญชี WIP (ผลิตเสร็จรอดำเนินการ)',
     QC:'คัดแยกของดี (OK) / ของเสีย (NG) → OK เข้า "คัดผ่านรอรับเข้า", NG บันทึกแยก',
     SI:'รับชิ้นงานที่คัดผ่านเข้าสต๊อคสำเร็จรูป → <b>เพิ่มยอดคงเหลือพร้อมขายอัตโนมัติ</b>',
-    INV:'เปิด Invoice ส่งลูกค้า → เมื่ออนุมัติ ระบบ <b>ตัดยอดสต๊อคสำเร็จรูปอัตโนมัติ</b>',
+    INV:'เปิด Invoice ส่งลูกค้า → <b>ตั้งแต่ 3/7/2026 ไม่ตัดสต๊อค</b> · จัดส่งตามยอดที่เตรียมไว้ใน <b>ใบเบิกจ่ายสำเร็จรูป</b> (กฎการจ่ายออกควบคุมที่ใบเบิกจ่าย)',
     ADJ:'ปรับยอด/ตรวจนับ → ตั้งยอดตามการนับจริง หรือปรับเพิ่ม-ลด พร้อมประวัติ',
   };
   return h[type]?`<div class="hint"><span class="i">💡</span><div>${h[type]}</div></div>`:'';
@@ -5290,7 +5290,7 @@ function viewDoc(id){
   `,footer:`${d.status==='pending'?`<button class="btn danger" onclick="deleteDoc('${d.id}')">ลบ</button><button class="btn ok" onclick="approveDoc('${d.id}')">✓ อนุมัติ</button>`:d.status==='approved'?`<button class="btn danger" onclick="cancelDoc('${d.id}')">ยกเลิก (คืนยอด)</button>`:''}<button class="btn pri" onclick="closeModal()">ปิด</button>`});
 }
 function doApprove(d){
-  if(d.type==='IV2'){try{invDrawFromQTime(d);}catch(e){}}
+  if(d.type==='IV2'||(d.type==='INV'&&(d.date||'')<'2026-07-03')){try{invDrawFromQTime(d);}catch(e){}}
   const r=applyDoc(d);if(!r.ok)return r;
   d.status='approved';d.approvedAt=new Date().toLocaleString('th-TH');return {ok:true};
 }
