@@ -272,7 +272,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.29k (แก้ปุ่มล้างรายการไม่เกี่ยวข้อง ไม่ให้ลบใบส่งชุบจริง)';
+const APP_BUILD='SEMIQC-2026.06.29l (แก้ศูนย์อนุมัติ error: ลงทะเบียน FGI + กันชนิดเอกสารที่ไม่รู้จัก)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -495,6 +495,7 @@ const DT={
   QC:{label:'คัดแยก OK/NG',icon:'🔎',color:'amber',prefix:'QC',multi:false},
   SI:{label:'รับเข้าสต๊อคสำเร็จรูป',icon:'📦',color:'teal',prefix:'SI',multi:false},
   INV:{label:'Invoice ส่งลูกค้า',icon:'🧾',color:'brand',prefix:'INV',multi:true},
+  FGI:{label:'ใบเบิกจ่ายสำเร็จรูป',icon:'📤',color:'brand',prefix:'FGI',multi:true},
   IV2:{label:'Invoice ส่งพิเศษ',icon:'🧾',color:'brand',prefix:'IV2',multi:true},
   ADJ:{label:'ปรับยอด/ตรวจนับ',icon:'⚖️',color:'red',prefix:'ADJ',multi:false},
 };
@@ -5414,12 +5415,12 @@ function viewApprovals(el){
   </div>
   ${pend.length?`<div class="panel"><div class="panel-h"><h2>รายการรออนุมัติ</h2><div class="right"><button class="btn ok" onclick="approveAll()">✓ อนุมัติทั้งหมด</button></div></div>
     <div class="panel-b nopad"><div class="tbl-wrap"><table><thead><tr><th>เลขที่</th><th>ประเภท</th><th>วันที่</th><th>รายละเอียด</th><th class="num">จำนวน</th><th></th></tr></thead><tbody>
-    ${pend.map(d=>{const cfg=DT[d.type];let det,qty;if(cfg.multi){det=(d.lines||[]).map(l=>{const p=P(l.productId);return p?p.pn:''}).slice(0,2).join(', ');qty=fmt((d.lines||[]).reduce((s,l)=>s+l.qty,0))}else{const p=P(d.productId);det=p?p.pn+' '+p.name:'';qty=d.type==='QC'?`OK${fmt(d.qtyOk)}/NG${fmt(d.qtyNg)}`:fmt(d.qty)}
+    ${pend.map(d=>{const cfg=DT[d.type]||{label:d.type,icon:'📄',multi:true};let det,qty;if(cfg.multi){det=(d.lines||[]).map(l=>{const p=P(l.productId);return p?p.pn:''}).slice(0,2).join(', ');qty=fmt((d.lines||[]).reduce((s,l)=>s+l.qty,0))}else{const p=P(d.productId);det=p?p.pn+' '+p.name:'';qty=d.type==='QC'?`OK${fmt(d.qtyOk)}/NG${fmt(d.qtyNg)}`:fmt(d.qty)}
       return `<tr><td class="pn">${d.no}</td><td>${cfg.icon} ${cfg.label}</td><td class="muted">${d.date}</td><td>${det}</td><td class="num">${qty}</td><td style="text-align:right;white-space:nowrap"><button class="btn sm" onclick="viewDoc('${d.id}')">ดู</button> <button class="btn sm ok" onclick="approveDoc('${d.id}')">อนุมัติ</button> <button class="btn sm danger" onclick="deleteDoc('${d.id}')">ลบ</button></td></tr>`}).join('')}
     </tbody></table></div></div></div>`:`<div class="panel"><div class="empty"><div class="big">🎉</div><div class="t">ไม่มีเอกสารรออนุมัติ</div><div>ทุกอย่างได้รับการอนุมัติเรียบร้อย</div></div></div>`}`;
 }
 function approveAll(){const pend=DB.docs.filter(d=>d.status==='pending');let ok=0,fail=0;
-  pend.forEach(d=>{if(!DT[d.type].multi&&d.productId){if(validateStage(d.type,d,P(d.productId))){fail++;return}}
+  pend.forEach(d=>{if(!(DT[d.type]||{multi:true}).multi&&d.productId){if(validateStage(d.type,d,P(d.productId))){fail++;return}}
     if((d.type==='INV'||d.type==='WD')){let bad=false;d.lines.forEach(l=>{if(l.qty>P(l.productId).onHand)bad=true});if(bad){fail++;return}}
     const r=doApprove(d);r.ok?ok++:fail++;});
   render();toast(`อนุมัติ ${ok} รายการ${fail?` · ข้าม ${fail} (ยอดไม่พอ)`:''}`,fail?'err':'ok')}
