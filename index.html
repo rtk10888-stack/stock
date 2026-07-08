@@ -272,7 +272,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.28q (Invoice ส่งลูกค้า: เพิ่มเรียงตามวันที่ · ค่าเริ่มต้น วันที่ มาก→น้อย)';
+const APP_BUILD='SEMIQC-2026.06.29a (ใบเบิกจ่ายสำเร็จรูป FM-ST-02: สร้างจาก Customer PO ตัดยอด · Invoice ไม่ตัดสต๊อค)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -536,9 +536,10 @@ function applyDoc(d){
     else if(t==='WS'){ d.lines.forEach(l=>{const p=P(l.productId);if(p){p.onHand-=l.qty;move(p.id,'onHand',-l.qty,'WS',d.no,'เบิกวัสดุสิ้นเปลือง '+(d.issuer||''));}}); }
     else if(t==='SUP'){ d.lines.forEach(l=>{const p=P(l.productId);if(p){p.onHand+=l.qty;move(p.id,'onHand',+l.qty,'SUP',d.no,'รับวัสดุสิ้นเปลือง '+(d.supplier||''));}}); }
     else if(t==='RMC'){ const p=P(d.productId);if(p){p.onHand+=d.qty;move(p.id,'onHand',+d.qty,'RMC',d.no,'รับแมทลูกค้า '+(d.customer||''));} }
-    else if(t==='INV'){ d.lines.forEach(l=>{const p=P(l.productId);if(p){p.onHand-=l.qty;move(p.id,'onHand',-l.qty,'INV',d.no,'ขาย '+(d.customer||''));}}); }
+    else if(t==='INV'){ /* ไม่ตัดสต๊อค — ตัดยอดที่ใบเบิกจ่ายสำเร็จรูป (FGI) */ }
     else if(t==='IV2'){ d.lines.forEach(l=>{const p=P(l.productId);if(p){p.onHand-=l.qty;move(p.id,'onHand',-l.qty,'IV2',d.no,'ขายพิเศษ '+(d.customer||''));}}); }
     else if(t==='ADJ'){ const p=P(d.productId);const before=p.onHand;const after=d.mode==='set'?d.qty:before+d.qty;const delta=after-before;p.onHand=after;move(p.id,'onHand',delta,'ADJ',d.no,d.mode==='set'?'ตรวจนับตั้งยอด':'ปรับยอด'); d.delta=delta; }
+    else if(t==='FGI'){ d.lines.forEach(l=>{const p=P(l.productId);if(!p)return;const need=Number(l.qty)||0;if(need<=0)return;let deficit=need-Math.max(0,p.onHand||0);if(deficit>0){const a=Math.min(deficit,p.passedQC||0);if(a>0){p.passedQC-=a;p.onHand=(p.onHand||0)+a;move(p.id,'passedQC',-a,'FGI',d.no,'ดึงจากคัดผ่าน');move(p.id,'onHand',+a,'FGI',d.no,'ดึงเข้าคงเหลือ');deficit-=a;}}if(deficit>0){const b=Math.min(deficit,p.wip||0);if(b>0){p.wip-=b;p.onHand=(p.onHand||0)+b;move(p.id,'wip',-b,'FGI',d.no,'ดึงจาก WIP');move(p.id,'onHand',+b,'FGI',d.no,'ดึงเข้าคงเหลือ');deficit-=b;}}if(deficit>0){const c=Math.min(deficit,p.atPlating||0);if(c>0){p.atPlating-=c;p.onHand=(p.onHand||0)+c;move(p.id,'atPlating',-c,'FGI',d.no,'ดึงจากระหว่างชุบ');move(p.id,'onHand',+c,'FGI',d.no,'ดึงเข้าคงเหลือ');deficit-=c;}}p.onHand=(p.onHand||0)-need;move(p.id,'onHand',-need,'FGI',d.no,'เบิกจ่ายสำเร็จรูป '+(d.customer||''));}); }
     // PO & PRD: authorize only, no stock effect
     return {ok:true};
   }catch(e){return {ok:false,err:e.message}}
@@ -582,6 +583,7 @@ const NAV=[
   {id:'stksp',ico:'⭐',label:'รับเข้าสต๊อคพิเศษ'},
   {id:'stksemi',ico:'🧩',label:'รับเข้า SE-MI'},
   {id:'rmc',ico:'📥',label:'รับแมทลูกค้า'},
+  {id:'fgi',ico:'📤',label:'ใบเบิกจ่ายสำเร็จรูป'},
   {g:'วางแผนจัดส่ง'},
   {id:'demand',ico:'📈',label:'Forecast / PO / PL'},
   {id:'mrp',ico:'✅',label:'เช็คความเพียงพอ'},
@@ -663,7 +665,7 @@ function render(){
   const el=document.getElementById('content');
   const map={dashboard:viewDashboard,inventory:viewInventory,track:viewJobTrack,approvals:viewApprovals,monitor:viewMonitor,
     po:()=>viewDocs('PO'),ip:()=>viewDocs('IP'),sp:()=>viewDocs('SP'),gr:()=>viewDocs('GR'),prd:()=>viewDocs('PRD'),wd:()=>viewDocs('WD'),
-    dp:()=>viewDocs('DP'),rw:()=>viewDocs('RW'),plate:()=>viewDocs('PL'),qc:()=>viewDocs('QC'),si:()=>viewDocs('SI'),rmc:viewRMC,sup:viewSUP,ws:viewWS,recvip:()=>viewRcv('GI'),recvsp:()=>viewRcv('GS'),qcip:()=>viewQck('QI'),qcsp:()=>viewQck('QS'),qcsemi:()=>viewQck('QSE'),stkip:()=>viewStk('SII'),stksp:()=>viewStk('SIS'),stksemi:()=>viewStk('SSE'),
+    dp:()=>viewDocs('DP'),rw:()=>viewDocs('RW'),plate:()=>viewDocs('PL'),qc:()=>viewDocs('QC'),si:()=>viewDocs('SI'),rmc:viewRMC,fgi:viewFGI,sup:viewSUP,ws:viewWS,recvip:()=>viewRcv('GI'),recvsp:()=>viewRcv('GS'),qcip:()=>viewQck('QI'),qcsp:()=>viewQck('QS'),qcsemi:()=>viewQck('QSE'),stkip:()=>viewStk('SII'),stksp:()=>viewStk('SIS'),stksemi:()=>viewStk('SSE'),
     inv:()=>viewDocs('INV'),iv2:()=>viewDocs('IV2'),adj:()=>viewDocs('ADJ'),moves:viewMoves,report:viewReport,tax:viewTax,taxsale:viewTaxSale,wht:viewWHT,nc:viewNC,settings:viewSettings,
     demand:viewDemand,mrp:viewMRP};
   (map[route]||viewDashboard)(el);
@@ -5275,7 +5277,7 @@ function viewDoc(id){
   `,footer:`${d.status==='pending'?`<button class="btn danger" onclick="deleteDoc('${d.id}')">ลบ</button><button class="btn ok" onclick="approveDoc('${d.id}')">✓ อนุมัติ</button>`:d.status==='approved'?`<button class="btn danger" onclick="cancelDoc('${d.id}')">ยกเลิก (คืนยอด)</button>`:''}<button class="btn pri" onclick="closeModal()">ปิด</button>`});
 }
 function doApprove(d){
-  if(d.type==='INV'||d.type==='IV2'){try{invDrawFromQTime(d);}catch(e){}}
+  if(d.type==='IV2'){try{invDrawFromQTime(d);}catch(e){}}
   const r=applyDoc(d);if(!r.ok)return r;
   d.status='approved';d.approvedAt=new Date().toLocaleString('th-TH');return {ok:true};
 }
@@ -8433,6 +8435,161 @@ function mrpMakePO(pid,qty,months){const p=P(pid);if(!p)return;qty=Math.max(0,Ma
 /* ============================================================
    UI primitives: modal, toast, confirm
    ============================================================ */
+/* ============================================================
+   ใบเบิกจ่ายสำเร็จรูป (Finished Goods Issue) — FM-ST-02
+   ============================================================ */
+var fgiLines=[];
+function peekFGI(){const y=String(new Date().getFullYear()+543).slice(2);const m=String(new Date().getMonth()+1).padStart(2,'0');return 'FGI-'+y+m+String((DB.counters['FGI']||0)+1).padStart(4,'0');}
+function commitFGI(no){const mm=/(\d{4})$/.exec(String(no||''));if(mm){const n=parseInt(mm[1],10);if(n>(DB.counters['FGI']||0))DB.counters['FGI']=n;}}
+function viewFGI(el){
+  setTitle('📤 ใบเบิกจ่ายสำเร็จรูป','สร้างจาก Customer PO → บันทึก+อนุมัติ(ตัดยอด) เพื่อตัดสต๊อคออกจากคลังอัตโนมัติ · FM-ST-02');
+  ensureSettings();
+  const docs=DB.docs.filter(d=>d.type==='FGI');
+  const mons=[...new Set(docs.map(d=>(d.date||'').slice(0,7)).filter(Boolean))].sort().reverse();
+  const custs=[...new Set(docs.map(d=>d.customer).filter(Boolean))];
+  const items=[...new Set(docs.flatMap(d=>(d.lines||[]).map(l=>l.name)).filter(Boolean))];
+  el.innerHTML=`
+  <div class="hint"><span class="i">💡</span><div>กด <b>+ สร้างใบเบิกจ่าย</b> → เลือก <b>Customer PO</b> ระบบดึงรายการมาให้ แก้จำนวนได้ · <b>บันทึก+อนุมัติ(ตัดยอด)</b> = ตัดสต๊อคออกจากคลัง (ผู้เบิก อลิสา · ผู้จ่าย ภัคจิรา · ผู้อนุมัติ ธีรสิทธ์) · Invoice ส่งลูกค้า ไม่ตัดสต๊อคแล้ว จัดส่งตามยอดใบนี้</div></div>
+  <div class="panel"><div class="panel-h"><h2>ใบเบิกจ่ายสำเร็จรูป <span class="muted" style="font-size:12px">${fmt(docs.length)} เอกสาร</span></h2>
+    <div class="right" style="flex-wrap:wrap;gap:6px">
+      <div class="searchbox"><input id="fgiSearch" placeholder="ค้นหา เลขที่ / PO / ลูกค้า / Part" oninput="filterFgiRows()"></div>
+      <input id="fgiMon" list="dl_fgimon" class="fchip" placeholder="📅 เดือน" oninput="filterFgiRows()" style="max-width:120px"><datalist id="dl_fgimon">${mons.map(m=>`<option value="${m}">`).join('')}</datalist>
+      <input id="fgiDate" type="date" class="fchip" oninput="filterFgiRows()" style="max-width:150px" title="กรองวันที่">
+      <input id="fgiCust" list="dl_fgicust" class="fchip" placeholder="👥 ลูกค้า" oninput="filterFgiRows()" style="max-width:150px"><datalist id="dl_fgicust">${custs.map(c=>`<option value="${esc(c)}">`).join('')}</datalist>
+      <input id="fgiItem" list="dl_fgiitem" class="fchip" placeholder="📦 สินค้า" oninput="filterFgiRows()" style="max-width:160px"><datalist id="dl_fgiitem">${items.map(it=>`<option value="${esc(it)}">`).join('')}</datalist>
+      <select id="fgiSort" onchange="filterFgiRows()" style="max-width:170px;width:auto"><option value="date_desc" selected>วันที่: มาก → น้อย</option><option value="date_asc">วันที่: น้อย → มาก</option><option value="no_desc">เลขที่: มาก → น้อย</option><option value="no_asc">เลขที่: น้อย → มาก</option></select>
+      <button class="btn" onclick="printFGIDay()">🖨️ พิมพ์รายวัน</button>
+      <button class="btn" onclick="printFGIMonth()">🖨️ พิมพ์รายเดือน</button>
+      <button class="btn pri" onclick="openFGIForm()">+ สร้างใบเบิกจ่าย</button>
+    </div></div>
+    <div class="panel-b nopad">${docs.length?`<div class="tbl-wrap"><table><thead><tr><th>เลขที่</th><th>วันที่</th><th>ลูกค้า</th><th>PO ลูกค้า</th><th>รายการ</th><th class="num">จำนวน</th><th>สถานะ</th><th></th></tr></thead><tbody id="fgiRows">${docs.map(fgiRowHtml).join('')}</tbody></table></div>`:`<div class="empty"><div class="big">📤</div><div class="t">ยังไม่มีใบเบิกจ่าย</div><div>กด "+ สร้างใบเบิกจ่าย" เลือก Customer PO เพื่อเริ่ม</div></div>`}</div></div>`;
+  setTimeout(filterFgiRows,0);
+}
+function fgiRowHtml(d){
+  const tot=(d.lines||[]).reduce((s,l)=>s+(Number(l.qty)||0),0);
+  const parts=(d.lines||[]).map(l=>l.name||(l.productId&&P(l.productId)?P(l.productId).pn:'')).filter(Boolean);
+  const head=parts.slice(0,2).join(', ')+(parts.length>2?` +${parts.length-2}`:'');
+  const acts=`<button class="btn sm" onclick="viewFGIDoc('${d.id}')">ดู</button> <button class="btn sm" onclick="printFGI('${d.id}')" title="พิมพ์">🖨️</button> <button class="btn sm" onclick="printFGI('${d.id}','image')" title="ส่งรูป">📤</button> <button class="btn sm" onclick="openFGIForm('${d.id}')">✏️</button> `+(d.status==='pending'?`<button class="btn sm ok" onclick="approveDoc('${d.id}')">อนุมัติ</button> `:'')+`<button class="btn sm danger" onclick="delFGI('${d.id}')">ลบ</button>`;
+  return `<tr data-no="${esc(d.no)}" data-ts="${d.ts||0}" data-date="${esc(d.date||'')}" data-mon="${(d.date||'').slice(0,7)}" data-cust="${esc((d.customer||'').toLowerCase())}" data-item="${esc(parts.join(' ').toLowerCase())}" data-po="${esc((d.custPo||'').toLowerCase())}">
+    <td class="pn linkish" onclick="viewFGIDoc('${d.id}')">${esc(d.no)}</td><td class="muted">${esc(d.date||'')}</td>
+    <td>${esc(d.customer||'-')}</td><td><span class="tag violet">${esc(d.custPo||'-')}</span></td>
+    <td class="muted">${esc(head)}</td><td class="num"><b>${fmt(tot)}</b></td>
+    <td>${statusTag(d.status)}</td>
+    <td style="text-align:right;white-space:nowrap">${acts}</td></tr>`;
+}
+function filterFgiRows(){
+  const g=id=>((document.getElementById(id)||{}).value||'').trim().toLowerCase();
+  const q=g('fgiSearch'),mon=((document.getElementById('fgiMon')||{}).value||'').trim(),dt=((document.getElementById('fgiDate')||{}).value||'').trim(),cust=g('fgiCust'),it=g('fgiItem');
+  document.querySelectorAll('#fgiRows tr').forEach(tr=>{const ds=tr.dataset||{};const t=tr.textContent.toLowerCase();const show=(!q||t.includes(q))&&(!mon||(ds.mon||'').includes(mon))&&(!dt||(ds.date||'')===dt)&&(!cust||(ds.cust||'').includes(cust))&&(!it||(ds.item||'').includes(it));tr.style.display=show?'':'none';});
+  const sortv=((document.getElementById('fgiSort')||{}).value)||'date_desc';const tb=document.getElementById('fgiRows');
+  if(tb){const rows=[...tb.querySelectorAll('tr')];rows.sort((a,b)=>{const A=a.dataset||{},B=b.dataset||{};if(sortv==='no_asc')return (A.no||'').localeCompare(B.no||'',undefined,{numeric:true});if(sortv==='no_desc')return (B.no||'').localeCompare(A.no||'',undefined,{numeric:true});if(sortv==='date_asc')return (A.date||'').localeCompare(B.date||'')||(Number(A.ts||0)-Number(B.ts||0));return (B.date||'').localeCompare(A.date||'')||(Number(B.ts||0)-Number(A.ts||0));});rows.forEach(r=>tb.appendChild(r));}
+}
+function openFGIForm(editId){
+  ensureSettings();
+  const edit=editId?DB.docs.find(x=>x.id===editId):null;
+  const cpos=DB.docs.filter(d=>d.type==='CPO').sort((a,b)=>(b.ts||0)-(a.ts||0));
+  fgiLines=edit&&edit.lines?edit.lines.map(l=>({productId:l.productId||'',name:l.name||'',qty:l.qty||'',poNo:l.poNo||''})):[{productId:'',name:'',qty:'',poNo:''}];
+  modal({title:'📤 '+(edit?'แก้ไข':'สร้าง')+'ใบเบิกจ่ายสำเร็จรูป',size:'lg',body:`
+    <div class="row c3">
+      <div class="field"><label>เลขที่ (FM-ST-02)</label><input id="fgi_no" value="${edit?esc(edit.no):esc(peekFGI())}"></div>
+      <div class="field"><label>วันที่</label><input type="date" id="fgi_date" value="${edit?edit.date:todayISO()}"></div>
+      <div class="field"><label>อ้างอิง Customer PO</label><select id="fgi_cpo" onchange="fgiPickCPO()"><option value="">— เลือก PO ลูกค้า → ดึงรายการ —</option>${cpos.map(c=>`<option value="${c.id}" ${edit&&edit.cpoId===c.id?'selected':''}>${esc(c.no)} · ${esc(c.customer||'')} · ${esc(c.custPo||'')}</option>`).join('')}</select></div>
+    </div>
+    <div class="row c2">
+      <div class="field"><label>ลูกค้า</label><input id="fgi_cust" list="dl_fgicust2" value="${edit?esc(edit.customer||''):''}"><datalist id="dl_fgicust2">${(DB.settings.customers||[]).map(c=>`<option value="${esc(c)}">`).join('')}</datalist></div>
+      <div class="field"><label>PO ลูกค้า</label><input id="fgi_po" value="${edit?esc(edit.custPo||''):''}"></div>
+    </div>
+    <label style="font-size:12.5px;color:var(--ink2);font-weight:600;margin:6px 0 4px;display:block">รายการเบิกจ่าย (จำนวนแก้ไขได้)</label>
+    <div id="fgiRoot"></div>
+    <button class="btn sm" style="margin-top:6px" onclick="fgiAddLine()">+ เพิ่มรายการ</button>
+    <div class="field" style="margin-top:8px"><label>หมายเหตุ</label><input id="fgi_note" value="${edit?esc(edit.note||''):''}"></div>
+  `,footer:`<button class="btn" onclick="closeModal()">ยกเลิก</button><button class="btn" onclick="submitFGI('pending','${edit?edit.id:''}')">บันทึก (รออนุมัติ)</button><button class="btn pri" onclick="submitFGI('approved','${edit?edit.id:''}')">บันทึก + อนุมัติ (ตัดยอด)</button>`});
+  setTimeout(renderFgiLines,15);
+}
+function fgiPickCPO(){
+  const id=(document.getElementById('fgi_cpo')||{}).value;if(!id)return;
+  const c=DB.docs.find(x=>x.id===id);if(!c)return;
+  const cf=document.getElementById('fgi_cust');if(cf)cf.value=c.customer||'';
+  const pf=document.getElementById('fgi_po');if(pf)pf.value=c.custPo||'';
+  fgiLines=(c.lines||[]).map(l=>({productId:l.fgId||l.productId||(findProdByName(l.name,'FG')||{}).id||'',name:l.name||'',qty:(l.order!=null&&l.order!=='')?l.order:(l.qty||''),poNo:c.custPo||l.poNo||''}));
+  if(!fgiLines.length)fgiLines=[{productId:'',name:'',qty:'',poNo:''}];
+  renderFgiLines();
+}
+function fgiAddLine(){fgiLines.push({productId:'',name:'',qty:'',poNo:''});renderFgiLines();}
+function fgiDelLine(i){fgiLines.splice(i,1);if(!fgiLines.length)fgiLines=[{productId:'',name:'',qty:'',poNo:''}];renderFgiLines();}
+function fgiSetName(i,val){fgiLines[i].name=val;const p=findProdByName(val,'FG')||DB.products.find(x=>x.type==='FG'&&x.pn===(val||'').split(' ')[0]);fgiLines[i].productId=p?p.id:'';renderFgiLines();}
+function renderFgiLines(){
+  const root=document.getElementById('fgiRoot');if(!root)return;const bd='1px solid var(--line)';
+  root.innerHTML=`<table style="width:100%;border-collapse:collapse;font-size:12.5px"><thead><tr><th style="border:${bd};padding:4px;text-align:left">Part / รายการ</th><th style="border:${bd};padding:4px;width:100px">คงเหลือ</th><th style="border:${bd};padding:4px;width:110px">จำนวนเบิก</th><th style="border:${bd};padding:4px;width:34px"></th></tr></thead><tbody>${fgiLines.map((l,i)=>{const p=l.productId?P(l.productId):null;const oh=p?(p.onHand||0):0;const short=p&&oh<(Number(l.qty)||0);return `<tr>
+    <td style="border:${bd};padding:2px"><input list="dl_fgifg" value="${esc(l.name||'')}" placeholder="เลือกสินค้าสำเร็จรูป" onchange="fgiSetName(${i},this.value)" oninput="fgiLines[${i}].name=this.value" style="padding:4px;width:100%"></td>
+    <td style="border:${bd};padding:2px;text-align:right;${short?'color:var(--red);font-weight:700':''}">${p?fmt(oh):'-'}</td>
+    <td style="border:${bd};padding:2px"><input type="number" value="${(l.qty!==''&&l.qty!=null)?l.qty:''}" onchange="fgiLines[${i}].qty=this.value;renderFgiLines()" style="padding:4px;width:100%;text-align:right"></td>
+    <td style="border:${bd};padding:2px;text-align:center"><span style="cursor:pointer;color:var(--red)" onclick="fgiDelLine(${i})">🗑️</span></td></tr>`}).join('')}</tbody></table><datalist id="dl_fgifg">${DB.products.filter(p=>p.type==='FG').slice(0,1600).map(p=>`<option value="${esc(p.pn+(p.name&&p.name!=='-'?' '+p.name:''))}">`).join('')}</datalist>`;
+}
+function submitFGI(status,editId){
+  const v=k=>(document.getElementById(k)||{}).value;
+  const no=(v('fgi_no')||'').trim();if(!no){toast('กรุณากรอกเลขที่','err');return;}
+  const lines=fgiLines.filter(l=>(l.name||l.productId)&&Number(l.qty)>0).map(l=>{const p=l.productId?P(l.productId):(findProdByName(l.name,'FG')||null);return {productId:(p&&p.id)||l.productId||'',name:(l.name||'').trim()||(p?p.pn:''),qty:Number(l.qty)||0,poNo:(l.poNo||'').trim()};});
+  if(!lines.length){toast('กรุณาเพิ่มรายการอย่างน้อย 1 บรรทัด (จำนวน > 0)','err');return;}
+  if(!editId){const dup=DB.docs.find(x=>x.type==='FGI'&&x.no===no);if(dup){toast('เลขที่ '+no+' มีอยู่แล้ว','err');return;}}
+  let d;
+  if(editId){d=DB.docs.find(x=>x.id===editId);if(!d)return;if(d.status==='approved')reverseDoc(d);}
+  else{d={id:uid(),type:'FGI',ts:Date.now(),status:'pending'};DB.docs.push(d);commitFGI(no);}
+  d.no=no;d.date=v('fgi_date')||todayISO();d.customer=(v('fgi_cust')||'').trim();d.custPo=(v('fgi_po')||'').trim();d.cpoId=(v('fgi_cpo')||'')||d.cpoId||'';d.lines=lines;d.note=(v('fgi_note')||'').trim();
+  if(status==='approved'){const r=doApprove(d);if(!r||!r.ok){toast('อนุมัติไม่สำเร็จ: '+((r&&r.err)||''),'err');d.status='pending';}}else{d.status='pending';}
+  if(d.customer&&!(DB.settings.customers||[]).includes(d.customer))DB.settings.customers.push(d.customer);
+  saveDB();closeModal();render();toast((editId?'บันทึกการแก้ไข ':'สร้างใบเบิกจ่าย ')+d.no+(d.status==='approved'?' + ตัดยอดจากคลังแล้ว':' (รออนุมัติ)'),'ok');
+}
+function viewFGIDoc(id){const d=DB.docs.find(x=>x.id===id);if(!d)return;const rows=(d.lines||[]).map((l,i)=>`<tr><td class="c">${i+1}</td><td>${esc(l.name||'')}</td><td class="r">${fmt(l.qty)}</td></tr>`).join('');const tot=(d.lines||[]).reduce((s,l)=>s+(Number(l.qty)||0),0);modal({title:'📤 '+esc(d.no),body:`<div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">${statusTag(d.status)}<span class="tag gray">วันที่ ${esc(d.date||'')}</span><span class="tag gray">ลูกค้า ${esc(d.customer||'-')}</span>${d.custPo?`<span class="tag violet">PO ${esc(d.custPo)}</span>`:''}</div><table><thead><tr><th>#</th><th>รายการ</th><th class="num">จำนวนเบิก</th></tr></thead><tbody>${rows}</tbody><tfoot><tr style="font-weight:700;background:var(--panel2)"><td colspan="2" style="text-align:right">รวม</td><td class="r">${fmt(tot)}</td></tr></tfoot></table>${d.note?`<div class="kv" style="margin-top:8px"><span class="k">หมายเหตุ</span>${esc(d.note)}</div>`:''}${d.status==='approved'?`<div class="hint" style="margin-top:8px"><span class="i">✅</span><div>ตัดยอดออกจากคลังแล้ว · ผู้เบิก อลิสา · ผู้จ่าย ภัคจิรา · ผู้อนุมัติ ธีรสิทธ์</div></div>`:''}`,footer:`${d.status==='pending'?`<button class="btn ok" onclick="approveDoc('${d.id}')">✓ อนุมัติ (ตัดยอด)</button>`:''}<button class="btn" onclick="closeModal();openFGIForm('${d.id}')">✏️ แก้ไข</button><button class="btn pri" onclick="printFGI('${d.id}')">🖨️ พิมพ์</button>`});}
+function delFGI(id){const d=DB.docs.find(x=>x.id===id);if(!d)return;confirmBox('ลบใบเบิกจ่าย '+esc(d.no)+'?',d.status==='approved'?'เอกสารนี้อนุมัติแล้ว การลบจะคืนยอดสต๊อคที่ตัดไป':'',()=>{if(d.status==='approved')reverseDoc(d);DB.docs=DB.docs.filter(x=>x.id!==id);saveDB();closeModal();render();toast('ลบแล้ว','ok');});}
+function printFGI(id,mode){
+  const d=DB.docs.find(x=>x.id===id);if(!d)return;ensureSettings();const co=DB.settings.company||{};
+  const rows=(d.lines||[]).map((l,i)=>{const p=l.productId&&P(l.productId)?P(l.productId):null;const pn=p?(p.pn+(p.name&&p.name!=='-'?' '+p.name:'')):(l.name||'');return `<tr><td style="text-align:center">${i+1}</td><td>${esc(pn)}</td><td style="text-align:center">${esc(l.poNo||d.custPo||'')}</td><td class="r">${fmt(l.qty)} ชิ้น</td></tr>`}).join('');
+  const blanks=Array.from({length:Math.max(0,8-(d.lines||[]).length)}).map(()=>'<tr><td>&nbsp;</td><td></td><td></td><td></td></tr>').join('');
+  const ap=d.status==='approved';
+  const sig=(role,name)=>'<div><div class="line">'+role+'</div><div style="font-size:11.5px;margin-top:3px">'+(ap?esc(name):'&nbsp;')+'</div></div>';
+  const html='<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"><title>'+esc(d.no)+'</title><style>'
+   +"*{font-family:'Tahoma','TH Sarabun New',sans-serif;box-sizing:border-box}body{margin:0;padding:14mm 12mm;color:#111;font-size:12.5px}"
+   +".hd{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;border-bottom:2px solid #111;padding-bottom:8px}.hd img.bnr{width:360px;height:auto;max-width:62%}"
+   +".title{text-align:right}.title .t1{font-size:20px;font-weight:700}.title .t2{font-size:12px;color:#555}"
+   +".meta{display:flex;justify-content:space-between;margin-top:10px;gap:16px}.box{border:1px solid #999;border-radius:6px;padding:8px 10px;font-size:12px;flex:1}.box b{color:#555}"
+   +"table.it{width:100%;border-collapse:collapse;margin-top:12px;font-size:12px}table.it th,table.it td{border:1px solid #888;padding:6px 8px}table.it th{background:#eee;text-align:center}td.r{text-align:right}"
+   +".sign{display:flex;justify-content:space-between;margin-top:44px;text-align:center;font-size:12px}.sign div{width:30%}.sign .line{border-top:1px dotted #555;margin-top:34px;padding-top:4px}"
+   +".formcode{text-align:right;font-size:11px;color:#555;margin-top:12px}@media print{.noprint{display:none}}</style></head><body>"
+   +'<div class="hd"><img class="bnr" src="'+(typeof LOGO_RTK!=='undefined'?LOGO_RTK:'')+'"><div class="title"><div class="t1">ใบเบิกจ่ายสำเร็จรูป</div><div class="t2">FINISHED GOODS ISSUE</div><div style="margin-top:6px;font-size:13px"><b>เลขที่:</b> '+esc(d.no)+'</div><div style="font-size:12px"><b>วันที่:</b> '+esc(d.date||'')+'</div></div></div>'
+   +'<div class="meta"><div class="box"><div><b>ลูกค้า:</b> '+esc(d.customer||'')+'</div><div><b>PO ลูกค้า:</b> '+esc(d.custPo||'')+'</div></div><div class="box"><div><b>สถานะ:</b> '+(ap?'อนุมัติแล้ว (ตัดยอดจากคลัง)':'รออนุมัติ')+'</div>'+(d.approvedAt?'<div><b>อนุมัติเมื่อ:</b> '+esc(d.approvedAt)+'</div>':'')+'</div></div>'
+   +'<table class="it"><thead><tr><th style="width:34px">#</th><th>รายการ (Part)</th><th style="width:120px">PO ลูกค้า</th><th style="width:100px">จำนวนเบิก</th></tr></thead><tbody>'+rows+blanks+'</tbody></table>'
+   +(d.note?'<div style="margin-top:10px;font-size:12px"><b>หมายเหตุ:</b> '+esc(d.note)+'</div>':'')
+   +'<div class="sign">'+sig('ผู้เบิก','อลิสา')+sig('ผู้จ่าย','ภัคจิรา')+sig('ผู้อนุมัติ','ธีรสิทธ์')+'</div>'
+   +'<div class="formcode">FM-ST-02 Rev.00</div>'
+   +'<div class="noprint" style="text-align:center;margin-top:22px"><button onclick="window.print()" style="padding:8px 22px;font-size:14px;cursor:pointer">🖨️ พิมพ์ / บันทึก PDF</button></div>'
+   +'<scr'+'ipt>setTimeout(function(){window.print()},500)</scr'+'ipt></body></html>';
+  if(mode==='image'){return shareDocImage(html.replace(/<div class="noprint"[\s\S]*?<\/script>/i,''),(d.no||'FGI')+'.png',(d.no||'ใบเบิกจ่าย'));}
+  const w=window.open('','_blank');if(!w){toast('เบราว์เซอร์บล็อก popup','err');return}w.document.write(html);w.document.close();
+}
+function fgiPrintScope(scope){
+  ensureSettings();const co=DB.settings.company||{};
+  let docs=DB.docs.filter(d=>d.type==='FGI');
+  const mon=((document.getElementById('fgiMon')||{}).value||'').trim();
+  const day=((document.getElementById('fgiDate')||{}).value||'').trim();
+  let label='ทั้งหมด';
+  if(scope==='day'){const dv=day||todayISO();docs=docs.filter(d=>(d.date||'')===dv);label='วันที่ '+dv;}
+  else{const mv=mon||todayISO().slice(0,7);docs=docs.filter(d=>(d.date||'').slice(0,7)===mv);label='เดือน '+mv;}
+  docs.sort((a,b)=>(a.date||'').localeCompare(b.date||'')||((a.ts||0)-(b.ts||0)));
+  if(!docs.length){toast('ไม่มีเอกสารในช่วงที่เลือก','err');return;}
+  let body='',tot=0;
+  docs.forEach(d=>{(d.lines||[]).forEach(l=>{const q=Number(l.qty)||0;tot+=q;body+='<tr><td>'+esc(d.date||'')+'</td><td>'+esc(d.no)+'</td><td>'+esc(d.customer||'')+'</td><td>'+esc(d.custPo||'')+'</td><td>'+esc(l.name||'')+'</td><td class="r">'+fmt(q)+'</td><td style="text-align:center">'+(d.status==='approved'?'อนุมัติ':'รออนุมัติ')+'</td></tr>';});});
+  const html='<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"><title>สรุปใบเบิกจ่าย</title><style>*{font-family:Tahoma,sans-serif}body{margin:0;padding:12mm;color:#111;font-size:12px}h1{font-size:16px;margin:0}table{width:100%;border-collapse:collapse;margin-top:10px}th,td{border:1px solid #888;padding:5px 7px}th{background:#eee}td.r{text-align:right}@media print{.noprint{display:none}}</style></head><body>'
+   +'<div style="text-align:center"><h1>'+esc(co.name||'')+'</h1><div style="font-size:13px;font-weight:700;margin-top:4px">สรุปใบเบิกจ่ายสำเร็จรูป — '+esc(label)+'</div><div style="font-size:11px">'+fmt(docs.length)+' เอกสาร · พิมพ์ '+new Date().toLocaleString('th-TH')+'</div></div>'
+   +'<table><thead><tr><th>วันที่</th><th>เลขที่</th><th>ลูกค้า</th><th>PO ลูกค้า</th><th>รายการ</th><th class="r">จำนวน</th><th>สถานะ</th></tr></thead><tbody>'+body+'</tbody>'
+   +'<tfoot><tr style="font-weight:700;background:#f3f6fb"><td colspan="5" style="text-align:right">รวมจำนวนเบิก</td><td class="r">'+fmt(tot)+'</td><td></td></tr></tfoot></table>'
+   +'<div style="text-align:right;font-size:11px;color:#555;margin-top:10px">FM-ST-02 Rev.00</div>'
+   +'<div class="noprint" style="text-align:center;margin-top:16px"><button onclick="window.print()" style="padding:8px 22px;font-size:14px;cursor:pointer">🖨️ พิมพ์ / บันทึก PDF</button></div>'
+   +'<scr'+'ipt>setTimeout(function(){window.print()},400)</scr'+'ipt></body></html>';
+  const w=window.open('','_blank');if(!w){toast('เบราว์เซอร์บล็อก popup','err');return}w.document.write(html);w.document.close();
+}
+function printFGIDay(){fgiPrintScope('day');}
+function printFGIMonth(){fgiPrintScope('month');}
 function modal({title,body,footer,size}){
   document.getElementById('modalRoot').innerHTML=`<div class="overlay" onclick="if(event.target===this)closeModal()">
     <div class="modal ${size==='lg'?'lg':size==='xl'?'xl':''}"><div class="modal-h"><h3>${title}</h3><span class="x" onclick="closeModal()">×</span></div>
