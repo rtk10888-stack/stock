@@ -217,7 +217,7 @@ const SUPA_URL='https://boksyxrvquqgercpjuyj.supabase.co';
 const SUPA_KEY='sb_publishable_b_6QwQt2oKzv79_3SSIVbg_NDCSkkPG';
 const ROW_ID='main';
 let supa=null, CLIENT_ID=Math.random().toString(36).slice(2)+Date.now().toString(36);
-let lastSyncedJSON='', lastRemoteUpdated=0, applyingRemote=false, syncTimer=null, cloudOK=false;
+let lastSyncedJSON='', lastRemoteUpdated=0, applyingRemote=false, syncTimer=null, cloudOK=false, syncRetry=null, syncRetryN=0;
 /* ===== LAN sync (เครื่องแม่ข่ายในออฟฟิศ) — ใช้คู่กับคลาวด์ ===== */
 let lanMode=false, lanOK=false, lanCloud=false, lanBase='', lanLastUpdated=0, lanPoll=null;
 async function lanProbe(){
@@ -272,7 +272,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.29a (ใบเบิกจ่ายสำเร็จรูป FM-ST-02: สร้างจาก Customer PO ตัดยอด · Invoice ไม่ตัดสต๊อค)';
+const APP_BUILD='SEMIQC-2026.06.29b (ซิงก์คลาวด์: auto-retry เมื่อดันล้ม ป้องกันค้างออฟไลน์)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -413,8 +413,8 @@ async function pushCloud(force){
   try{
     const {error}=await supa.from('app_state').upsert({id:ROW_ID,data:DB,client_id:CLIENT_ID,updated_at:now});
     if(error)throw error;
-    lastSyncedJSON=json; lastRemoteUpdated=new Date(now).getTime(); cloudOK=true; setSyncStatus('synced');
-  }catch(e){ cloudOK=false; setSyncStatus('offline'); }
+    lastSyncedJSON=json; lastRemoteUpdated=new Date(now).getTime(); cloudOK=true; syncRetryN=0; if(syncRetry){clearTimeout(syncRetry);syncRetry=null;} setSyncStatus('synced');
+  }catch(e){ cloudOK=false; setSyncStatus('offline'); if(JSON.stringify(DB)!==lastSyncedJSON){ if(syncRetry)clearTimeout(syncRetry); const delay=Math.min(30000,4000*(++syncRetryN)); syncRetry=setTimeout(function(){ if(supa&&!applyingRemote)pushCloud(false); },delay); } }
 }
 async function forceCloudSync(){
   if(lanMode){ try{if(typeof migrateSlipsLocal==='function')migrateSlipsLocal();}catch(e){} toast('⏳ กำลังซิงก์ผ่าน LAN...','ok'); await lanPush(true); if(lanOK){toast(lanCloud?'🖧 ซิงก์ LAN สำเร็จ + สำรองขึ้นคลาวด์แล้ว':'🖧 ซิงก์ LAN สำเร็จ (คลาวด์รอเน็ต)','ok');render();} else {toast('ยังเชื่อมเครื่องแม่ข่ายไม่ได้ — ตรวจว่าเครื่องแม่ข่ายเปิดโปรแกรมอยู่','err');} return; }
