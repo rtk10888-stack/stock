@@ -274,7 +274,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.29s (สินค้าคงคลัง: สรุปการดำเนินการ Line Chart รายวัน/เดือน/ปี)';
+const APP_BUILD='SEMIQC-2026.06.29t (สรุปการดำเนินการ: ตัวเลขย่อ K/M + เส้นผลิต/คัดแยก + กรองตามประเภท)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -8678,23 +8678,37 @@ function toggleTools(){var o=!toolsOpen();try{localStorage.setItem('rtk_tools_op
 var invOpsMode='month';
 function openInvOps(){ invOpsModal(); }
 function invOpsSet(m){ invOpsMode=m; invOpsModal(); }
+function fmtK(v){v=Math.round(v);var a=Math.abs(v);if(a>=1000000)return (v/1000000).toFixed(a>=1e7?0:1)+'M';if(a>=1000)return (v/1000).toFixed(a>=1e4?0:1)+'K';return fmt(v);}
 function invOpsModal(){
   var mode=invOpsMode;
+  var ptype=(typeof invFilter!=='undefined'&&invFilter.type)?invFilter.type:'';
   var inTypes={GR:1,RW:1,GI:1,GS:1,SUP:1}, outTypes={INV:1,IV2:1,FGI:1,WD:1};
   function keyOf(dt){ if(!dt)return ''; if(mode==='day')return dt.slice(0,10); if(mode==='year')return dt.slice(0,4); return dt.slice(0,7); }
+  function lineMatch(l){ if(!ptype)return true; var pid=l.productId||l.fgId; var p=pid?P(pid):null; return p?p.type===ptype:false; }
+  function docQty(d,fld){ return (d.lines||[]).reduce(function(s,l){ if(!lineMatch(l))return s; var q=fld?(Number(l[fld])||0):(Number(l.qty)||Number(l.order)||0); return s+q; },0); }
   var b={};
-  (DB.docs||[]).forEach(function(d){ if(d.status==='cancelled')return; var k=keyOf(d.date); if(!k)return; var q=(d.lines||[]).reduce(function(s,l){return s+(Number(l.qty)||0);},0); if(!q&&d.qty)q=Number(d.qty)||0; if(inTypes[d.type]){b[k]=b[k]||{i:0,o:0};b[k].i+=q;} else if(outTypes[d.type]){b[k]=b[k]||{i:0,o:0};b[k].o+=q;} });
+  (DB.docs||[]).forEach(function(d){ if(d.status==='cancelled')return; var k=keyOf(d.date); if(!k)return;
+    var e=b[k]=b[k]||{i:0,o:0,p:0,q:0};
+    if(inTypes[d.type]) e.i+=docQty(d);
+    else if(outTypes[d.type]) e.o+=docQty(d);
+    if(d.type==='PRD') e.p+=docQty(d);
+    if(d.type==='QC') e.q+=docQty(d,'ok');
+  });
   var keys=Object.keys(b).sort();
   var lim=mode==='year'?12:(mode==='day'?31:14);
   keys=keys.slice(-lim);
   var labels=keys.map(function(k){ if(mode==='day')return k.slice(5); if(mode==='year')return k; return k.slice(2); });
-  var sIn=keys.map(function(k){return b[k].i;}), sOut=keys.map(function(k){return b[k].o;});
-  var totIn=sIn.reduce(function(a,c){return a+c;},0), totOut=sOut.reduce(function(a,c){return a+c;},0);
-  var chart=keys.length?lineChart(labels,[{name:'รับเข้า',color:'#16a34a',data:sIn},{name:'จ่ายออก',color:'#ef4444',data:sOut}],{height:300,fy:fmt}):'<div class="empty" style="padding:30px"><div class="big">📊</div><div class="t">ยังไม่มีข้อมูลการดำเนินการ</div></div>';
+  var sIn=keys.map(function(k){return b[k].i;}), sOut=keys.map(function(k){return b[k].o;}), sP=keys.map(function(k){return b[k].p;}), sQ=keys.map(function(k){return b[k].q;});
+  var sum=function(a){return a.reduce(function(x,y){return x+y;},0);};
+  var series=[{name:'รับเข้า',color:'#16a34a',data:sIn},{name:'ผลิต',color:'#2563eb',data:sP},{name:'คัดแยก OK',color:'#d97706',data:sQ},{name:'จ่ายออก',color:'#ef4444',data:sOut}];
+  var chart=keys.length?lineChart(labels,series,{height:300,fy:fmtK}):'<div class="empty" style="padding:30px"><div class="big">📊</div><div class="t">ยังไม่มีข้อมูลในช่วงนี้</div></div>';
   var seg='<div class="seg">'+[['day','รายวัน'],['month','รายเดือน'],['year','รายปี']].map(function(x){return '<button class="'+(mode===x[0]?'on':'')+'" onclick="invOpsSet(\''+x[0]+'\')">'+x[1]+'</button>';}).join('')+'</div>';
-  modal({title:'📈 สรุปการดำเนินการ (รับเข้า / จ่ายออก)',size:'lg',body:
-    '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px">'+seg+'<div style="display:flex;gap:16px"><div style="text-align:right"><div class="muted" style="font-size:11px">รวมรับเข้า</div><div style="font-size:19px;font-weight:800;color:#16a34a">'+fmt(totIn)+'</div></div><div style="text-align:right"><div class="muted" style="font-size:11px">รวมจ่ายออก</div><div style="font-size:19px;font-weight:800;color:#ef4444">'+fmt(totOut)+'</div></div></div></div>'+chart
-    +'<div class="hint" style="margin-top:12px"><span class="i">i</span><div><b>รับเข้า</b> = รับวัตถุดิบ + รับชิ้นงาน + รับเข้าต่างประเทศ/พิเศษ + วัสดุสิ้นเปลือง · <b>จ่ายออก</b> = ใบเบิกจ่ายสำเร็จรูป + เบิกวัตถุดิบ + Invoice · นับตามจำนวนในเอกสาร (ไม่รวมที่ยกเลิก)</div></div>',
+  var ptypeLbl={FG:'สำเร็จรูป',RM:'วัตถุดิบ',ASM:'ชุดประกอบ',RMC:'รับแมทลูกค้า',SUP:'วัสดุสิ้นเปลือง'}[ptype]||'ทุกประเภท';
+  var card=function(lbl,val,col){return '<div style="text-align:center;min-width:66px"><div class="muted" style="font-size:11px">'+lbl+'</div><div style="font-size:16px;font-weight:800;color:'+col+'">'+fmt(val)+'</div></div>';};
+  modal({title:'📈 สรุปการดำเนินการ',size:'lg',body:
+    '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px">'+seg+'<span class="tag gray">ประเภท: '+esc(ptypeLbl)+'</span></div>'
+    +'<div style="display:flex;gap:14px;flex-wrap:wrap;justify-content:flex-end;margin-bottom:8px">'+card('รับเข้า',sum(sIn),'#16a34a')+card('ผลิต',sum(sP),'#2563eb')+card('คัดแยก OK',sum(sQ),'#d97706')+card('จ่ายออก',sum(sOut),'#ef4444')+'</div>'+chart
+    +'<div class="hint" style="margin-top:12px"><span class="i">i</span><div>แกนซ้าย/จุดบนกราฟย่อ <b>K=พัน · M=ล้าน</b> · ยอดรวมเต็มดูด้านบน · เลือกประเภทสินค้าในหน้าคงคลังเพื่อกรองเฉพาะประเภท · <b>รับเข้า</b>=รับวัตถุดิบ/ชิ้นงาน/ต่างประเทศ/พิเศษ/วัสดุ · <b>ผลิต</b>=ใบสั่งผลิต · <b>คัดแยก OK</b>=ยอดผ่าน QC · <b>จ่ายออก</b>=เบิกจ่าย/เบิกวัตถุดิบ/Invoice</div></div>',
     footer:'<button class="btn pri" onclick="closeModal()">ปิด</button>'});
 }
 function modal({title,body,footer,size}){
