@@ -272,7 +272,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.29l (แก้ศูนย์อนุมัติ error: ลงทะเบียน FGI + กันชนิดเอกสารที่ไม่รู้จัก)';
+const APP_BUILD='SEMIQC-2026.06.29m (สินค้าคงคลัง: ยุบปุ่มนำเข้า/ราคาไว้ใต้ ⋯ เพิ่มเติม ซ่อนเป็นค่าตั้งต้น)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -919,6 +919,8 @@ function viewMonitor(el){
 }
 function platePendMap(){var m={};(DB.docs||[]).forEach(function(d){if(d.type!=='PL'||d.status==='cancelled'||!d.lines)return;d.lines.forEach(function(l){var pid=l.productId||((findProdByName(l.name,'FG')||{}).id||'');if(!pid)return;var sn=Number(l.sentQty)||0,rc=Number(l.recvQty)||0;var pend=(l.pending!=null&&l.pending!=='')?Number(l.pending):(sn-rc);if(pend>0)m[pid]=(m[pid]||0)+pend;});});return m;}
 function rcvPendMap(){var m={};(DB.docs||[]).forEach(function(d){if(d.status==='cancelled')return;var t=d.type;if(t==='QC'||t==='QI'||t==='QS'||t==='QSE'){if(d.lines&&d.lines.length){d.lines.forEach(function(l){if(l.productId)m[l.productId]=(m[l.productId]||0)+(Number(l.ok)||0);});}else if(d.productId){m[d.productId]=(m[d.productId]||0)+(Number(d.qtyOk)||0);}}else if(t==='SI'||t==='SII'||t==='SIS'||t==='SSE'){if(d.lines&&d.lines.length){d.lines.forEach(function(l){if(l.productId)m[l.productId]=(m[l.productId]||0)-(Number(l.weighed||l.qty)||0);});}else if(d.productId){m[d.productId]=(m[d.productId]||0)-(Number(d.qty)||0);}}});Object.keys(m).forEach(function(k){if(m[k]<0)m[k]=0;});return m;}
+function invMore(){try{return localStorage.getItem('rtk_inv_more')==='1';}catch(e){return false;}}
+function invToggleMore(){try{localStorage.setItem('rtk_inv_more',invMore()?'0':'1');}catch(e){}render();}
 function viewInventory(el){
   setTitle('สินค้าคงคลัง','ฐานข้อมูลหลัก — สำเร็จรูป + วัตถุดิบ');
   const custs=[...new Set(DB.products.map(p=>p.customer).filter(c=>c&&c!=='ไม่ระบุ'))].sort();
@@ -941,6 +943,8 @@ function viewInventory(el){
       <input list="dl_invcond" placeholder="🧱 เงื่อนไขวัตถุดิบ" value="${esc(invFilter.cond)}" oninput="invFilter.cond=this.value;renderInvTable()" style="max-width:180px;width:auto"><datalist id="dl_invcond"><option value="ลูกค้าจ่ายแมท"><option value="บริษัทซื้อแมท"></datalist>
       <select onchange="invFilter.sort=this.value;renderInvTable()" style="max-width:150px;width:auto"><option value="" ${invFilter.sort?'':'selected'}>↕ เรียงตามเดิม</option><option value="new" ${invFilter.sort==='new'?'selected':''}>↓ ใหม่ → เก่า</option><option value="old" ${invFilter.sort==='old'?'selected':''}>↑ เก่า → ใหม่</option><option value="pn" ${invFilter.sort==='pn'?'selected':''}>PN: A → Z</option></select><span style="font-size:11.5px;color:var(--ink2);margin-left:4px">น้ำหนัก/</span><input type="number" min="1" value="${invFilter.wfgN||100}" oninput="invFilter.wfgN=Number(this.value)||100;renderInvTable()" title="จำนวนชิ้นสำหรับคำนวณน้ำหนักรวม" style="max-width:70px;width:auto;text-align:right"><span style="font-size:11.5px;color:var(--ink2)">ชิ้น</span>
       <div class="right">
+        <button class="btn" onclick="invToggleMore()" title="ซ่อน/แสดงปุ่มนำเข้า/อัปเดตราคา (ตั้งต้นซ่อน)">${invMore()?'✕ ปิดเครื่องมือ':'⋯ เพิ่มเติม'}</button>
+        ${invMore()?`
         <input type="file" id="balanceFile" accept=".json" style="display:none" onchange="applyBalanceUpdate(this)">
         <button class="btn" onclick="document.getElementById('balanceFile').click()">📊 อัปเดตยอดคงเหลือ</button>
         <input type="file" id="plateColorFile" accept=".xlsx,.xls,.csv" style="display:none" onchange="importPlateColor(this)">
@@ -948,7 +952,7 @@ function viewInventory(el){
         <input type="file" id="saleNameFile" accept=".xlsx,.xls,.csv" style="display:none" onchange="importSaleNames(this)">
         <button class="btn" onclick="document.getElementById('saleNameFile').click()" title="นำเข้าไฟล์ 'ขาย' → จับคู่ชื่อขายลูกค้าตาม Part (ตัวอักษรเหมือนกันสลับตำแหน่ง)">🛒 นำเข้ารายการขาย</button>
         <input type="file" id="salePriceFile" accept=".json" style="display:none" onchange="applySalePriceImport(this)"><button class="btn" onclick="document.getElementById('salePriceFile').click()">💲 ราคาขาย</button>
-        <input type="file" id="prodPriceFile2" accept=".json" style="display:none" onchange="applyPriceImport(this)"><button class="btn" onclick="document.getElementById('prodPriceFile2').click()">💰 ราคาผลิต</button>
+        <input type="file" id="prodPriceFile2" accept=".json" style="display:none" onchange="applyPriceImport(this)"><button class="btn" onclick="document.getElementById('prodPriceFile2').click()">💰 ราคาผลิต</button>`:''}
         <button class="btn" onclick="openColMenu()" title="ซ่อน/แสดงคอลัมน์">👁 คอลัมน์</button> <button class="btn" onclick="printInvList()" title="พิมพ์รายงานคงคลังตามตัวกรอง แยกลูกค้า">🖨️ พิมพ์ (รายลูกค้า)</button> <button class="btn pri" onclick="openProductForm()">+ เพิ่มสินค้าใหม่</button></div>
     </div>
     <div class="panel-b nopad" id="invTableWrap"></div>
