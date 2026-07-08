@@ -272,7 +272,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.29e (แก้บั๊กร้ายแรง: บันทึกในฟอร์มแล้วหาย เพราะซิงก์ทับ · Customer PO ฟอร์มใหม่)';
+const APP_BUILD='SEMIQC-2026.06.29f (Customer PO → ส่งเข้าใบเบิกจ่าย + แผนจัดส่ง PL อัตโนมัติ)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -1351,7 +1351,7 @@ function viewDocs(type){
   const cfg=DT[type];
   const dispLabel=(type==='PO')?'ใบสั่งซื้อวัตถุดิบ & วัสดุสิ้นเปลือง':cfg.label;
   setTitle(cfg.icon+' '+dispLabel,'สร้าง / อนุมัติ / ติดตามสถานะ');
-  let docs=DB.docs.filter(d=>d.type===type||(type==='PO'&&d.type==='SUP')).sort((a,b)=>(type==='RW'||type==='SI'||type==='INV')?(String(b.date||'').localeCompare(String(a.date||''))||String(b.no||'').localeCompare(String(a.no||''),undefined,{numeric:true})):String(b.no||'').localeCompare(String(a.no||''),undefined,{numeric:true})); /* ค่าเริ่มต้น: เลขที่ มาก→น้อย ทุกโมดูล */
+  let docs=DB.docs.filter(d=>(d.type===type||(type==='PO'&&d.type==='SUP'))&&!(type==='PL'&&d.dplan)).sort((a,b)=>(type==='RW'||type==='SI'||type==='INV')?(String(b.date||'').localeCompare(String(a.date||''))||String(b.no||'').localeCompare(String(a.no||''),undefined,{numeric:true})):String(b.no||'').localeCompare(String(a.no||''),undefined,{numeric:true})); /* ค่าเริ่มต้น: เลขที่ มาก→น้อย ทุกโมดูล */
   if(type==='DP'){ /* ดึงใบสั่งผลิต(PRD) + รับชิ้นงาน(RW) ของ RTK-K มาแสดงในผลิตประจำวันด้วย */
     const isRTKK=v=>{var s=String(v||'').toUpperCase();return s==='RTK-K'||makerShort(v)==='RTK-K';};
     const extra=DB.docs.filter(d=>d.status!=='cancelled'&&((d.type==='PRD'&&isRTKK(d.maker||d.makerAbbr))||(d.type==='RW'&&(d.lines||[]).some(l=>isRTKK(l.maker)))));
@@ -8636,8 +8636,9 @@ function submitCPO(editId){
   d.no=(v('cpo_no')||'').trim()||d.no||peekPlan('CPO');d.date=v('cpo_date')||todayISO();d.customer=cust;d.custPo=(v('cpo_po')||'').trim();d.lines=lines;d.note=(v('cpo_note')||'').trim();
   if(!DB.settings.customers.includes(cust))DB.settings.customers.push(cust);
   var autoFgi=false;
-  if(!editId){ var fno=peekFGI(); var fgi={id:uid(),type:'FGI',ts:Date.now()+1,status:'pending',no:fno,date:d.date,customer:d.customer,custPo:d.custPo,cpoId:d.id,lines:lines.map(function(l){return {productId:l.fgId||(findProdByName(l.name,'FG')||{}).id||'',name:l.name,qty:l.qty,poNo:d.custPo||''};}),note:'สร้างอัตโนมัติจาก Customer PO '+d.no}; DB.docs.push(fgi); commitFGI(fno); autoFgi=true; }
-  saveDB();closeModal();render();toast((editId?'บันทึกการแก้ไข ':'สร้าง Customer PO ')+d.no+(autoFgi?' + ส่งเข้าใบเบิกจ่ายสำเร็จรูปแล้ว (รออนุมัติ)':''),'ok');
+  if(!editId){ var fno=peekFGI(); var fgi={id:uid(),type:'FGI',ts:Date.now()+1,status:'pending',no:fno,date:d.date,customer:d.customer,custPo:d.custPo,cpoId:d.id,lines:lines.map(function(l){return {productId:l.fgId||(findProdByName(l.name,'FG')||{}).id||'',name:l.name,qty:l.qty,poNo:d.custPo||''};}),note:'สร้างอัตโนมัติจาก Customer PO '+d.no}; DB.docs.push(fgi); commitFGI(fno); autoFgi=true;
+    lines.forEach(function(l){ var pno=peekPlan('PL'); DB.docs.push({id:uid(),type:'PL',ts:Date.now()+3,status:'active',dplan:true,cpoId:d.id,no:pno,date:d.date,customer:d.customer,custPo:d.custPo,shipDate:l.due||'',lines:[{productId:l.fgId||'',name:l.name,poNo:d.custPo||'',poDate:d.date,seq:'',order:l.qty,qty:l.qty,due:l.due||'',deliv:'',shipped:''}]}); DB.counters['PLAN_PL']=(DB.counters['PLAN_PL']||0)+1; }); }
+  saveDB();closeModal();render();toast((editId?'บันทึกการแก้ไข ':'สร้าง Customer PO ')+d.no+(autoFgi?' + ส่งเข้าใบเบิกจ่าย + แผนจัดส่งแล้ว':''),'ok');
 }
 function modal({title,body,footer,size}){
   document.getElementById('modalRoot').innerHTML=`<div class="overlay" onclick="if(event.target===this)closeModal()">
