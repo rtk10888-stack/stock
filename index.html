@@ -272,7 +272,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.29b (ซิงก์คลาวด์: auto-retry เมื่อดันล้ม ป้องกันค้างออฟไลน์)';
+const APP_BUILD='SEMIQC-2026.06.29e (แก้บั๊กร้ายแรง: บันทึกในฟอร์มแล้วหาย เพราะซิงก์ทับ · Customer PO ฟอร์มใหม่)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -7860,15 +7860,16 @@ function printRMCMonth(){
 }
 function viewDemand(el){
   setTitle('📈 Forecast / PO / แผนจัดส่ง','บันทึกความต้องการลูกค้า เชื่อม Part Number อัตโนมัติ');
+  if(plTabHidden()&&planTab==='PL')planTab='CPO';
   el.innerHTML=`
   <div class="hint"><span class="i">💡</span><div>บันทึก <b>Forecast</b> (พยากรณ์ 3 เดือน), <b>Customer PO</b> (คำสั่งซื้อจริง), <b>แผนจัดส่ง</b> ของลูกค้า → ไปดูสรุปที่เมนู <b>เช็คความเพียงพอ</b> ว่าของพอหรือไม่</div></div>
   <div class="panel"><div class="panel-h">
     <div class="seg" id="planSeg">
       <button class="${planTab==='FC'?'on':''}" onclick="planSet('FC')">📈 Forecast</button>
       <button class="${planTab==='CPO'?'on':''}" onclick="planSet('CPO')">📑 Customer PO</button>
-      <button class="${planTab==='PL'?'on':''}" onclick="planSet('PL')">🚛 แผนจัดส่ง</button>
+      ${!plTabHidden()?`<button class="${planTab==='PL'?'on':''}" onclick="planSet('PL')">🚛 แผนจัดส่ง</button>`:''}
     </div>
-    <div class="right"><div class="searchbox"><input id="planSearch" placeholder="ค้นหา เลขที่ / ลูกค้า / Part" oninput="filterPlanRows()"></div><input type="file" id="bulkPlanFile" accept=".xlsx,.xls,.csv" style="display:none" onchange="bulkImportPlan(this,planTab)"><button class="btn" onclick="document.getElementById('bulkPlanFile').click()" title="นำเข้าตารางแผนทั้งไฟล์ แยกเป็นเอกสารต่อลูกค้าอัตโนมัติ">📥 นำเข้าตาราง</button> <button class="btn pri" onclick="openPlanForm('${planTab}')">+ สร้าง${PLAN[planTab].label}</button></div>
+    <div class="right"><div class="searchbox"><input id="planSearch" placeholder="ค้นหา เลขที่ / ลูกค้า / Part" oninput="filterPlanRows()"></div><input type="file" id="bulkPlanFile" accept=".xlsx,.xls,.csv" style="display:none" onchange="bulkImportPlan(this,planTab)"><button class="btn" onclick="document.getElementById('bulkPlanFile').click()" title="นำเข้าตารางแผนทั้งไฟล์ แยกเป็นเอกสารต่อลูกค้าอัตโนมัติ">📥 นำเข้าตาราง</button> <button class="btn" onclick="togglePLTab()" title="ซ่อน/แสดงแท็บแผนจัดส่ง">${plTabHidden()?'👁 แผนจัดส่ง':'🙈 แผนจัดส่ง'}</button> <button class="btn pri" onclick="planCreateNew()">+ สร้าง${PLAN[planTab].label}</button></div>
   </div><div class="panel-b nopad" id="planList"></div></div>`;
   renderPlanList();
 }
@@ -8590,6 +8591,54 @@ function fgiPrintScope(scope){
 }
 function printFGIDay(){fgiPrintScope('day');}
 function printFGIMonth(){fgiPrintScope('month');}
+var cpoLines=[];
+function plTabHidden(){try{return localStorage.getItem('rtk_hide_pltab')==='1';}catch(e){return false;}}
+function togglePLTab(){try{localStorage.setItem('rtk_hide_pltab',plTabHidden()?'0':'1');}catch(e){}if(plTabHidden()&&planTab==='PL')planTab='CPO';render();}
+function planCreateNew(){if(planTab==='CPO')openCPOForm();else openPlanForm(planTab);}
+function openCPOForm(editId){
+  ensureSettings();
+  const edit=editId?DB.docs.find(x=>x.id===editId):null;
+  const custs=DB.settings.customers||[];
+  cpoLines=edit&&edit.lines?edit.lines.map(l=>({fgId:l.fgId||'',name:l.name||'',qty:(l.order!=null&&l.order!=='')?l.order:(l.qty||''),due:l.due||''})):[{fgId:'',name:'',qty:'',due:''}];
+  modal({title:'📑 '+(edit?'แก้ไข':'สร้าง')+'Customer PO',size:'lg',body:`
+    <div class="row c3">
+      <div class="field"><label>เลขที่ (FM-MK-03)</label><input id="cpo_no" value="${edit?esc(edit.no):esc(peekPlan('CPO'))}"></div>
+      <div class="field"><label>วันที่ออก PO</label><input type="date" id="cpo_date" value="${edit?(edit.date||todayISO()):todayISO()}"></div>
+      <div class="field"><label>เลขที่ PO ลูกค้า</label><input id="cpo_po" value="${edit?esc(edit.custPo||''):''}" placeholder="เลข PO ของลูกค้า"></div>
+    </div>
+    <div class="field"><label>ลูกค้า <span class="req">*</span></label><input id="cpo_cust" list="dl_cpocust" value="${edit?esc(edit.customer||''):''}" placeholder="เลือก/พิมพ์ชื่อลูกค้า"><datalist id="dl_cpocust">${custs.map(c=>`<option value="${esc(c)}">`).join('')}</datalist></div>
+    <label style="font-size:12.5px;color:var(--ink2);font-weight:600;margin:8px 0 4px;display:block">รายการสั่งซื้อ (Part / จำนวน / กำหนดส่ง)</label>
+    <div id="cpoRoot"></div>
+    <button class="btn sm" style="margin-top:6px" onclick="cpoAddLine()">+ เพิ่มรายการ</button>
+    <div class="field" style="margin-top:8px"><label>หมายเหตุ</label><input id="cpo_note" value="${edit?esc(edit.note||''):''}"></div>
+  `,footer:`<button class="btn" onclick="closeModal()">ยกเลิก</button><button class="btn pri" onclick="submitCPO('${edit?edit.id:''}')">บันทึก</button>`});
+  setTimeout(renderCpoLines,15);
+}
+function cpoAddLine(){cpoLines.push({fgId:'',name:'',qty:'',due:''});renderCpoLines();}
+function cpoDelLine(i){cpoLines.splice(i,1);if(!cpoLines.length)cpoLines=[{fgId:'',name:'',qty:'',due:''}];renderCpoLines();}
+function cpoSetName(i,val){cpoLines[i].name=val;const p=findProdByName(val,'FG')||DB.products.find(x=>x.type==='FG'&&x.pn===(val||'').split(' ')[0]);cpoLines[i].fgId=p?p.id:'';}
+function renderCpoLines(){
+  const root=document.getElementById('cpoRoot');if(!root)return;const bd='1px solid var(--line)';
+  root.innerHTML=`<table style="width:100%;border-collapse:collapse;font-size:12.5px"><thead><tr><th style="border:${bd};padding:4px;text-align:left">Part / รายการ</th><th style="border:${bd};padding:4px;width:110px">จำนวนสั่ง</th><th style="border:${bd};padding:4px;width:150px">กำหนดส่ง</th><th style="border:${bd};padding:4px;width:34px"></th></tr></thead><tbody>${cpoLines.map((l,i)=>`<tr>
+    <td style="border:${bd};padding:2px"><input list="dl_cpofg" value="${esc(l.name||'')}" placeholder="เลือกสินค้าสำเร็จรูป" onchange="cpoSetName(${i},this.value)" oninput="cpoLines[${i}].name=this.value" style="padding:4px;width:100%"></td>
+    <td style="border:${bd};padding:2px"><input type="number" value="${(l.qty!==''&&l.qty!=null)?l.qty:''}" oninput="cpoLines[${i}].qty=this.value" style="padding:4px;width:100%;text-align:right"></td>
+    <td style="border:${bd};padding:2px"><input type="date" value="${esc(l.due||'')}" oninput="cpoLines[${i}].due=this.value" style="padding:4px;width:100%"></td>
+    <td style="border:${bd};padding:2px;text-align:center"><span style="cursor:pointer;color:var(--red)" onclick="cpoDelLine(${i})">🗑️</span></td></tr>`).join('')}</tbody></table><datalist id="dl_cpofg">${DB.products.filter(p=>p.type==='FG').slice(0,1600).map(p=>`<option value="${esc(p.pn+(p.name&&p.name!=='-'?' '+p.name:''))}">`).join('')}</datalist>`;
+}
+function submitCPO(editId){
+  const v=k=>(document.getElementById(k)||{}).value;
+  const cust=(v('cpo_cust')||'').trim();if(!cust){toast('กรุณาเลือกลูกค้า','err');return;}
+  const lines=cpoLines.filter(l=>(l.name||l.fgId)&&Number(l.qty)>0).map(l=>{const p=l.fgId?P(l.fgId):(findProdByName(l.name,'FG')||null);return {fgId:(p&&p.id)||l.fgId||'',name:(l.name||'').trim()||(p?p.pn:''),qty:Number(l.qty)||0,order:Number(l.qty)||0,due:l.due||''};});
+  if(!lines.length){toast('กรุณาเพิ่มรายการ (จำนวน > 0)','err');return;}
+  let d;
+  if(editId){d=DB.docs.find(x=>x.id===editId);if(!d)return;}
+  else{d={id:uid(),type:'CPO',ts:Date.now(),status:'active'};DB.docs.push(d);DB.counters['PLAN_CPO']=(DB.counters['PLAN_CPO']||0)+1;}
+  d.no=(v('cpo_no')||'').trim()||d.no||peekPlan('CPO');d.date=v('cpo_date')||todayISO();d.customer=cust;d.custPo=(v('cpo_po')||'').trim();d.lines=lines;d.note=(v('cpo_note')||'').trim();
+  if(!DB.settings.customers.includes(cust))DB.settings.customers.push(cust);
+  var autoFgi=false;
+  if(!editId){ var fno=peekFGI(); var fgi={id:uid(),type:'FGI',ts:Date.now()+1,status:'pending',no:fno,date:d.date,customer:d.customer,custPo:d.custPo,cpoId:d.id,lines:lines.map(function(l){return {productId:l.fgId||(findProdByName(l.name,'FG')||{}).id||'',name:l.name,qty:l.qty,poNo:d.custPo||''};}),note:'สร้างอัตโนมัติจาก Customer PO '+d.no}; DB.docs.push(fgi); commitFGI(fno); autoFgi=true; }
+  saveDB();closeModal();render();toast((editId?'บันทึกการแก้ไข ':'สร้าง Customer PO ')+d.no+(autoFgi?' + ส่งเข้าใบเบิกจ่ายสำเร็จรูปแล้ว (รออนุมัติ)':''),'ok');
+}
 function modal({title,body,footer,size}){
   document.getElementById('modalRoot').innerHTML=`<div class="overlay" onclick="if(event.target===this)closeModal()">
     <div class="modal ${size==='lg'?'lg':size==='xl'?'xl':''}"><div class="modal-h"><h3>${title}</h3><span class="x" onclick="closeModal()">×</span></div>
@@ -8597,7 +8646,7 @@ function modal({title,body,footer,size}){
   try{translatePage();}catch(e){}
 }
 function modalOpen(){var r=document.getElementById('modalRoot');return !!(r&&r.children&&r.children.length);}
-function closeModal(){document.getElementById('modalRoot').innerHTML='';if(window.__pendingSync){window.__pendingSync=false;try{if(supa&&typeof reloadFromCloud==='function'){reloadFromCloud();}}catch(e){}}}
+function closeModal(){document.getElementById('modalRoot').innerHTML='';if(window.__pendingSync){window.__pendingSync=false;try{if(supa){if(JSON.stringify(DB)!==lastSyncedJSON){pushCloud(true);}else{reloadFromCloud();}}}catch(e){}}}
 function confirmBox(title,msg,onYes){
   window.__yes=onYes;
   document.getElementById('modalRoot').innerHTML=`<div class="overlay"><div class="modal" style="max-width:440px"><div class="modal-h"><h3>${title}</h3></div>
