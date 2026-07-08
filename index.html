@@ -274,7 +274,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.07.03c (แผนจัดส่ง: ล้างแถวยอดสั่งซื้อว่าง (-) ตรงเป้า ไม่แตะใบส่งชุบ)';
+const APP_BUILD='SEMIQC-2026.07.08a (แผนจัดส่ง: ไม่แสดงใบส่งชุบปนแล้ว)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -7979,7 +7979,7 @@ function pldColReset(){['recvpo','pono','cpodate','cpono','seq','cpodue','due'].
 function openPldColMenu(){const cols=[['recvpo','วันที่รับ PO'],['pono','PO. NO.'],['cpodate','วันที่ออกใบสั่งซื้อ'],['cpono','ใบสั่งซื้อเลขที่'],['seq','ลำดับ'],['cpodue','วันที่ส่งสินค้า'],['due','กำหนดส่ง']];modal({title:'👁 เลือกคอลัมน์ แผนจัดส่ง',body:'<div class="hint" style="margin-bottom:8px"><span class="i">💡</span><div>ติ๊ก=แสดง · เอาออก=ซ่อน (จำเฉพาะเครื่องนี้)</div></div>'+cols.map(c=>`<label style="display:flex;gap:8px;align-items:center;padding:5px 2px;font-size:13.5px"><input type="checkbox" ${pldC(c[0])?'checked':''} onchange="pldColToggle('${c[0]}')"> ${c[1]}</label>`).join(''),footer:`<button class="btn" onclick="pldColReset()">↺ แสดงทั้งหมด</button><button class="btn pri" onclick="closeModal()">ปิด</button>`});}
 function renderPLTable(){
   const wrap=document.getElementById('planList');if(!wrap)return;
-  const docs=DB.docs.filter(d=>d.type==='PL').sort((a,b)=>{const sa=Number((a.lines&&a.lines[0]&&a.lines[0].seq)||0),sb=Number((b.lines&&b.lines[0]&&b.lines[0].seq)||0);return (sa-sb)||(a.ts-b.ts);});
+  const docs=DB.docs.filter(d=>d.type==='PL'&&!(d.lines||[]).some(l=>Number(l.sentQty)>0||Number(l.recvQty)>0)).sort((a,b)=>{const sa=Number((a.lines&&a.lines[0]&&a.lines[0].seq)||0),sb=Number((b.lines&&b.lines[0]&&b.lines[0].seq)||0);return (sa-sb)||(a.ts-b.ts);});
   if(!docs.length){wrap.innerHTML=`<div class="empty"><div class="big">🚛</div><div class="t">ยังไม่มีแผนจัดส่ง</div><div>กด "นำเข้าตาราง" เพื่อโหลดไฟล์ PLANNING หรือ "+ สร้างแผนจัดส่ง"</div></div>`;return;}
   const onOrder=plOnOrderMap();let tOrder=0,tOh=0,tDeliv=0;
   const rows=docs.map(d=>{const l=(d.lines&&d.lines[0])||{};const _m=plMatchCPO(l);const _ml=_m?_m.line:null,_md=_m?_m.doc:null;const poDate=l.poDate||(_ml&&(_ml.poDate||planDocDate(_md)))||'';const poNo=l.poNo||(_md&&(_md.custPo||_ml.poNo))||'';const cust=l.customer||d.customer||(_ml&&_ml.customer)||(_md&&_md.customer)||'';const due=l.due||(_ml&&_ml.due)||d.shipDate||'';const cpoDate=_ml?(_ml.poDate||planDocDate(_md)):'';const cpoNo=_md?(_md.custPo||_ml.poNo||''):'';const cpoDue=_ml?(_ml.due||''):'';const ordVal=(l.order!=null&&l.order!=='')?Number(l.order):(_ml?((_ml.order!=null&&_ml.order!=='')?Number(_ml.order):(Number(_ml.qty)||0)):0);const c=plCalc(Object.assign({},l,{order:ordVal,due:due}),onOrder);const enough=ordVal>0&&c.onHand>=ordVal;const delivShown=(l.deliv!=null&&l.deliv!=='')?Number(l.deliv):(ordVal>0?(enough?ordVal:c.onHand):'');const shipShown=l.shipped||(enough?due:'');tOrder+=c.order;tOh+=c.onHand;tDeliv+=Number(delivShown)||0;
