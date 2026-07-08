@@ -128,6 +128,7 @@ td.num,th.num{text-align:right;font-family:'Inter',sans-serif;font-variant-numer
 /* Modal */
 .overlay{position:fixed;inset:0;background:rgba(15,23,41,.5);backdrop-filter:blur(3px);z-index:50;display:flex;align-items:flex-start;justify-content:center;padding:40px 16px;overflow-y:auto}
 .tbx{display:none!important}body.tools-open .tbx{display:inline-block!important}
+.btn{transition:background .12s,border-color .12s,transform .04s}.btn:active{transform:translateY(1px)}body.tools-open .tbx{opacity:.92}
 .modal{background:#fff;border-radius:16px;width:100%;max-width:620px;box-shadow:var(--shadow2);animation:pop .16s ease}
 .modal.lg{max-width:860px}.modal.xl{max-width:1240px}
 .fchip{appearance:none;border:1px solid var(--line);border-radius:999px;padding:8px 28px 8px 12px;background:var(--panel) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='3'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") no-repeat right 9px center;font-size:13px;color:var(--ink);width:auto}
@@ -273,7 +274,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.29n (ทุกหน้าเอกสาร: ยุบปุ่มนำเข้า/พิมพ์เดือน/ล้าง/ยกเลิกช่วง ไว้ใต้ ⋯ เพิ่มเติม ซ่อนเป็นค่าตั้งต้น)';
+const APP_BUILD='SEMIQC-2026.06.29o (⋯ เพิ่มเติม ครบ Forecast/PL + ใบเบิกจ่าย + ปรับ CSS เนียนขึ้น)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -7875,7 +7876,7 @@ function viewDemand(el){
       <button class="${planTab==='CPO'?'on':''}" onclick="planSet('CPO')">📑 Customer PO</button>
       ${!plTabHidden()?`<button class="${planTab==='PL'?'on':''}" onclick="planSet('PL')">🚛 แผนจัดส่ง</button>`:''}
     </div>
-    <div class="right"><div class="searchbox"><input id="planSearch" placeholder="ค้นหา เลขที่ / ลูกค้า / Part" oninput="filterPlanRows()"></div><input type="file" id="bulkPlanFile" accept=".xlsx,.xls,.csv" style="display:none" onchange="bulkImportPlan(this,planTab)"><button class="btn" onclick="document.getElementById('bulkPlanFile').click()" title="นำเข้าตารางแผนทั้งไฟล์ แยกเป็นเอกสารต่อลูกค้าอัตโนมัติ">📥 นำเข้าตาราง</button> <button class="btn" onclick="togglePLTab()" title="ซ่อน/แสดงแท็บแผนจัดส่ง">${plTabHidden()?'👁 แผนจัดส่ง':'🙈 แผนจัดส่ง'}</button> <button class="btn pri" onclick="planCreateNew()">+ สร้าง${PLAN[planTab].label}</button></div>
+    <div class="right"><div class="searchbox"><input id="planSearch" placeholder="ค้นหา เลขที่ / ลูกค้า / Part" oninput="filterPlanRows()"></div><input type="file" id="bulkPlanFile" accept=".xlsx,.xls,.csv" style="display:none" onchange="bulkImportPlan(this,planTab)"><button class="btn tbx" onclick="document.getElementById('bulkPlanFile').click()" title="นำเข้าตารางแผนทั้งไฟล์ แยกเป็นเอกสารต่อลูกค้าอัตโนมัติ">📥 นำเข้าตาราง</button> <button class="btn" onclick="togglePLTab()" title="ซ่อน/แสดงแท็บแผนจัดส่ง">${plTabHidden()?'👁 แผนจัดส่ง':'🙈 แผนจัดส่ง'}</button> <button class="btn" onclick="toggleTools()" title="ซ่อน/แสดงเครื่องมือ">${toolsOpen()?'✕ ปิดเครื่องมือ':'⋯ เพิ่มเติม'}</button> <button class="btn pri" onclick="planCreateNew()">+ สร้าง${PLAN[planTab].label}</button></div>
   </div><div class="panel-b nopad" id="planList"></div></div>`;
   renderPlanList();
 }
@@ -7888,7 +7889,7 @@ function planWipCells(c){return '<td class="num '+(c.waitQC?'':'muted')+'">'+(c.
   +'<td class="num"><b>'+fmt(c.total)+'</b></td>';}
 function planStatusHtml(onHand,demand,total){let st,stc;if(onHand>=demand&&demand>0){st='พร้อมส่ง';stc='var(--teal)';}else if(onHand>0){st='ขาด '+fmt(demand-onHand);stc='var(--red)';}else{st=demand>0?'ไม่พร้อมส่ง':'-';stc=demand>0?'var(--red)':'var(--ink2)';}return '<td class="c" style="font-weight:700;color:'+stc+'">'+st+'</td>';}
 function planRowActions(d,idx){return '<td style="white-space:nowrap"><button class="btn sm" onclick="printPlanDoc(\''+d.id+'\')" title="พิมพ์">🖨️</button> <button class="btn sm" onclick="planRowEdit(\''+d.id+'\','+idx+')" title="แก้ไข">✏️</button> <button class="btn sm danger" onclick="planRowDel(\''+d.id+'\','+idx+')" title="ยกเลิก">ยกเลิก</button></td>';}
-function planToolbar(type){return '<div style="padding:8px 12px;display:flex;justify-content:flex-end;gap:6px"><button class="btn sm" onclick="printAllPlan(\''+type+'\')">🖨️ พิมพ์ทั้งหมด</button><button class="btn sm danger" onclick="clearAllPlan(\''+type+'\')">🗑️ ล้างทั้งหมด</button></div>';}
+function planToolbar(type){return '<div style="padding:8px 12px;display:flex;justify-content:flex-end;gap:6px"><button class="btn sm tbx" onclick="printAllPlan(\''+type+'\')">🖨️ พิมพ์ทั้งหมด</button><button class="btn sm danger tbx" onclick="clearAllPlan(\''+type+'\')">🗑️ ล้างทั้งหมด</button></div>';}
 function planDocDate(d){return (d&&d.date)||(d&&d.ts?new Date(d.ts).toISOString().slice(0,10):'');}
 function renderCPOTable(){
   const wrap=document.getElementById('planList');if(!wrap)return;
@@ -8001,7 +8002,7 @@ function renderPLTable(){
     </tr>`;}).join('');
   const labelSpan=3+['recvpo','pono','cpodate','cpono','seq'].filter(k=>pldC(k)).length;
   const tailSpan=8+(pldC('cpodue')?1:0)+(pldC('due')?1:0);
-  wrap.innerHTML=`<div style="padding:8px 12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><span class="muted" style="font-size:12px">ช่อง <b>มีสต๊อค/สถานะ/รอคัด-QC/รอชุบ/ผู้ผลิตยังไม่มาส่ง/รวมที่จะมี</b> = ระบบดึงสด · <b>จำนวนส่งจริง/จัดส่ง</b> = กรอกเองได้</span><span style="display:flex;gap:6px"><button class="btn sm" onclick="openPldColMenu()" title="ซ่อน/แสดงคอลัมน์">👁 คอลัมน์</button><button class="btn sm" onclick="printAllPL()">🖨️ พิมพ์ทั้งหมด</button><button class="btn sm danger" onclick="clearAllPL()">🗑️ ล้างแผนทั้งหมด</button></span></div>${planFilterBar('PL')}
+  wrap.innerHTML=`<div style="padding:8px 12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><span class="muted" style="font-size:12px">ช่อง <b>มีสต๊อค/สถานะ/รอคัด-QC/รอชุบ/ผู้ผลิตยังไม่มาส่ง/รวมที่จะมี</b> = ระบบดึงสด · <b>จำนวนส่งจริง/จัดส่ง</b> = กรอกเองได้</span><span style="display:flex;gap:6px"><button class="btn sm" onclick="openPldColMenu()" title="ซ่อน/แสดงคอลัมน์">👁 คอลัมน์</button><button class="btn sm tbx" onclick="printAllPL()">🖨️ พิมพ์ทั้งหมด</button><button class="btn sm danger tbx" onclick="clearAllPL()">🗑️ ล้างแผนทั้งหมด</button></span></div>${planFilterBar('PL')}
   <div class="tbl-wrap"><table style="font-size:11.5px;white-space:nowrap"><thead>
     <tr><th>เลขที่</th>${pldC('recvpo')?'<th>วันที่รับ PO</th>':''}${pldC('pono')?'<th>PO. NO.</th>':''}${pldC('cpodate')?'<th>วันที่ออกใบสั่งซื้อ</th>':''}${pldC('cpono')?'<th>ใบสั่งซื้อเลขที่</th>':''}<th>CUSTOMER</th>${pldC('seq')?'<th>ลำดับ</th>':''}<th>Part No.</th><th class="num">สั่งซื้อ</th><th class="num">มีสต๊อค</th><th>จำนวนส่งจริง</th><th>สถานะ</th>${pldC('cpodue')?'<th>วันที่ส่งสินค้า</th>':''}${pldC('due')?'<th>กำหนดส่ง</th>':''}<th>จัดส่ง</th><th class="num">รอคัด/QC</th><th class="num">รอชุบ</th><th class="num">ผู้ผลิตยังไม่มาส่ง</th><th class="num">รวมที่จะมี</th><th>หมายเหตุ</th><th></th></tr>
   </thead><tbody id="planFilterBody">${rows}</tbody>
@@ -8465,9 +8466,9 @@ function viewFGI(el){
       <input id="fgiCust" list="dl_fgicust" class="fchip" placeholder="👥 ลูกค้า" oninput="filterFgiRows()" style="max-width:150px"><datalist id="dl_fgicust">${custs.map(c=>`<option value="${esc(c)}">`).join('')}</datalist>
       <input id="fgiItem" list="dl_fgiitem" class="fchip" placeholder="📦 สินค้า" oninput="filterFgiRows()" style="max-width:160px"><datalist id="dl_fgiitem">${items.map(it=>`<option value="${esc(it)}">`).join('')}</datalist>
       <select id="fgiSort" onchange="filterFgiRows()" style="max-width:170px;width:auto"><option value="date_desc" selected>วันที่: มาก → น้อย</option><option value="date_asc">วันที่: น้อย → มาก</option><option value="no_desc">เลขที่: มาก → น้อย</option><option value="no_asc">เลขที่: น้อย → มาก</option></select>
-      <button class="btn" onclick="printFGIDay()">🖨️ พิมพ์รายวัน</button>
+      <button class="btn tbx" onclick="printFGIDay()">🖨️ พิมพ์รายวัน</button>
       <button class="btn tbx" onclick="printFGIMonth()">🖨️ พิมพ์รายเดือน</button>
-      <button class="btn pri" onclick="openFGIForm()">+ สร้างใบเบิกจ่าย</button>
+      <button class="btn" onclick="toggleTools()" title="ซ่อน/แสดงปุ่มพิมพ์">${toolsOpen()?'✕ ปิดเครื่องมือ':'⋯ เพิ่มเติม'}</button> <button class="btn pri" onclick="openFGIForm()">+ สร้างใบเบิกจ่าย</button>
     </div></div>
     <div class="panel-b nopad">${docs.length?`<div class="tbl-wrap"><table><thead><tr><th>เลขที่</th><th>วันที่</th><th>ลูกค้า</th><th>PO ลูกค้า</th><th>รายการ</th><th>กำหนดส่ง</th><th class="num">จำนวน</th><th>สถานะ</th><th></th></tr></thead><tbody id="fgiRows">${docs.map(fgiRowHtml).join('')}</tbody></table></div>`:`<div class="empty"><div class="big">📤</div><div class="t">ยังไม่มีใบเบิกจ่าย</div><div>กด "+ สร้างใบเบิกจ่าย" เลือก Customer PO เพื่อเริ่ม</div></div>`}</div></div>`;
   setTimeout(filterFgiRows,0);
