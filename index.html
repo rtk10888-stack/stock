@@ -274,7 +274,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.06.29u (สรุปการดำเนินการ: กลับ 2 เส้น + วันที่แกนล่างไม่ซ้อน + เลขไม่มีทศนิยม)';
+const APP_BUILD='SEMIQC-2026.06.29v (แก้สรุปการดำเนินการ: กรอง all ทำให้ยอดเป็น 0 → แสดงยอดจริงแล้ว)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -8681,7 +8681,7 @@ function invOpsSet(m){ invOpsMode=m; invOpsModal(); }
 function fmtK(v){v=Math.round(v);var a=Math.abs(v);if(a>=1000000)return (v/1000000).toFixed(a>=1e7?0:1)+'M';if(a>=1000)return (v/1000).toFixed(a>=1e4?0:1)+'K';return fmt(v);}
 function invOpsModal(){
   var mode=invOpsMode;
-  var ptype=(typeof invFilter!=='undefined'&&invFilter.type)?invFilter.type:'';
+  var ptype=(typeof invFilter!=='undefined'&&invFilter.type)?invFilter.type:'';if(ptype==='all'||ptype==='ALL'||ptype==='ทั้งหมด')ptype='';
   var inTypes={GR:1,RW:1,GI:1,GS:1,SUP:1}, outTypes={INV:1,IV2:1,FGI:1,WD:1};
   function keyOf(dt){ if(!dt)return ''; if(mode==='day')return dt.slice(0,10); if(mode==='year')return dt.slice(0,4); return dt.slice(0,7); }
   function lineMatch(l){ if(!ptype)return true; var pid=l.productId||l.fgId; var p=pid?P(pid):null; return p?p.type===ptype:false; }
