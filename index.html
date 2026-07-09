@@ -274,7 +274,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.07.09a (สินค้าคงคลัง+CPO: 5 ขั้น คัดแยก/รอเข้าสต๊อค + พักงาน 1.5ด.)';
+const APP_BUILD='SEMIQC-2026.07.09b (Forecast/PO: ชื่อผู้ผลิต+พิมพ์ตามผู้ผลิต+สรุปการดำเนินการ)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -588,7 +588,7 @@ const NAV=[
   {id:'rmc',ico:'📥',label:'รับแมทลูกค้า'},
   {id:'fgi',ico:'📤',label:'ใบเบิกจ่ายสำเร็จรูป'},
   {g:'วางแผนจัดส่ง'},
-  {id:'demand',ico:'📈',label:'Forecast / PO / PL'},
+  {id:'demand',ico:'📈',label:'Forecast / PO (แผนจัดส่ง)'},
   {id:'mrp',ico:'✅',label:'เช็คความเพียงพอ'},
   {g:'ขาย & ปรับปรุง'},
   {id:'inv',ico:'🧾',label:'Invoice ส่งลูกค้า',dt:'INV'},
@@ -1690,7 +1690,7 @@ function filterPlanRows(){const g=id=>((document.getElementById(id)||{}).value||
   const sortv=((document.getElementById('planSort')||{}).value)||'';
   if(sortv){const tb=document.getElementById('planFilterBody');if(tb){const rows=[...tb.querySelectorAll('tr')];rows.sort((a,b)=>{const A=(a.dataset.date||''),B=(b.dataset.date||'');if(!A&&!B)return 0;if(!A)return 1;if(!B)return -1;return sortv==='date_asc'?A.localeCompare(B):B.localeCompare(A);});rows.forEach(r=>tb.appendChild(r));}}}
 function planDistinct(type,field){const set=new Set();DB.docs.filter(d=>d.type===type).forEach(d=>(d.lines||[]).forEach(l=>{const p=l.fgId&&P(l.fgId)?P(l.fgId):null;let v=field==='date'?(l.poDate||l.due||d.shipDate||''):field==='po'?(d.custPo||l.poNo||''):field==='cust'?(l.customer||d.customer||''):field==='part'?(p?p.pn:((l.name||'').split(' ')[0])):field==='mon'?((l.due||l.poDate||d.shipDate||'')+'').slice(0,7):'';if(v)set.add(String(v));}));return [...set].sort();}
-function planFilterBar(type){const mk=(id,ph,field)=>`<input id="${id}" class="fchip" list="dl_${id}" placeholder="${ph}" oninput="filterPlanRows()" style="max-width:150px"><datalist id="dl_${id}">${planDistinct(type,field).map(v=>`<option value="${esc(v)}">`).join('')}</datalist>`;return `<div style="display:flex;gap:6px;flex-wrap:wrap;padding:8px 12px;border-bottom:1px solid var(--line);align-items:center"><span class="muted" style="font-size:11.5px;margin-right:2px">กรอง:</span>${mk('pf_mon','📆 เดือน (YYYY-MM)','mon')}${mk('pf_date','📅 วันที่','date')}${mk('pf_po','🔢 PO. NO.','po')}${mk('pf_cust','👤 CUSTOMER','cust')}${mk('pf_part','🔩 PART NO.','part')}<select id="planSort" onchange="filterPlanRows()" style="max-width:150px;width:auto"><option value="">↕ เรียงตามเดิม</option><option value="date_desc">⬇ ใหม่ → เก่า</option><option value="date_asc">⬆ เก่า → ใหม่</option></select><button class="btn sm" onclick="['pf_mon','pf_date','pf_po','pf_cust','pf_part'].forEach(i=>{var e=document.getElementById(i);if(e)e.value=''});var s=document.getElementById('planSort');if(s)s.value='';filterPlanRows()">ล้าง</button></div>`;}
+function planFilterBar(type){const mk=(id,ph,field)=>`<input id="${id}" class="fchip" list="dl_${id}" placeholder="${ph}" oninput="filterPlanRows()" style="max-width:150px"><datalist id="dl_${id}">${planDistinct(type,field).map(v=>`<option value="${esc(v)}">`).join('')}</datalist>`;return `<div style="display:flex;gap:6px;flex-wrap:wrap;padding:8px 12px;border-bottom:1px solid var(--line);align-items:center"><span class="muted" style="font-size:11.5px;margin-right:2px">กรอง:</span>${mk('pf_mon','📆 เดือน (YYYY-MM)','mon')}${mk('pf_date','📅 วันที่','date')}${mk('pf_po','🔢 PO. NO.','po')}${mk('pf_cust','👤 CUSTOMER','cust')}${mk('pf_part','🔩 PART NO.','part')}<select id="planSort" onchange="filterPlanRows()" style="max-width:150px;width:auto"><option value="">↕ เรียงตามเดิม</option><option value="date_desc">⬇ ใหม่ → เก่า</option><option value="date_asc">⬆ เก่า → ใหม่</option></select><button class="btn sm tbx" onclick="['pf_mon','pf_date','pf_po','pf_cust','pf_part'].forEach(i=>{var e=document.getElementById(i);if(e)e.value=''});var s=document.getElementById('planSort');if(s)s.value='';filterPlanRows()">ล้าง</button></div>`;}
 function prdRow(d){
   const first=(d.lines&&d.lines[0])||{};
   const more=(d.lines||[]).length>1?` <span class="muted">+${d.lines.length-1}</span>`:'';
@@ -7882,7 +7882,7 @@ function printRMCMonth(){
   const w=window.open('','_blank');if(!w){toast('เบราว์เซอร์บล็อก popup','err');return}w.document.write(html);w.document.close();
 }
 function viewDemand(el){
-  setTitle('📈 Forecast / PO / แผนจัดส่ง','บันทึกความต้องการลูกค้า เชื่อม Part Number อัตโนมัติ');
+  setTitle('📈 Forecast / PO (แผนจัดส่ง)','บันทึกความต้องการลูกค้า เชื่อม Part Number อัตโนมัติ');
   if(plTabHidden()&&planTab==='PL')planTab='CPO';
   el.innerHTML=`
   <div class="hint"><span class="i">💡</span><div>บันทึก <b>Forecast</b> (พยากรณ์ 3 เดือน), <b>Customer PO</b> (คำสั่งซื้อจริง), <b>แผนจัดส่ง</b> ของลูกค้า → ไปดูสรุปที่เมนู <b>เช็คความเพียงพอ</b> ว่าของพอหรือไม่</div></div>
@@ -7898,10 +7898,12 @@ function viewDemand(el){
 }
 function planSet(t){planTab=t;render()}
 function plOnOrderMap(){const m={};DB.docs.filter(x=>x.type==='PRD'&&(x.status==='approved'||x.status==='pending')&&!x.imported).forEach(x=>(x.lines||[]).forEach(ll=>{const kk=ll.fgId||('pn:'+((ll.name||'').split(' ')[0]));m[kk]=(m[kk]||0)+(ll.qty||0)}));return m;}
-var _plMemo={t:0,pr:null,wam:null};
-function _plCtx(){ if(!_plMemo.pr||Date.now()-_plMemo.t>150){try{_plMemo.pr=pendRecvMap();_plMemo.wam=wipAgeMap();}catch(e){_plMemo.pr=_plMemo.pr||{};_plMemo.wam=_plMemo.wam||{};}_plMemo.t=Date.now();} return _plMemo; }
-function plCalc(l,onOrder){const p=l.fgId?P(l.fgId):findProdByName(l.name,'FG');const pn=p?(p.pn+(p.name&&p.name!=='-'?' '+p.name:'')):(l.name||'');const order=(l.order!=null&&l.order!=='')?Number(l.order):(Number(l.qty)||0);const onHand=p?(p.onHand||0):0,sortQ=p?(p.wip||0):0,stkQ=p?(p.passedQC||0):0,atPlating=p?(p.atPlating||0):0;const waitQC=sortQ+stkQ;const ctx=_plCtx();const qtime=p?(ctx.pr[p.id]||0):0;const wipBk=p?wipBacklog(p,ctx.wam):0;const key=l.fgId||('pn:'+((l.name||'').split(' ')[0]));const makerOut=onOrder[key]||(p&&onOrder[p.id])||0;const total=onHand+sortQ+stkQ+atPlating+qtime+wipBk;let st,stc;if(onHand>=order&&order>0){st='พร้อมส่ง';stc='var(--teal)';}else if(onHand>0){st='ขาด '+fmt(order-onHand);stc='var(--red)';}else{st='ไม่พร้อมส่ง';stc='var(--red)';}return {p,pn,order,onHand,sort:sortQ,stk:stkQ,waitQC,atPlating,qtime,wipBk,makerOut,total,st,stc};}
-function planWipCells(c){return '<td class="num '+(c.wipBk?'':'muted')+'" title="WIP = ผู้ผลิตยังไม่มาส่ง (ค้าง>1.5ด. ตัดออก)">'+(c.wipBk?fmt(c.wipBk):'-')+'</td>'
+var _plMemo={t:0,pr:null,wam:null,vend:null};
+function _plCtx(){ if(!_plMemo.pr||Date.now()-_plMemo.t>150){try{_plMemo.pr=pendRecvMap();_plMemo.wam=wipAgeMap();_plMemo.vend=invVendorMap();}catch(e){_plMemo.pr=_plMemo.pr||{};_plMemo.wam=_plMemo.wam||{};_plMemo.vend=_plMemo.vend||{};}_plMemo.t=Date.now();} return _plMemo; }
+function plCalc(l,onOrder){const p=l.fgId?P(l.fgId):findProdByName(l.name,'FG');const pn=p?(p.pn+(p.name&&p.name!=='-'?' '+p.name:'')):(l.name||'');const order=(l.order!=null&&l.order!=='')?Number(l.order):(Number(l.qty)||0);const onHand=p?(p.onHand||0):0,sortQ=p?(p.wip||0):0,stkQ=p?(p.passedQC||0):0,atPlating=p?(p.atPlating||0):0;const waitQC=sortQ+stkQ;const ctx=_plCtx();const qtime=p?(ctx.pr[p.id]||0):0;const wipBk=p?wipBacklog(p,ctx.wam):0;const maker=p?(((ctx.vend||{})[p.id])||p.supplier||''):'';const key=l.fgId||('pn:'+((l.name||'').split(' ')[0]));const makerOut=onOrder[key]||(p&&onOrder[p.id])||0;const total=onHand+sortQ+stkQ+atPlating+qtime+wipBk;let st,stc;if(onHand>=order&&order>0){st='พร้อมส่ง';stc='var(--teal)';}else if(onHand>0){st='ขาด '+fmt(order-onHand);stc='var(--red)';}else{st='ไม่พร้อมส่ง';stc='var(--red)';}return {p,pn,order,onHand,sort:sortQ,stk:stkQ,waitQC,atPlating,qtime,wipBk,maker,makerOut,total,st,stc};}
+function planMakerShow(){try{return localStorage.getItem('rtk_plmaker')!=='0';}catch(e){return true;}}
+function togglePlMaker(){try{localStorage.setItem('rtk_plmaker',planMakerShow()?'0':'1');}catch(e){}render();}
+function planWipCells(c){var _mk=(planMakerShow()&&c.maker)?'<div style="font-size:10px;color:var(--brand);font-weight:700;line-height:1.1">'+esc(c.maker)+'</div>':'';return '<td class="num '+(c.wipBk?'':'muted')+'" title="WIP = '+(c.maker?esc(c.maker)+' ':'')+'ผู้ผลิตยังไม่มาส่ง (ค้าง>1.5ด. ตัดออก)">'+_mk+(c.wipBk?fmt(c.wipBk):'-')+'</td>'
   +'<td class="num '+(c.qtime?'':'muted')+'" title="Q-TIME = ผู้ผลิตส่งแล้ว รอกดรับ">'+(c.qtime?fmt(c.qtime):'-')+'</td>'
   +'<td class="num '+(c.atPlating?'':'muted')+'" title="ชุบ = ระหว่างชุบ">'+(c.atPlating?fmt(c.atPlating):'-')+'</td>'
   +'<td class="num '+(c.sort?'':'muted')+'" title="คัดแยก = รับแล้วรอคัด OK/NG">'+(c.sort?fmt(c.sort):'-')+'</td>'
@@ -7909,7 +7911,7 @@ function planWipCells(c){return '<td class="num '+(c.wipBk?'':'muted')+'" title=
   +'<td class="num"><b>'+fmt(c.total)+'</b></td>';}
 function planStatusHtml(onHand,demand,total){let st,stc;if(onHand>=demand&&demand>0){st='พร้อมส่ง';stc='var(--teal)';}else if(onHand>0){st='ขาด '+fmt(demand-onHand);stc='var(--red)';}else{st=demand>0?'ไม่พร้อมส่ง':'-';stc=demand>0?'var(--red)':'var(--ink2)';}return '<td class="c" style="font-weight:700;color:'+stc+'">'+st+'</td>';}
 function planRowActions(d,idx){return '<td style="white-space:nowrap"><button class="btn sm" onclick="printPlanDoc(\''+d.id+'\')" title="พิมพ์">🖨️</button> <button class="btn sm" onclick="planRowEdit(\''+d.id+'\','+idx+')" title="แก้ไข">✏️</button> <button class="btn sm danger" onclick="planRowDel(\''+d.id+'\','+idx+')" title="ยกเลิก">ยกเลิก</button></td>';}
-function planToolbar(type){return '<div style="padding:8px 12px;display:flex;justify-content:flex-end;gap:6px"><button class="btn sm tbx" onclick="printAllPlan(\''+type+'\')">🖨️ พิมพ์ทั้งหมด</button><button class="btn sm danger tbx" onclick="clearAllPlan(\''+type+'\')">🗑️ ล้างทั้งหมด</button></div>';}
+function planToolbar(type){var opsKind=(type==='FC'?'fc':'cpo');return '<div style="padding:8px 12px;display:flex;justify-content:flex-end;gap:6px;flex-wrap:wrap"><button class="btn sm" onclick="togglePlMaker()" title="ซ่อน/แสดงชื่อผู้ผลิต">👤 ผู้ผลิต</button><button class="btn sm pri" onclick="openOps(\''+opsKind+'\')">📈 สรุปการดำเนินการ</button><button class="btn sm tbx" onclick="printPlanByMaker(\''+type+'\')">🖨️ พิมพ์ตามผู้ผลิต</button><button class="btn sm tbx" onclick="printAllPlan(\''+type+'\')">🖨️ พิมพ์ทั้งหมด</button><button class="btn sm danger tbx" onclick="clearAllPlan(\''+type+'\')">🗑️ ล้างทั้งหมด</button></div>';}
 function planDocDate(d){return (d&&d.date)||(d&&d.ts?new Date(d.ts).toISOString().slice(0,10):'');}
 function renderCPOTable(){
   const wrap=document.getElementById('planList');if(!wrap)return;
@@ -8795,12 +8797,21 @@ function rwOpsModal(){
     +'<div class="hint" style="margin-top:12px"><span class="i">i</span><div>สรุปการรับชิ้นงานจากผู้ผลิต (ไม่รวมยกเลิก) · <b>จำนวนครั้ง</b>=จำนวนใบ · <b>จำนวนชิ้น</b>=รวมจำนวนรับ · <b>มูลค่า</b>=จำนวน×ราคาผลิต · แกน/จุดย่อ K=พัน M=ล้าน เฉพาะมูลค่า</div></div>',
     footer:'<button class="btn pri" onclick="closeModal()">ปิด</button>'});
 }
+function printPlanByMaker(type){ ensureSettings(); var vend=invVendorMap(); var set={}; DB.docs.filter(function(d){return d.type===type;}).forEach(function(d){(d.lines||[]).forEach(function(l){var pid=l.fgId;var mk=pid?vend[pid]:'';if(mk)set[mk]=1;});}); var makers=Object.keys(set).sort(); var opts=makers.map(function(m){return '<option value="'+esc(m)+'">'+esc(m)+'</option>';}).join('');
+  modal({title:'🖨️ พิมพ์ '+(type==='FC'?'Forecast':'Customer PO')+' ตามผู้ผลิต',body:'<div class="field"><label>เลือกผู้ผลิต</label><select id="pbm_maker" style="width:100%;padding:8px"><option value="">— ทุกผู้ผลิต —</option>'+opts+'</select></div><div class="field"><label>เดือน (YYYY-MM) — เว้นว่าง = ทุกเดือน</label><input id="pbm_mon" placeholder="2026-07"></div><div class="hint"><span class="i">i</span><div>เลือกผู้ผลิต (เช่น VS4) แล้วพิมพ์เฉพาะรายการของผู้ผลิตนั้น · กรองรายเดือนตามกำหนดส่งได้</div></div>',footer:'<button class="btn" onclick="closeModal()">ยกเลิก</button><button class="btn pri" onclick="doPrintPlanByMaker(\''+type+'\')">🖨️ พิมพ์</button>'});}
+function doPrintPlanByMaker(type){ var mk=((document.getElementById('pbm_maker')||{}).value||''); var mon=(((document.getElementById('pbm_mon')||{}).value)||'').trim(); var vend=invVendorMap(); var lines=[];
+  DB.docs.filter(function(d){return d.type===type;}).sort(function(a,b){return (a.ts||0)-(b.ts||0);}).forEach(function(d){(d.lines||[]).forEach(function(l){ var pid=l.fgId; var lm=pid?vend[pid]:''; if(mk&&lm!==mk)return; if(mon){var dd=(l.due||l.poDate||planDocDate(d)||'');if((dd||'').slice(0,7)!==mon)return;} lines.push(Object.assign({customer:d.customer,custPo:d.custPo},l)); });});
+  if(!lines.length){toast('ไม่พบข้อมูลตามเงื่อนไข','err');return;}
+  var tmp={id:'__tmpMk',type:type,no:(type==='FC'?'Forecast':'Customer PO')+(mk?(' — ผู้ผลิต '+mk):' — ทุกผู้ผลิต')+(mon?(' ('+mon+')'):''),customer:'(กรอง)',lines:lines};
+  DB.docs.push(tmp); printPlanDoc('__tmpMk'); DB.docs=DB.docs.filter(function(d){return d.id!=='__tmpMk';}); closeModal(); }
 var OPS_CFG={
   qc:{title:'📈 สรุปการคัดแยก OK/NG',types:['QC'],metrics:[['count','จำนวนครั้ง','#2563eb'],['ok','รวม OK','#16a34a'],['ng','รวม NG','#ef4444']],agg:function(d){var ok=0,ng=0;(d.lines||[]).forEach(function(l){ok+=Number(l.ok)||0;ng+=Number(l.ng)||0;});if(!ok&&!ng){ok+=Number(d.qtyOk)||0;ng+=Number(d.qtyNg)||0;}return {count:1,ok:ok,ng:ng};}},
   pl:{title:'📈 สรุปการส่งชุบ / รับชุบ',types:['PL'],metrics:[['count','จำนวนครั้ง','#2563eb'],['sent','ส่งชุบ','#d97706'],['recv','รับชุบ','#16a34a']],filter:function(d){return !d.dplan;},agg:function(d){var se=0,re=0;(d.lines||[]).forEach(function(l){se+=Number(l.sentQty)||0;re+=Number(l.recvQty)||0;});return {count:1,sent:se,recv:re};}},
   si:{title:'📈 สรุปการรับเข้าสต๊อค',types:['SI'],metrics:[['count','จำนวนครั้ง','#2563eb'],['qty','จำนวนรับเข้า','#16a34a']],agg:function(d){var q=(d.lines||[]).reduce(function(s,l){return s+(Number(l.weighed||l.qty)||0);},0)||(Number(d.qty)||0);return {count:1,qty:q};}},
   inv:{title:'📈 สรุปการส่งลูกค้า (Invoice)',types:['INV'],metrics:[['count','จำนวนครั้ง','#2563eb'],['qty','จำนวนส่ง','#16a34a'],['v','มูลค่า','#d97706']],agg:function(d){var q=0,v=0;(d.lines||[]).forEach(function(l){q+=Number(l.qty)||0;v+=(Number(l.qty)||0)*(Number(l.price)||0);});v=Number(d.total)||Number(d.subtotal)||v;return {count:1,qty:q,v:v};}},
-  wd:{title:'📈 สรุปการเบิกวัตถุดิบ',types:['WD'],metrics:[['count','จำนวนครั้ง','#2563eb'],['qty','จำนวนเบิก','#16a34a']],agg:function(d){var q=(d.lines||[]).reduce(function(s,l){return s+(Number(l.qty)||0);},0);return {count:1,qty:q};}}
+  wd:{title:'📈 สรุปการเบิกวัตถุดิบ',types:['WD'],metrics:[['count','จำนวนครั้ง','#2563eb'],['qty','จำนวนเบิก','#16a34a']],agg:function(d){var q=(d.lines||[]).reduce(function(s,l){return s+(Number(l.qty)||0);},0);return {count:1,qty:q};}},
+  fc:{title:'📈 สรุป Forecast',types:['FC'],metrics:[['count','จำนวนเอกสาร','#2563eb'],['qty','รวม FC (ชิ้น)','#16a34a']],agg:function(d){var q=0;(d.lines||[]).forEach(function(l){q+=(Number(l.m1)||0)+(Number(l.m2)||0)+(Number(l.m3)||0)+(Number(l.m4)||0);});return {count:1,qty:q};}},
+  cpo:{title:'📈 สรุป Customer PO',types:['CPO'],metrics:[['count','จำนวนเอกสาร','#2563eb'],['qty','รวมสั่งซื้อ (ชิ้น)','#16a34a']],agg:function(d){var q=0;(d.lines||[]).forEach(function(l){q+=(l.order!=null&&l.order!=='')?Number(l.order):(Number(l.qty)||0);});return {count:1,qty:q};}}
 };
 var opsMode={}, opsMetric={};
 function openOps(kind){ opsRender(kind); }
