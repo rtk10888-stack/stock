@@ -275,7 +275,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.07.09q (MRP: เหล็กตี/ชุดประกอบ จับคู่ตาม Part เดียวกับสำเร็จรูป)';
+const APP_BUILD='SEMIQC-2026.07.09r (MRP: ซ่อนปุ่มสร้าง/นำเข้าในแท็บวัตถุดิบ)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -7922,7 +7922,7 @@ function viewDemand(el){
       <button class="${planTab==='RM'?'on':''}" onclick="planSet('RM')">🧱 วัตถุดิบ</button>
       ${!plTabHidden()?`<button class="${planTab==='PL'?'on':''}" onclick="planSet('PL')">🚛 แผนจัดส่ง</button>`:''}
     </div>
-    <div class="right"><div class="searchbox"><input id="planSearch" placeholder="ค้นหา เลขที่ / ลูกค้า / Part" oninput="filterPlanRows()"></div><input type="file" id="bulkPlanFile" accept=".xlsx,.xls,.csv" style="display:none" onchange="bulkImportPlan(this,planTab)"><button class="btn tbx" onclick="document.getElementById('bulkPlanFile').click()" title="นำเข้าตารางแผนทั้งไฟล์ แยกเป็นเอกสารต่อลูกค้าอัตโนมัติ">📥 นำเข้าตาราง</button> <button class="btn" onclick="togglePLTab()" title="ซ่อน/แสดงแท็บแผนจัดส่ง">${plTabHidden()?'👁 แผนจัดส่ง':'🙈 แผนจัดส่ง'}</button> <button class="btn" onclick="toggleTools()" title="ซ่อน/แสดงเครื่องมือ">${toolsOpen()?'✕ ปิดเครื่องมือ':'⋯ เพิ่มเติม'}</button> <button class="btn pri" onclick="planCreateNew()">+ สร้าง${PLAN[planTab].label}</button></div>
+    <div class="right"><div class="searchbox"><input id="planSearch" placeholder="ค้นหา เลขที่ / ลูกค้า / Part" oninput="filterPlanRows()"></div><input type="file" id="bulkPlanFile" accept=".xlsx,.xls,.csv" style="display:none" onchange="bulkImportPlan(this,planTab)">${planTab==='RM'?'':`<button class="btn tbx" onclick="document.getElementById('bulkPlanFile').click()" title="นำเข้าตารางแผนทั้งไฟล์ แยกเป็นเอกสารต่อลูกค้าอัตโนมัติ">📥 นำเข้าตาราง</button>`} <button class="btn" onclick="togglePLTab()" title="ซ่อน/แสดงแท็บแผนจัดส่ง">${plTabHidden()?'👁 แผนจัดส่ง':'🙈 แผนจัดส่ง'}</button> <button class="btn" onclick="toggleTools()" title="ซ่อน/แสดงเครื่องมือ">${toolsOpen()?'✕ ปิดเครื่องมือ':'⋯ เพิ่มเติม'}</button> ${planTab==='RM'?'':`<button class="btn pri" onclick="planCreateNew()">+ สร้าง${PLAN[planTab].label}</button>`}</div>
   </div><div class="panel-b nopad" id="planList"></div></div>`;
   renderPlanList();
 }
