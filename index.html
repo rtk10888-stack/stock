@@ -274,7 +274,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.07.09c (รับวัตถุดิบ: สรุปการดำเนินการ)';
+const APP_BUILD='SEMIQC-2026.07.09d (สรุปการดำเนินการ: รวมที่ยกเลิก เดือน1-5 · ไม่กระทบสต๊อก)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -8751,7 +8751,7 @@ function prdOpsModal(){
   var mode=prdOpsMode, metric=prdOpsMetric;
   function keyOf(dt){ if(!dt)return ''; if(mode==='day')return dt.slice(0,10); if(mode==='year')return dt.slice(0,4); return dt.slice(0,7); }
   var b={};
-  (DB.docs||[]).forEach(function(d){ if(d.type!=='PRD')return; if(d.status==='cancelled')return; var k=keyOf(d.date); if(!k)return; var e=b[k]=b[k]||{c:0,q:0,v:0}; e.c+=1; e.q+=(d.lines||[]).reduce(function(s,l){return s+(Number(l.qty)||0);},0); e.v+=(Number(d.net)||Number(d.subtotal)||(d.lines||[]).reduce(function(s,l){return s+(Number(l.qty)||0)*(Number(l.price)||0);},0)); });
+  (DB.docs||[]).forEach(function(d){ if(d.type!=='PRD')return; var k=keyOf(d.date); if(!k)return; var e=b[k]=b[k]||{c:0,q:0,v:0}; e.c+=1; e.q+=(d.lines||[]).reduce(function(s,l){return s+(Number(l.qty)||0);},0); e.v+=(Number(d.net)||Number(d.subtotal)||(d.lines||[]).reduce(function(s,l){return s+(Number(l.qty)||0)*(Number(l.price)||0);},0)); });
   var keys=Object.keys(b).sort();
   var lim=mode==='year'?12:(mode==='day'?31:14);
   keys=keys.slice(-lim);
@@ -8767,7 +8767,7 @@ function prdOpsModal(){
   var mseg='<div class="seg">'+[['count','จำนวนครั้ง'],['qty','จำนวนชิ้น'],['v','มูลค่า']].map(function(x){return '<button class="'+(metric===x[0]?'on':'')+'" onclick="prdOpsMetricSet(\''+x[0]+'\')">'+x[1]+'</button>';}).join('')+'</div>';
   modal({title:'📈 สรุปการสั่งผลิต',size:'lg',body:
     '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:10px">'+pseg+mseg+'<div style="text-align:right"><div class="muted" style="font-size:11px">รวม '+mlabel+'</div><div style="font-size:19px;font-weight:800;color:'+color+'">'+fmt(Math.round(tot))+'</div></div></div>'+chart
-    +'<div class="hint" style="margin-top:12px"><span class="i">i</span><div>สรุปใบสั่งผลิต (ไม่รวมยกเลิก) · <b>จำนวนครั้ง</b>=จำนวนใบ · <b>จำนวนชิ้น</b>=รวมจำนวนสั่งผลิต · <b>มูลค่า</b>=รวมยอดเงิน · แกน/จุดย่อ K=พัน M=ล้าน เฉพาะมูลค่า</div></div>',
+    +'<div class="hint" style="margin-top:12px"><span class="i">i</span><div>สรุปใบสั่งผลิต (รวมที่ยกเลิกด้วย — เดือน 1-5 · ไม่กระทบยอดสต๊อก) · <b>จำนวนครั้ง</b>=จำนวนใบ · <b>จำนวนชิ้น</b>=รวมจำนวนสั่งผลิต · <b>มูลค่า</b>=รวมยอดเงิน · แกน/จุดย่อ K=พัน M=ล้าน เฉพาะมูลค่า</div></div>',
     footer:'<button class="btn pri" onclick="closeModal()">ปิด</button>'});
 }
 var rwOpsMode='month', rwOpsMetric='count';
@@ -8778,7 +8778,7 @@ function rwOpsModal(){
   var mode=rwOpsMode, metric=rwOpsMetric;
   function keyOf(dt){ if(!dt)return ''; if(mode==='day')return dt.slice(0,10); if(mode==='year')return dt.slice(0,4); return dt.slice(0,7); }
   var b={};
-  (DB.docs||[]).forEach(function(d){ if(d.type!=='RW')return; if(d.status==='cancelled')return; var k=keyOf(d.date); if(!k)return; var e=b[k]=b[k]||{c:0,q:0,v:0}; e.c+=1; e.q+=(d.lines||[]).reduce(function(s,l){return s+(Number(l.qty)||0);},0); e.v+=(d.lines||[]).reduce(function(s,l){var p=l.productId?P(l.productId):null; var pr=Number(l.price)||(p?Number(p.prodPrice):0)||0; return s+(Number(l.qty)||0)*pr;},0); });
+  (DB.docs||[]).forEach(function(d){ if(d.type!=='RW')return; var k=keyOf(d.date); if(!k)return; var e=b[k]=b[k]||{c:0,q:0,v:0}; e.c+=1; e.q+=(d.lines||[]).reduce(function(s,l){return s+(Number(l.qty)||0);},0); e.v+=(d.lines||[]).reduce(function(s,l){var p=l.productId?P(l.productId):null; var pr=Number(l.price)||(p?Number(p.prodPrice):0)||0; return s+(Number(l.qty)||0)*pr;},0); });
   var keys=Object.keys(b).sort();
   var lim=mode==='year'?12:(mode==='day'?31:14);
   keys=keys.slice(-lim);
@@ -8794,7 +8794,7 @@ function rwOpsModal(){
   var mseg='<div class="seg">'+[['count','จำนวนครั้ง'],['qty','จำนวนชิ้น'],['v','มูลค่า']].map(function(x){return '<button class="'+(metric===x[0]?'on':'')+'" onclick="rwOpsMetricSet(\''+x[0]+'\')">'+x[1]+'</button>';}).join('')+'</div>';
   modal({title:'📈 สรุปการรับชิ้นงาน',size:'lg',body:
     '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:10px">'+pseg+mseg+'<div style="text-align:right"><div class="muted" style="font-size:11px">รวม '+mlabel+'</div><div style="font-size:19px;font-weight:800;color:'+color+'">'+fmt(Math.round(tot))+'</div></div></div>'+chart
-    +'<div class="hint" style="margin-top:12px"><span class="i">i</span><div>สรุปการรับชิ้นงานจากผู้ผลิต (ไม่รวมยกเลิก) · <b>จำนวนครั้ง</b>=จำนวนใบ · <b>จำนวนชิ้น</b>=รวมจำนวนรับ · <b>มูลค่า</b>=จำนวน×ราคาผลิต · แกน/จุดย่อ K=พัน M=ล้าน เฉพาะมูลค่า</div></div>',
+    +'<div class="hint" style="margin-top:12px"><span class="i">i</span><div>สรุปการรับชิ้นงานจากผู้ผลิต (รวมที่ยกเลิกด้วย — เดือน 1-5 · ไม่กระทบยอดสต๊อก) · <b>จำนวนครั้ง</b>=จำนวนใบ · <b>จำนวนชิ้น</b>=รวมจำนวนรับ · <b>มูลค่า</b>=จำนวน×ราคาผลิต · แกน/จุดย่อ K=พัน M=ล้าน เฉพาะมูลค่า</div></div>',
     footer:'<button class="btn pri" onclick="closeModal()">ปิด</button>'});
 }
 function printPlanByMaker(type){ ensureSettings(); var vend=invVendorMap(); var set={}; DB.docs.filter(function(d){return d.type===type;}).forEach(function(d){(d.lines||[]).forEach(function(l){var pid=l.fgId;var mk=pid?vend[pid]:'';if(mk)set[mk]=1;});}); var makers=Object.keys(set).sort(); var opts=makers.map(function(m){return '<option value="'+esc(m)+'">'+esc(m)+'</option>';}).join('');
@@ -8805,9 +8805,9 @@ function doPrintPlanByMaker(type){ var mk=((document.getElementById('pbm_maker')
   var tmp={id:'__tmpMk',type:type,no:(type==='FC'?'Forecast':'Customer PO')+(mk?(' — ผู้ผลิต '+mk):' — ทุกผู้ผลิต')+(mon?(' ('+mon+')'):''),customer:'(กรอง)',lines:lines};
   DB.docs.push(tmp); printPlanDoc('__tmpMk'); DB.docs=DB.docs.filter(function(d){return d.id!=='__tmpMk';}); closeModal(); }
 var OPS_CFG={
-  qc:{title:'📈 สรุปการคัดแยก OK/NG',types:['QC'],metrics:[['count','จำนวนครั้ง','#2563eb'],['ok','รวม OK','#16a34a'],['ng','รวม NG','#ef4444']],agg:function(d){var ok=0,ng=0;(d.lines||[]).forEach(function(l){ok+=Number(l.ok)||0;ng+=Number(l.ng)||0;});if(!ok&&!ng){ok+=Number(d.qtyOk)||0;ng+=Number(d.qtyNg)||0;}return {count:1,ok:ok,ng:ng};}},
+  qc:{title:'📈 สรุปการคัดแยก OK/NG',types:['QC'],includeCancelled:true,metrics:[['count','จำนวนครั้ง','#2563eb'],['ok','รวม OK','#16a34a'],['ng','รวม NG','#ef4444']],agg:function(d){var ok=0,ng=0;(d.lines||[]).forEach(function(l){ok+=Number(l.ok)||0;ng+=Number(l.ng)||0;});if(!ok&&!ng){ok+=Number(d.qtyOk)||0;ng+=Number(d.qtyNg)||0;}return {count:1,ok:ok,ng:ng};}},
   pl:{title:'📈 สรุปการส่งชุบ / รับชุบ',types:['PL'],metrics:[['count','จำนวนครั้ง','#2563eb'],['sent','ส่งชุบ','#d97706'],['recv','รับชุบ','#16a34a']],filter:function(d){return !d.dplan;},agg:function(d){var se=0,re=0;(d.lines||[]).forEach(function(l){se+=Number(l.sentQty)||0;re+=Number(l.recvQty)||0;});return {count:1,sent:se,recv:re};}},
-  si:{title:'📈 สรุปการรับเข้าสต๊อค',types:['SI'],metrics:[['count','จำนวนครั้ง','#2563eb'],['qty','จำนวนรับเข้า','#16a34a']],agg:function(d){var q=(d.lines||[]).reduce(function(s,l){return s+(Number(l.weighed||l.qty)||0);},0)||(Number(d.qty)||0);return {count:1,qty:q};}},
+  si:{title:'📈 สรุปการรับเข้าสต๊อค',types:['SI'],includeCancelled:true,metrics:[['count','จำนวนครั้ง','#2563eb'],['qty','จำนวนรับเข้า','#16a34a']],agg:function(d){var q=(d.lines||[]).reduce(function(s,l){return s+(Number(l.weighed||l.qty)||0);},0)||(Number(d.qty)||0);return {count:1,qty:q};}},
   inv:{title:'📈 สรุปการส่งลูกค้า (Invoice)',types:['INV'],metrics:[['count','จำนวนครั้ง','#2563eb'],['qty','จำนวนส่ง','#16a34a'],['v','มูลค่า','#d97706']],agg:function(d){var q=0,v=0;(d.lines||[]).forEach(function(l){q+=Number(l.qty)||0;v+=(Number(l.qty)||0)*(Number(l.price)||0);});v=Number(d.total)||Number(d.subtotal)||v;return {count:1,qty:q,v:v};}},
   wd:{title:'📈 สรุปการเบิกวัตถุดิบ',types:['WD'],metrics:[['count','จำนวนครั้ง','#2563eb'],['qty','จำนวนเบิก','#16a34a']],agg:function(d){var q=(d.lines||[]).reduce(function(s,l){return s+(Number(l.qty)||0);},0);return {count:1,qty:q};}},
   gr:{title:'📈 สรุปการรับวัตถุดิบเข้าสต๊อค',types:['GR'],metrics:[['count','จำนวนครั้ง','#2563eb'],['qty','จำนวนชิ้น','#16a34a'],['v','มูลค่า','#d97706']],agg:function(d){var q=(d.lines||[]).reduce(function(s,l){return s+(Number(l.receivedQty)||Number(l.qty)||0);},0);var v=(d.amount!=null)?(Number(d.amount)||0):(d.lines||[]).reduce(function(s,l){return s+(typeof grLineAmount==='function'?grLineAmount(l):((Number(l.qty)||0)*(Number(l.price)||0)));},0);return {count:1,qty:q,v:v};}},
@@ -8823,7 +8823,7 @@ function opsRender(kind){
   var mode=opsMode[kind]||'month', metric=opsMetric[kind]||cfg.metrics[0][0];
   function keyOf(dt){ if(!dt)return ''; if(mode==='day')return dt.slice(0,10); if(mode==='year')return dt.slice(0,4); return dt.slice(0,7); }
   var b={};
-  (DB.docs||[]).forEach(function(d){ if(cfg.types.indexOf(d.type)<0)return; if(d.status==='cancelled')return; if(cfg.filter&&!cfg.filter(d))return; var k=keyOf(d.date); if(!k)return; var a=cfg.agg(d); var e=b[k]=b[k]||{}; for(var m in a){e[m]=(e[m]||0)+a[m];} });
+  (DB.docs||[]).forEach(function(d){ if(cfg.types.indexOf(d.type)<0)return; if(d.status==='cancelled'&&!cfg.includeCancelled)return; if(cfg.filter&&!cfg.filter(d))return; var k=keyOf(d.date); if(!k)return; var a=cfg.agg(d); var e=b[k]=b[k]||{}; for(var m in a){e[m]=(e[m]||0)+a[m];} });
   var keys=Object.keys(b).sort();
   var lim=mode==='year'?12:(mode==='day'?31:14);
   keys=keys.slice(-lim);
@@ -8838,7 +8838,7 @@ function opsRender(kind){
   var mseg='<div class="seg">'+cfg.metrics.map(function(x){return '<button class="'+(metric===x[0]?'on':'')+'" onclick="opsSetMetric(\''+kind+'\',\''+x[0]+'\')">'+x[1]+'</button>';}).join('')+'</div>';
   modal({title:cfg.title,size:'lg',body:
     '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:10px">'+pseg+mseg+'<div style="text-align:right"><div class="muted" style="font-size:11px">รวม '+mdef[1]+'</div><div style="font-size:19px;font-weight:800;color:'+color+'">'+fmt(Math.round(tot))+'</div></div></div>'+chart
-    +'<div class="hint" style="margin-top:12px"><span class="i">i</span><div>สรุปตามช่วงเวลาที่เลือก (ไม่รวมยกเลิก) · แกน/จุดย่อ K=พัน M=ล้าน เฉพาะมูลค่า</div></div>',
+    +'<div class="hint" style="margin-top:12px"><span class="i">i</span><div>สรุปตามช่วงเวลาที่เลือก '+(cfg.includeCancelled?'(รวมที่ยกเลิกด้วย — เดือน 1-5 · ไม่กระทบยอดสต๊อก)':'(ไม่รวมยกเลิก)')+' · แกน/จุดย่อ K=พัน M=ล้าน เฉพาะมูลค่า</div></div>',
     footer:'<button class="btn pri" onclick="closeModal()">ปิด</button>'});
 }
 function modal({title,body,footer,size}){
