@@ -275,7 +275,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.07.09h (รับวัตถุดิบ: เพิ่ม TAG เหมือนรับชิ้นงาน)';
+const APP_BUILD='SEMIQC-2026.07.09i (รับเข้าต่างประเทศ/พิเศษ: เพิ่ม TAG)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -1949,12 +1949,12 @@ function openMvTagDialog(docId){
     <input type="hidden" id="mv_docid" value="${esc(docId)}">
     <div class="row c3">
       <div class="field"><label>ชื่อผู้ผลิต / MAKER NAME</label><input id="mv_maker" value="${esc(makerShort(f0.maker||d.maker||d.supplier||''))}"></div>
-      <div class="field"><label>ใบสั่งซื้อ / P/O NO.</label><input id="mv_po" value="${esc(f0.poNo||'')}"></div>
+      <div class="field"><label>ใบสั่งซื้อ / P/O NO.</label><input id="mv_po" value="${esc(f0.poNo||d.poNo||'')}"></div>
       <div class="field"><label>หมายเลขชิ้นส่วน / PART NO.</label><input id="mv_pno" value="${esc(pno||'')}"></div>
     </div>
     <div class="row c3">
       <div class="field"><label>ชื่อชิ้นส่วน / PART NAME</label><input id="mv_pname" value="${esc(pr?pr.name:(f0.name||''))}"></div>
-      <div class="field"><label>ล๊อต / LOT NO.</label><input id="mv_lot" value="${esc(f0.lot||f0.date||'')}"></div>
+      <div class="field"><label>ล๊อต / LOT NO.</label><input id="mv_lot" value="${esc(f0.lot||f0.date||d.date||'')}"></div>
       <div class="field"><label>วันที่สั่งผลิต (สำหรับ QR)</label><input id="mv_pdate" value="${esc(prodDate)}"></div>
     </div>
     <div class="row c3">
@@ -5974,8 +5974,8 @@ function viewRcv(kind){
   <div class="panel"><div class="panel-h" style="flex-wrap:wrap;gap:8px"><h2>${cf.label}</h2><div class="desc">${docs.length} เอกสาร</div>
     <div class="right" style="display:flex;gap:6px;flex-wrap:wrap"><div class="searchbox"><input id="rcvQ" placeholder="ค้นหา เลขที่/ใบกำกับ/PO/ผู้ขาย/รายการ" oninput="filterRcvList()"></div><button class="btn pri" onclick="openRcvForm('${kind}')">+ รายการใหม่</button></div>
   </div><div class="panel-b nopad">
-    ${docs.length?`<div class="tbl-wrap"><table style="white-space:nowrap;font-size:12px"><thead><tr><th>เลขที่</th><th>วันที่</th><th>เลขที่ใบกำกับ</th><th>PO เลขที่</th><th>ผู้ขาย</th><th>รายการ</th><th class="num">จำนวนรับ</th><th class="num">จำนวนเงิน</th><th>สถานะ</th><th></th></tr></thead><tbody id="rcvRows">${docs.map(d=>rcvRow(d,kind)).join('')}</tbody>
-    <tfoot><tr style="background:#fff7a8;font-weight:700"><td colspan="6" style="text-align:right">รวม</td><td class="num">${fmt(docs.reduce((s,d)=>s+(d.totalQty||0),0))}</td><td class="num">${fmt2(docs.reduce((s,d)=>s+(Number(d.amount)||0),0))}</td><td colspan="2"></td></tr></tfoot></table></div>`:`<div class="empty"><div class="big">${cf.ico}</div><div class="t">ยังไม่มีรายการ${esc(cf.label)}</div><div>กด "+ รายการใหม่" แล้วเคาะเลข ${esc(cf.srcLabel)}</div></div>`}
+    ${docs.length?`<div class="tbl-wrap"><table style="white-space:nowrap;font-size:12px"><thead><tr><th>เลขที่</th><th>วันที่</th><th>เลขที่ใบกำกับ</th><th>PO เลขที่</th><th>ผู้ขาย</th><th>รายการ</th><th class="num">จำนวนรับ</th><th class="num">จำนวนเงิน</th><th>TAG</th><th>สถานะ</th><th></th></tr></thead><tbody id="rcvRows">${docs.map(d=>rcvRow(d,kind)).join('')}</tbody>
+    <tfoot><tr style="background:#fff7a8;font-weight:700"><td colspan="6" style="text-align:right">รวม</td><td class="num">${fmt(docs.reduce((s,d)=>s+(d.totalQty||0),0))}</td><td class="num">${fmt2(docs.reduce((s,d)=>s+(Number(d.amount)||0),0))}</td><td colspan="3"></td></tr></tfoot></table></div>`:`<div class="empty"><div class="big">${cf.ico}</div><div class="t">ยังไม่มีรายการ${esc(cf.label)}</div><div>กด "+ รายการใหม่" แล้วเคาะเลข ${esc(cf.srcLabel)}</div></div>`}
   </div></div>`;
 }
 function filterRcvList(){const q=((document.getElementById('rcvQ')||{}).value||'').trim().toLowerCase();document.querySelectorAll('#rcvRows tr').forEach(tr=>{tr.style.display=(!q||tr.textContent.toLowerCase().includes(q))?'':'none';});}
@@ -5983,7 +5983,7 @@ function rcvRow(d,kind){
   const items=(d.lines||[]).map(l=>l.productId&&P(l.productId)?P(l.productId).pn:(l.name||'')).filter(Boolean);
   const head=items.slice(0,1).join(', ')+(items.length>1?` +${items.length-1}`:'');
   const tq=(d.lines||[]).reduce((s,l)=>s+(Number(l.qty)||0),0);
-  return `<tr><td class="pn linkish" onclick="openRcvForm('${kind}',DB.docs.find(x=>x.id==='${d.id}'))">${esc(d.no)}</td><td class="muted">${esc(d.date||'')}</td><td>${d.invNo?'<span class="tag amber">'+esc(d.invNo)+'</span>':'<span class="muted">-</span>'}</td><td><span class="tag violet">${esc(d.poNo||'-')}</span></td><td><span class="tag cyan">${esc(d.supplier||'-')}</span></td><td class="muted">${esc(head)}</td><td class="num">${fmt(tq)}</td><td class="num"><b>${fmt2(d.amount||0)}</b></td><td>${statusTag(d.status)}</td>
+  return `<tr><td class="pn linkish" onclick="openRcvForm('${kind}',DB.docs.find(x=>x.id==='${d.id}'))">${esc(d.no)}</td><td class="muted">${esc(d.date||'')}</td><td>${d.invNo?'<span class="tag amber">'+esc(d.invNo)+'</span>':'<span class="muted">-</span>'}</td><td><span class="tag violet">${esc(d.poNo||'-')}</span></td><td><span class="tag cyan">${esc(d.supplier||'-')}</span></td><td class="muted">${esc(head)}</td><td class="num">${fmt(tq)}</td><td class="num"><b>${fmt2(d.amount||0)}</b></td><td style="text-align:center;white-space:nowrap"><button class="btn sm" onclick="openMvTagDialog('${d.id}')" title="พิมพ์ DELIVERY TAG 5×9ซม. (FM-ST-15) เหมือนรับชิ้นงาน">🏷️ TAG</button></td><td>${statusTag(d.status)}</td>
    <td style="white-space:nowrap"><button class="btn sm" onclick="openRcvForm('${kind}',DB.docs.find(x=>x.id==='${d.id}'))">✏️</button> ${d.status==='approved'?`<button class="btn sm danger" onclick="cancelDoc('${d.id}')">ยกเลิก</button>`:d.status==='cancelled'?`<button class="btn sm danger" onclick="delDocConfirm('${d.id}')">🗑️</button>`:`<button class="btn sm ok" onclick="approveDoc('${d.id}')">อนุมัติ</button> <button class="btn sm danger" onclick="deleteDoc('${d.id}')">ลบ</button>`}</td></tr>`;
 }
 function openRcvForm(kind,edit){
