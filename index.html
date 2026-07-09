@@ -275,7 +275,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.07.09p (Forecast: แท็บวัตถุดิบ MRP เหล็กตี/เส้น/ชุดประกอบ)';
+const APP_BUILD='SEMIQC-2026.07.09q (MRP: เหล็กตี/ชุดประกอบ จับคู่ตาม Part เดียวกับสำเร็จรูป)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -1277,8 +1277,8 @@ function openProductForm(id){
       <div class="field"><label>1 เส้น/ชิ้นงาน (อัตโนมัติ = ใช้เหล็ก ÷ โตxยาว)</label><input id="f_perbar" readonly value="${p?(perBar(p)||''):''}" style="background:var(--panel2)"></div>
     </div>
     <div class="row c2">
-      <div class="field"><label>🔨 เหล็กตี/วัตถุดิบตี (เลือก Part RM) — สำหรับ MRP</label><input id="f_forgepart" list="dl_rmparts" value="${p?esc(p.forgePart||''):''}" placeholder="เลือก Part วัตถุดิบเหล็กตี"></div>
-      <div class="field"><label>🧩 ชุดประกอบ (เลือก Part ASM) — สำหรับ MRP</label><input id="f_asmpart" list="dl_asmparts" value="${p?esc(p.asmPart||''):''}" placeholder="เลือก Part ชุดประกอบ"></div>
+      <div class="field"><label>🔨 เหล็กตี: Part RM (เว้นว่าง=ใช้ Part เดียวกับสำเร็จรูป)</label><input id="f_forgepart" list="dl_rmparts" value="${p?esc(p.forgePart||''):''}" placeholder="เลือก Part วัตถุดิบเหล็กตี"></div>
+      <div class="field"><label>🧩 ชุดประกอบ: Part ASM (เว้นว่าง=ใช้ Part เดียวกับสำเร็จรูป)</label><input id="f_asmpart" list="dl_asmparts" value="${p?esc(p.asmPart||''):''}" placeholder="เลือก Part ชุดประกอบ"></div>
     </div>
     <datalist id="dl_rmparts">${DB.products.filter(x=>x.type==='RM').map(x=>'<option value="'+esc(x.pn)+'">'+esc(x.name||'')+'</option>').join('')}</datalist>
     <datalist id="dl_asmparts">${DB.products.filter(x=>x.type==='ASM').map(x=>'<option value="'+esc(x.pn)+'">'+esc(x.name||'')+'</option>').join('')}</datalist>
@@ -7949,10 +7949,11 @@ function renderRMTable(){
   const fgDem={};
   DB.docs.filter(d=>d.type==='FC').forEach(d=>(d.lines||[]).forEach(l=>{const p=l.fgId?P(l.fgId):findProdByName(l.name,'FG');if(!p)return;const dem=(Number(l.m1)||0)+(Number(l.m2)||0)+(Number(l.m3)||0)+(Number(l.m4)||0);if(dem<=0)return;fgDem[p.id]=(fgDem[p.id]||0)+dem;}));
   const forge={},bars={},asm={};
-  Object.keys(fgDem).forEach(id=>{const p=P(id);if(!p)return;const dem=fgDem[id];
-    if(p.forgePart){(forge[p.forgePart]=forge[p.forgePart]||{qty:0}).qty+=dem;}
+  const rmByPN={},asmByPN={};DB.products.forEach(x=>{if(x.type==='RM')rmByPN[normPN(x.pn)]=x;else if(x.type==='ASM')asmByPN[normPN(x.pn)]=x;});
+  Object.keys(fgDem).forEach(id=>{const p=P(id);if(!p)return;const dem=fgDem[id];const key=normPN(p.pn);
+    const _rm=p.forgePart||((rmByPN[key]||{}).pn||'');if(_rm){(forge[_rm]=forge[_rm]||{qty:0}).qty+=dem;}
     const pb=perBar(p);if(pb>0){const spec=(p.steelUse||'-')+(p.material||p.steelGrade?(' · '+(p.material||p.steelGrade)):'');const e=bars[spec]=bars[spec]||{pieces:0,barsN:0};e.pieces+=dem;e.barsN+=Math.ceil(dem/pb);}
-    if(p.asmPart){(asm[p.asmPart]=asm[p.asmPart]||{qty:0}).qty+=dem;}
+    const _as=p.asmPart||((asmByPN[key]||{}).pn||'');if(_as){(asm[_as]=asm[_as]||{qty:0}).qty+=dem;}
   });
   const rmName=pn=>{const x=DB.products.find(y=>y.pn===pn);return x?(x.name||''):'';};
   const rmOn=pn=>{const x=DB.products.find(y=>y.pn===pn);return x?(x.onHand||0):0;};
@@ -7960,7 +7961,7 @@ function renderRMTable(){
   const fRows=Object.keys(forge).sort().map(k=>`<tr><td>${esc(k)}</td><td class="muted">${esc(rmName(k))}</td><td class="num"><b>${fmt(forge[k].qty)}</b></td><td class="num">${fmt(rmOn(k))}</td><td class="c">${stat(forge[k].qty,rmOn(k))}</td></tr>`).join('')||'<tr><td colspan="5" class="muted" style="text-align:center;padding:14px">— ยังไม่มี (ตั้ง Part เหล็กตีที่สินค้าคงคลัง) —</td></tr>';
   const aRows=Object.keys(asm).sort().map(k=>`<tr><td>${esc(k)}</td><td class="muted">${esc(rmName(k))}</td><td class="num"><b>${fmt(asm[k].qty)}</b></td><td class="num">${fmt(rmOn(k))}</td><td class="c">${stat(asm[k].qty,rmOn(k))}</td></tr>`).join('')||'<tr><td colspan="5" class="muted" style="text-align:center;padding:14px">— ยังไม่มี (ตั้ง Part ชุดประกอบที่สินค้าคงคลัง) —</td></tr>';
   const bRows=Object.keys(bars).sort().map(k=>`<tr><td>${esc(k)}</td><td class="num">${fmt(bars[k].pieces)}</td><td class="num"><b style="color:var(--brand)">${fmt(bars[k].barsN)}</b></td></tr>`).join('')||'<tr><td colspan="3" class="muted" style="text-align:center;padding:14px">— ยังไม่มี (ตั้ง ใช้เหล็ก + งานโตxยาว ที่สินค้าคงคลัง) —</td></tr>';
-  wrap.innerHTML=`<div class="hint" style="margin:10px 12px"><span class="i">🧱</span><div>สรุปวัตถุดิบที่ต้องใช้ตาม <b>Forecast</b> ทั้งหมด · ตั้งการเชื่อมโยงที่ <b>สินค้าคงคลัง → ✏️ แก้ไขสินค้า</b> (เหล็กตี/ชุดประกอบ = เลือก Part · เหล็กเส้น/ท่อ/สี่เหลี่ยม/ทองเหลือง = ใช้เหล็ก ÷ งานโตxยาว)</div></div>
+  wrap.innerHTML=`<div class="hint" style="margin:10px 12px"><span class="i">🧱</span><div>สรุปวัตถุดิบที่ต้องใช้ตาม <b>Forecast</b> ทั้งหมด · จับคู่อัตโนมัติ: <b>เหล็กตี/ชุดประกอบ</b> = Part Number เดียวกับสำเร็จรูป (สร้างสินค้า RM/ASM ให้มี Part เดียวกับ FG) · <b>เหล็กเส้น/ท่อ/สี่เหลี่ยม/ทองเหลือง</b> = ใช้เหล็ก ÷ งานโตxยาว</div></div>
   <div style="padding:0 12px 18px">
    <h3 style="margin:8px 0 4px;font-size:14px">🔨 เหล็กตี / วัตถุดิบตี (เชื่อมด้วย Part)</h3>
    <div class="tbl-wrap"><table style="font-size:12px"><thead><tr><th>Part วัตถุดิบ</th><th>ชื่อ</th><th class="num">ต้องใช้ (ชิ้น)</th><th class="num">มีสต๊อค</th><th>สถานะ</th></tr></thead><tbody>${fRows}</tbody></table></div>
