@@ -275,7 +275,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.07.09j (CPO: กรองเดือน/วันที่ ตามกำหนดส่ง)';
+const APP_BUILD='SEMIQC-2026.07.09l (ใบพยากรณ์: ลูกค้า = RTK)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -7922,7 +7922,7 @@ function planSet(t){planTab=t;render()}
 function plOnOrderMap(){const m={};DB.docs.filter(x=>x.type==='PRD'&&(x.status==='approved'||x.status==='pending')&&!x.imported).forEach(x=>(x.lines||[]).forEach(ll=>{const kk=ll.fgId||('pn:'+((ll.name||'').split(' ')[0]));m[kk]=(m[kk]||0)+(ll.qty||0)}));return m;}
 var _plMemo={t:0,pr:null,wam:null,vend:null};
 function _plCtx(){ if(!_plMemo.pr||Date.now()-_plMemo.t>150){try{_plMemo.pr=pendRecvMap();_plMemo.wam=wipAgeMap();_plMemo.vend=invVendorMap();}catch(e){_plMemo.pr=_plMemo.pr||{};_plMemo.wam=_plMemo.wam||{};_plMemo.vend=_plMemo.vend||{};}_plMemo.t=Date.now();} return _plMemo; }
-function plCalc(l,onOrder){const p=l.fgId?P(l.fgId):findProdByName(l.name,'FG');const pn=p?(p.pn+(p.name&&p.name!=='-'?' '+p.name:'')):(l.name||'');const order=(l.order!=null&&l.order!=='')?Number(l.order):(Number(l.qty)||0);const onHand=p?(p.onHand||0):0,sortQ=p?(p.wip||0):0,stkQ=p?(p.passedQC||0):0,atPlating=p?(p.atPlating||0):0;const waitQC=sortQ+stkQ;const ctx=_plCtx();const qtime=p?(ctx.pr[p.id]||0):0;const wipBk=p?wipBacklog(p,ctx.wam):0;const maker=p?(((ctx.vend||{})[p.id])||p.supplier||''):'';const key=l.fgId||('pn:'+((l.name||'').split(' ')[0]));const makerOut=onOrder[key]||(p&&onOrder[p.id])||0;const total=onHand+sortQ+stkQ+atPlating+qtime+wipBk;let st,stc;if(onHand>=order&&order>0){st='พร้อมส่ง';stc='var(--teal)';}else if(onHand>0){st='ขาด '+fmt(order-onHand);stc='var(--red)';}else{st='ไม่พร้อมส่ง';stc='var(--red)';}return {p,pn,order,onHand,sort:sortQ,stk:stkQ,waitQC,atPlating,qtime,wipBk,maker,makerOut,total,st,stc};}
+function plCalc(l,onOrder){const p=l.fgId?P(l.fgId):findProdByName(l.name,'FG');const pn=p?(p.pn+(p.name&&p.name!=='-'?' '+p.name:'')):(l.name||'');const order=(l.order!=null&&l.order!=='')?Number(l.order):(Number(l.qty)||0);const onHand=p?(p.onHand||0):0,sortQ=p?(p.wip||0):0,stkQ=p?(p.passedQC||0):0,atPlating=p?(p.atPlating||0):0;const waitQC=sortQ+stkQ;const ctx=_plCtx();const qtime=p?(ctx.pr[p.id]||0):0;const wipBk=p?wipBacklog(p,ctx.wam):0;const maker=(l&&l.maker)?l.maker:(p?(((ctx.vend||{})[p.id])||p.supplier||''):'');const key=l.fgId||('pn:'+((l.name||'').split(' ')[0]));const makerOut=onOrder[key]||(p&&onOrder[p.id])||0;const total=onHand+sortQ+stkQ+atPlating+qtime+wipBk;let st,stc;if(onHand>=order&&order>0){st='พร้อมส่ง';stc='var(--teal)';}else if(onHand>0){st='ขาด '+fmt(order-onHand);stc='var(--red)';}else{st='ไม่พร้อมส่ง';stc='var(--red)';}return {p,pn,order,onHand,sort:sortQ,stk:stkQ,waitQC,atPlating,qtime,wipBk,maker,makerOut,total,st,stc};}
 function planMakerShow(){try{return localStorage.getItem('rtk_plmaker')!=='0';}catch(e){return true;}}
 function togglePlMaker(){try{localStorage.setItem('rtk_plmaker',planMakerShow()?'0':'1');}catch(e){}render();}
 function planWipCells(c){var _mk=(planMakerShow()&&c.maker)?'<div style="font-size:10px;color:var(--brand);font-weight:700;line-height:1.1">'+esc(c.maker)+'</div>':'';return '<td class="num '+(c.wipBk?'':'muted')+'" title="WIP = '+(c.maker?esc(c.maker)+' ':'')+'ผู้ผลิตยังไม่มาส่ง (ค้าง>1.5ด. ตัดออก)">'+_mk+(c.wipBk?fmt(c.wipBk):'-')+'</td>'
@@ -7954,12 +7954,12 @@ function renderFCTable(){
   if(!docs.length){wrap.innerHTML=`<div class="empty"><div class="big">📈</div><div class="t">ยังไม่มี Forecast</div><div>กด "นำเข้าตาราง" หรือ "+ สร้าง"</div></div>`;return;}
   const onOrder=plOnOrderMap();let tF=0,tOh=0;
   const rows=[];docs.forEach(d=>(d.lines||[]).forEach((l,idx)=>{const c=plCalc(l,onOrder);const demand=(l.m1||0)+(l.m2||0)+(l.m3||0)+(l.m4||0);tF+=demand;tOh+=c.onHand;
-    rows.push(`<tr data-date="${esc(planDocDate(d)||l.due||'')}" data-po="${esc(d.custPo||'')}" data-cust="${esc(l.customer||d.customer||'')}" data-part="${esc(c.pn)}" data-mon="${esc((planDocDate(d)||l.due||'').slice(0,7))}"><td class="pn linkish" onclick="printPlanDoc('${d.id}')">${esc(d.no)}</td><td class="c">${esc(planDocDate(d))}</td><td>${esc(l.customer||d.customer||'')}</td><td>${esc(c.pn)}</td><td class="num">${fmt(l.m1)}</td><td class="num">${fmt(l.m2)}</td><td class="num">${fmt(l.m3)}</td><td class="num">${fmt(l.m4)}</td><td class="num"><b>${fmt(demand)}</b></td><td class="num" style="color:var(--brand)">${c.onHand?fmt(c.onHand):'-'}</td>${planStatusHtml(c.onHand,demand,c.total)}${planWipCells(c)}${planRowActions(d,idx)}</tr>`);
+    rows.push(`<tr data-date="${esc(planDocDate(d)||l.due||'')}" data-po="${esc(d.custPo||'')}" data-cust="${esc(l.customer||d.customer||'')}" data-part="${esc(c.pn)}" data-mon="${esc((planDocDate(d)||l.due||'').slice(0,7))}"><td class="pn linkish" onclick="printPlanDoc('${d.id}')">${esc(d.no)}</td><td class="c">${esc(planDocDate(d))}</td><td style="padding:2px"><input type="date" value="${esc(l.fcDate||planDocDate(d)||'')}" onchange="fcSetIssue('${d.id}',${idx},this.value)" style="width:128px;padding:3px 5px"></td><td>${esc(l.customer||d.customer||'')}</td><td>${esc(c.pn)}</td><td class="num">${fmt(l.m1)}</td><td class="num">${fmt(l.m2)}</td><td class="num">${fmt(l.m3)}</td><td class="num">${fmt(l.m4)}</td><td class="num"><b>${fmt(demand)}</b></td><td class="num" style="color:var(--brand)">${c.onHand?fmt(c.onHand):'-'}</td>${planStatusHtml(c.onHand,demand,c.total)}${planWipCells(c)}${planRowActions(d,idx)}</tr>`);
   }));
   wrap.innerHTML=planToolbar('FC')+planFilterBar('FC')+`<div class="tbl-wrap"><table style="font-size:11.5px;white-space:nowrap"><thead><tr>
-    <th>เลขที่</th><th>วันที่</th><th>ลูกค้า</th><th>Part No.</th><th class="num">${ml[0]}</th><th class="num">${ml[1]}</th><th class="num">${ml[2]}</th><th class="num">${ml[3]}</th><th class="num">รวม FC</th><th class="num">มีสต๊อค</th><th>สถานะ</th><th class="num">ผู้ผลิตยังไม่มาส่ง</th><th class="num">Q-TIME</th><th class="num">ชุบ</th><th class="num">คัดแยก</th><th class="num">รอเข้าสต๊อค</th><th class="num">รวมที่จะมี</th><th></th>
+    <th>เลขที่</th><th>วันที่</th><th>Forecast ออกวันที่</th><th>ลูกค้า</th><th>Part No.</th><th class="num">${ml[0]}</th><th class="num">${ml[1]}</th><th class="num">${ml[2]}</th><th class="num">${ml[3]}</th><th class="num">รวม FC</th><th class="num">มีสต๊อค</th><th>สถานะ</th><th class="num">ผู้ผลิตยังไม่มาส่ง</th><th class="num">Q-TIME</th><th class="num">ชุบ</th><th class="num">คัดแยก</th><th class="num">รอเข้าสต๊อค</th><th class="num">รวมที่จะมี</th><th></th>
   </tr></thead><tbody id="planFilterBody">${rows.join('')}</tbody>
-  <tfoot><tr style="background:#f3f6fb;font-weight:700"><td colspan="8" style="text-align:right">รวม</td><td class="num">${fmt(tF)}</td><td class="num">${fmt(tOh)}</td><td colspan="8"></td></tr></tfoot></table></div>`;
+  <tfoot><tr style="background:#f3f6fb;font-weight:700"><td colspan="9" style="text-align:right">รวม</td><td class="num">${fmt(tF)}</td><td class="num">${fmt(tOh)}</td><td colspan="8"></td></tr></tfoot></table></div>`;
 }
 function planRowEdit(docId,idx){const d=DB.docs.find(x=>x.id===docId);if(!d)return;const l=(d.lines||[])[idx];if(!l)return;ensureSettings();const custs=DB.settings.customers||[];const ml=monthLabels();const t=d.type;
   let extra='';
@@ -7969,12 +7969,13 @@ function planRowEdit(docId,idx){const d=DB.docs.find(x=>x.id===docId);if(!d)retu
     <div class="row c2"><div class="field"><label>CUSTOMER</label><input id="pre_cust" list="dl_precust" value="${esc(l.customer||d.customer||'')}"><datalist id="dl_precust">${custs.map(c=>`<option value="${esc(c)}">`).join('')}</datalist></div>
     <div class="field"><label>Part No. / รายการ</label><input id="pre_part" list="dl_fg2" value="${esc(l.name||'')}"></div></div>
     ${extra}
+    <div class="row c2"><div class="field"><label>ผู้ผลิต (MAKER) — เลือกได้</label><input id="pre_maker" list="dl_premaker" value="${esc(l.maker||'')}" placeholder="เลือก/พิมพ์ผู้ผลิต"><datalist id="dl_premaker">${(DB.settings.makers||[]).map(m=>'<option value="'+esc(m.code)+'">'+(m.name?esc(m.name):'')+'</option>').join('')}</datalist></div>${t==='FC'?('<div class="field"><label>Forecast ออกวันที่</label><input type="date" id="pre_fcdate" value="'+esc(l.fcDate||planDocDate(d)||'')+'"></div>'):'<div class="field"></div>'}</div>
     <div class="field"><label>หมายเหตุ</label><input id="pre_note" value="${esc(l.note||'')}"></div>
     <datalist id="dl_fg2">${DB.products.filter(p=>p.type==='FG').slice(0,1600).map(p=>`<option value="${esc(p.pn+(p.name&&p.name!=='-'?' '+p.name:''))}">`).join('')}</datalist>
   `,footer:`<button class="btn" onclick="closeModal()">ยกเลิก</button><button class="btn danger" onclick="planRowDel('${d.id}',${idx})">🗑️ ลบรายการนี้</button><button class="btn pri" onclick="planRowSave('${d.id}',${idx})">บันทึก</button>`});}
 function planRowSave(docId,idx){const d=DB.docs.find(x=>x.id===docId);if(!d)return;const l=(d.lines||[])[idx];if(!l)return;const v=k=>((document.getElementById(k)||{}).value||'').trim();
-  l.customer=v('pre_cust');d.customer=l.customer;const part=v('pre_part');l.name=part;const p=findProdByName(part,'FG');l.fgId=p?p.id:'';l.note=v('pre_note');
-  if(d.type==='FC'){l.m1=Number(v('pre_m1'))||0;l.m2=Number(v('pre_m2'))||0;l.m3=Number(v('pre_m3'))||0;l.m4=Number(v('pre_m4'))||0;}
+  l.customer=v('pre_cust');d.customer=l.customer;const part=v('pre_part');l.name=part;const p=findProdByName(part,'FG');l.fgId=p?p.id:'';l.note=v('pre_note');l.maker=v('pre_maker');
+  if(d.type==='FC'){l.m1=Number(v('pre_m1'))||0;l.m2=Number(v('pre_m2'))||0;l.m3=Number(v('pre_m3'))||0;l.m4=Number(v('pre_m4'))||0;l.fcDate=v('pre_fcdate');}
   else{l.order=Number(v('pre_qty'))||0;l.qty=l.order;l.due=v('pre_due');l.poNo=v('pre_pono');if(d.type==='CPO')d.custPo=v('pre_pono');}
   if(l.customer&&!DB.settings.customers.includes(l.customer))DB.settings.customers.push(l.customer);
   saveDB();closeModal();render();toast('บันทึกแล้ว','ok');}
@@ -8050,6 +8051,7 @@ function renderPLTable(){
   <tfoot><tr style="background:#f3f6fb;font-weight:700"><td colspan="${labelSpan}" style="text-align:right">รวม</td><td class="num">${fmt(tOrder)}</td><td class="num">${fmt(tOh)}</td><td class="num">${fmt(tDeliv)}</td><td colspan="${tailSpan}"></td></tr></tfoot>
   </table></div>`;
 }
+function fcSetIssue(id,idx,v){const d=DB.docs.find(x=>x.id===id);if(!d||!d.lines||!d.lines[idx])return;d.lines[idx].fcDate=v||'';saveDB();}
 function plSetDeliv(id,v){const d=DB.docs.find(x=>x.id===id);if(!d||!d.lines||!d.lines[0])return;d.lines[0].deliv=v===''?'':Math.round(Number(v)||0);saveDB();}
 function plSetShip(id,v){const d=DB.docs.find(x=>x.id===id);if(!d||!d.lines||!d.lines[0])return;d.lines[0].shipped=v||'';d.shipDate=v||d.shipDate;saveDB();}
 function printAllPL(){const lines=[];DB.docs.filter(d=>d.type==='PL').sort((a,b)=>{const sa=Number((a.lines&&a.lines[0]&&a.lines[0].seq)||0),sb=Number((b.lines&&b.lines[0]&&b.lines[0].seq)||0);return (sa-sb)||(a.ts-b.ts);}).forEach(d=>(d.lines||[]).forEach(l=>lines.push(l)));if(!lines.length){toast('ยังไม่มีแผนจัดส่ง','err');return}const tmp={id:'__tmpPL',type:'PL',no:'แผนจัดส่ง (รวมทั้งหมด)',customer:'(ทั้งหมด)',lines,shipDate:''};DB.docs.push(tmp);printPlanDoc('__tmpPL');DB.docs=DB.docs.filter(d=>d.id!=='__tmpPL');}
@@ -8330,7 +8332,7 @@ function printPlanDoc(id,mode){
    +"@media print{.noprint{display:none}}</style></head><body>"
    +'<div class="hd"><div class="co"><h1>'+esc(co.name||'')+'</h1><div>'+esc(co.address||'')+'</div><div>TAX ID: '+esc(co.taxId||'')+' &nbsp; โทร '+esc(co.tel||'')+'</div></div>'
    +'<div class="title"><div class="t1">'+titleTh+'</div><div style="margin-top:6px;font-size:13px"><b>เลขที่:</b> '+esc(d.no)+(d.shipDate&&!plMode?' &nbsp; <b>วันที่ส่ง:</b> '+d.shipDate:'')+'</div></div></div>'
-   +(plMode?'':'<div class="meta"><b>ลูกค้า:</b> '+esc(d.customer||'')+(d.custPo?' &nbsp; <b>PO ลูกค้า:</b> '+esc(d.custPo):'')+(d.shipDate?' &nbsp; <b>วันที่ส่ง:</b> '+d.shipDate:'')+'</div>')
+   +(plMode?'':'<div class="meta"><b>ลูกค้า:</b> '+esc(d.type==='FC'?'RTK':(d.customer||''))+(d.custPo?' &nbsp; <b>PO ลูกค้า:</b> '+esc(d.custPo):'')+(d.shipDate?' &nbsp; <b>วันที่ส่ง:</b> '+d.shipDate:'')+'</div>')
    +'<table><thead>'+theadFull+'</thead><tbody>'+body+'</tbody></table>'
    +(plMode?'<div style="margin-top:6px;font-size:10.5px;color:#555">หมายเหตุ: ช่อง <b>มีสต๊อค / สถานะ / รอคัด-QC / รอชุบ / ผู้ผลิตยังไม่มาส่ง / รวมที่จะมี</b> ระบบดึงอัตโนมัติแบบ Real Time · ช่อง <b>จำนวนส่งจริง / จัดส่ง</b> ฝ่าย Planning กรอกเอง</div>':'')
    +'<div class="sign"><div><div class="line">ผู้จัดทำ (Planning)</div></div><div><div class="line">ผู้ตรวจสอบ (Store)</div></div><div><div class="line">ผู้อนุมัติ</div></div></div>'
