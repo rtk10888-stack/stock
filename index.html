@@ -197,6 +197,7 @@ td.num,th.num{text-align:right;font-family:'Inter',sans-serif;font-variant-numer
         <button id="undoBtn" class="btn sm" title="ย้อนกลับ (Ctrl+Z)" onclick="undoAction()" disabled style="margin-right:4px">↶ ย้อนกลับ</button><button id="redoBtn" class="btn sm" title="ไปข้างหน้า (Ctrl+Shift+Z)" onclick="redoAction()" disabled style="margin-right:8px">↷ ไปหน้า</button><span id="buildTag" style="font-size:10px;color:var(--ink3);margin-right:8px;white-space:nowrap"></span><span id="syncChip" onclick="forceCloudSync()" title="คลิกเพื่อลองเชื่อมคลาวด์ใหม่ / ดันข้อมูลขึ้นคลาวด์" style="font-size:12px;font-weight:600;margin-right:6px;white-space:nowrap;color:var(--ink3);cursor:pointer">…</span>
         <button class="btn sm ghost" onclick="exportData()">⬇ สำรองข้อมูล</button>
         <button class="btn sm ghost" onclick="document.getElementById('importFile').click()">⬆ นำเข้า</button>
+        <button class="btn sm" style="background:#ecfdf5;color:#065f46" onclick="openRestoreMenu()" title="กู้คืนจากสำเนาสำรองอัตโนมัติในเครื่อง">🛟 กู้คืน</button>
         <button id="recoverBtn" class="btn sm" style="background:#fef3c7;color:#92400e;display:none" onclick="recoverFromBackup()" title="กู้รายการสินค้า+ยอดสต๊อก จากไฟล์สำรองใน GitHub">🔧 กู้คืนข้อมูล</button>
         <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(this)">
       </div>
@@ -274,7 +275,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.07.09f (แก้ตัวกรอง เดือน/วันที่/PO หน้า Forecast·CPO)';
+const APP_BUILD='SEMIQC-2026.07.09g (กันข้อมูลหาย: drop-guard + สำเนาอัตโนมัติ + ปุ่มกู้คืน)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -429,12 +430,22 @@ async function forceCloudSync(){
     else { setSyncStatus('offline'); toast('ยังเชื่อมคลาวด์ไม่ได้ — Supabase อาจยังโหลดหนัก รออีกสักครู่แล้วลองใหม่','err'); }
   }catch(e){ setSyncStatus('offline'); toast('ซิงก์ไม่สำเร็จ: '+((e&&e.message)||e),'err'); }
 }
+/* ===== ระบบกันข้อมูลหาย (auto safety backup + drop guard) ===== */
+function _docCount(x){try{return (x&&x.docs&&x.docs.length)||0;}catch(e){return 0;}}
+var __lastGoodDB=null;
+function safetySnapshot(reason){ try{ var n=_docCount(DB); if(n<=0)return; var snap={t:Date.now(),reason:reason||'',n:n,json:JSON.stringify(DB)}; __lastGoodDB=snap; try{lsSet('rtk_autobak',JSON.stringify(snap));}catch(e){} }catch(e){} }
+function getAutoBak(){ if(__lastGoodDB)return __lastGoodDB; try{var s=localStorage.getItem('rtk_autobak');if(s)return JSON.parse(s);}catch(e){} return null; }
+function remoteReplaceSafe(remote){ var cur=_docCount(DB), nw=_docCount(remote); if(cur>=100 && nw < cur-100 && nw < cur*0.85) return false; return true; }
+function warnDrop(cur,nw){ try{ toast('⚠️ คลาวด์มีข้อมูลน้อยกว่าในเครื่องมาก ('+fmt(nw)+' < '+fmt(cur)+' เอกสาร) — ระบบไม่ดึงทับให้ กันข้อมูลหาย · ถ้าข้อมูลในเครื่องถูกต้อง กดที่สถานะซิงก์มุมบนเพื่อดันขึ้นคลาวด์','err'); }catch(e){} }
+function openRestoreMenu(){ var ab=getAutoBak(); var cur=_docCount(DB); var info= ab? ('สำเนาอัตโนมัติล่าสุด: '+new Date(ab.t).toLocaleString('th-TH')+' · '+fmt(ab.n)+' เอกสาร') : 'ยังไม่มีสำเนาอัตโนมัติในเครื่อง (จะถูกสร้างก่อนซิงก์คลาวด์ครั้งถัดไป)';
+  modal({title:'🛟 กู้คืนข้อมูล',body:'<div class="hint" style="margin-bottom:10px"><span class="i">i</span><div>ปัจจุบันในเครื่องมี <b>'+fmt(cur)+'</b> เอกสาร<br>'+esc(info)+'</div></div><div style="font-size:13px;color:var(--ink2);line-height:1.7">• <b>กู้จากสำเนาอัตโนมัติ</b> = นำสำเนาที่ระบบเก็บไว้ก่อนซิงก์กลับมา แล้วดันขึ้นคลาวด์<br>• หรือใช้ปุ่ม <b>⬆ นำเข้า</b> ด้านบน เพื่อกู้จากไฟล์สำรองที่ดาวน์โหลดไว้</div>',footer:(ab&&ab.json?'<button class="btn pri" onclick="doRestoreAutoBak()">↩️ กู้จากสำเนาอัตโนมัติ ('+fmt(ab.n)+' เอกสาร)</button>':'')+'<button class="btn" onclick="closeModal()">ปิด</button>'}); }
+function doRestoreAutoBak(){ var ab=getAutoBak(); if(!ab||!ab.json){toast('ไม่มีสำเนาอัตโนมัติ','err');return;} if(!confirm('กู้คืนข้อมูลจากสำเนาอัตโนมัติ ('+ab.n+' เอกสาร) ทับข้อมูลปัจจุบัน แล้วดันขึ้นคลาวด์?\n\nข้อมูลปัจจุบันจะถูกแทนที่'))return; try{ var d=JSON.parse(ab.json); if(!d.products)throw 0; DB=d; saveDB(); closeModal(); render(); toast('↩️ กู้คืนแล้ว '+fmt(_docCount(DB))+' เอกสาร · กำลังดันขึ้นคลาวด์','ok'); try{pushCloud(true);}catch(e){} }catch(e){toast('สำเนาเสียหาย กู้ไม่ได้','err');} }
 async function reloadFromCloud(){
   if(!supa)return;
   if(modalOpen()){window.__pendingSync=true;return;}
   try{
     const {data}=await supa.from('app_state').select('data,updated_at').eq('id',ROW_ID).maybeSingle();
-    if(data&&data.data){ applyingRemote=true; DB=data.data; lastRemoteUpdated=new Date(data.updated_at).getTime(); lastSyncedJSON=JSON.stringify(DB); lsSet(LS_KEY,lastSyncedJSON); render(); applyingRemote=false; setSyncStatus('synced'); }
+    if(data&&data.data){ if(!remoteReplaceSafe(data.data)){ safetySnapshot('guard'); warnDrop(_docCount(DB),_docCount(data.data)); lastRemoteUpdated=new Date(data.updated_at).getTime(); setSyncStatus('synced'); return; } safetySnapshot('ก่อนดึงคลาวด์'); applyingRemote=true; DB=data.data; lastRemoteUpdated=new Date(data.updated_at).getTime(); lastSyncedJSON=JSON.stringify(DB); lsSet(LS_KEY,lastSyncedJSON); render(); applyingRemote=false; setSyncStatus('synced'); }
   }catch(e){}
 }
 function subscribeRealtime(){
@@ -445,7 +456,7 @@ function subscribeRealtime(){
       if(row&&row.client_id===CLIENT_ID)return;
       const t=row&&row.updated_at?new Date(row.updated_at).getTime():0;
       if(t&&t<=lastRemoteUpdated)return;
-      if(row&&row.data){ if(modalOpen()){window.__pendingSync=true;setSyncStatus('synced');return;} applyingRemote=true; DB=row.data; lastRemoteUpdated=t; lastSyncedJSON=JSON.stringify(DB); lsSet(LS_KEY,lastSyncedJSON); render(); applyingRemote=false; toast('🔄 ข้อมูลอัปเดตจากอุปกรณ์อื่น','ok'); }
+      if(row&&row.data){ if(modalOpen()){window.__pendingSync=true;setSyncStatus('synced');return;} if(!remoteReplaceSafe(row.data)){ safetySnapshot('guard'); warnDrop(_docCount(DB),_docCount(row.data)); lastRemoteUpdated=t; setSyncStatus('synced'); return; } safetySnapshot('ก่อนอัปเดตจากอุปกรณ์อื่น'); applyingRemote=true; DB=row.data; lastRemoteUpdated=t; lastSyncedJSON=JSON.stringify(DB); lsSet(LS_KEY,lastSyncedJSON); render(); applyingRemote=false; toast('🔄 ข้อมูลอัปเดตจากอุปกรณ์อื่น','ok'); }
       else reloadFromCloud();
     }).subscribe();
   }catch(e){}
@@ -7232,7 +7243,7 @@ function exportProductsCSV(){
 /* ============================================================
    Backup / Import
    ============================================================ */
-function exportData(){downloadFile(JSON.stringify(DB,null,2),'RTK_backup_'+todayISO()+'.json','application/json');toast('สำรองข้อมูลเป็นไฟล์แล้ว','ok')}
+function exportData(){try{safetySnapshot('ส่งออกไฟล์');}catch(e){} downloadFile(JSON.stringify(DB,null,2),'RTK_backup_'+todayISO()+'.json','application/json');toast('สำรองข้อมูลเป็นไฟล์แล้ว','ok')}
 /* ซ่อน/แสดงปุ่มกู้คืน (กันคนเผลอกด) — จำเฉพาะเครื่องนี้ */
 function recoverBtnOn(){ try{return localStorage.getItem('rtk_show_recover')==='1';}catch(e){return false;} }
 function applyRecoverBtn(){ var b=document.getElementById('recoverBtn'); if(b)b.style.display=recoverBtnOn()?'':'none'; }
