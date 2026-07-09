@@ -275,7 +275,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.07.09r (MRP: ซ่อนปุ่มสร้าง/นำเข้าในแท็บวัตถุดิบ)';
+const APP_BUILD='SEMIQC-2026.07.09s (วัตถุดิบ+FC/CPO/PL: ปุ่ม ดู/พิมพ์/แก้/ยกเลิก)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -7941,9 +7941,11 @@ function planWipCells(c,d,idx){var _mk='';if(planMakerShow()){if(d&&(d.type==='F
   +'<td class="num '+(c.stk?'':'muted')+'" title="รอเข้าสต๊อค = คัดผ่าน OK">'+(c.stk?fmt(c.stk):'-')+'</td>'
   +'<td class="num"><b>'+fmt(c.total)+'</b></td>';}
 function planStatusHtml(onHand,demand,total){let st,stc;if(onHand>=demand&&demand>0){st='พร้อมส่ง';stc='var(--teal)';}else if(onHand>0){st='ขาด '+fmt(demand-onHand);stc='var(--red)';}else{st=demand>0?'ไม่พร้อมส่ง':'-';stc=demand>0?'var(--red)':'var(--ink2)';}return '<td class="c" style="font-weight:700;color:'+stc+'">'+st+'</td>';}
-function planRowActions(d,idx){return '<td style="white-space:nowrap"><button class="btn sm" onclick="printPlanDoc(\''+d.id+'\')" title="พิมพ์">🖨️</button> <button class="btn sm" onclick="planRowEdit(\''+d.id+'\','+idx+')" title="แก้ไข">✏️</button> <button class="btn sm danger" onclick="planRowDel(\''+d.id+'\','+idx+')" title="ยกเลิก">ยกเลิก</button></td>';}
+function planRowActions(d,idx){var l=(d.lines||[])[idx]||{};var pid=l.fgId||((findProdByName(l.name,'FG')||{}).id||'');return '<td style="white-space:nowrap">'+(pid?'<button class="btn sm" onclick="openProduct(\''+pid+'\')" title="ดูสินค้า/สต๊อก">ดู</button> ':'')+'<button class="btn sm" onclick="printPlanDoc(\''+d.id+'\')" title="พิมพ์">🖨️</button> <button class="btn sm" onclick="planRowEdit(\''+d.id+'\','+idx+')" title="แก้ไข">✏️</button> <button class="btn sm danger" onclick="planRowDel(\''+d.id+'\','+idx+')" title="ยกเลิก">ยกเลิก</button></td>';}
 function planToolbar(type){var opsKind=(type==='FC'?'fc':'cpo');return '<div style="padding:8px 12px;display:flex;justify-content:flex-end;gap:6px;flex-wrap:wrap"><button class="btn sm" onclick="togglePlMaker()" title="ซ่อน/แสดงชื่อผู้ผลิต">👤 ผู้ผลิต</button><button class="btn sm pri" onclick="openOps(\''+opsKind+'\')">📈 สรุปการดำเนินการ</button><button class="btn sm tbx" onclick="printPlanByMaker(\''+type+'\')">🖨️ พิมพ์ตามผู้ผลิต</button><button class="btn sm tbx" onclick="printAllPlan(\''+type+'\')">🖨️ พิมพ์ทั้งหมด</button><button class="btn sm danger tbx" onclick="clearAllPlan(\''+type+'\')">🗑️ ล้างทั้งหมด</button></div>';}
 function planDocDate(d){return (d&&d.date)||(d&&d.ts?new Date(d.ts).toISOString().slice(0,10):'');}
+function mrpHideItem(id){const p=P(id);if(!p)return;confirmBox('ซ่อนจากสรุปวัตถุดิบ?','ซ่อน "'+esc(p.pn)+' '+esc(p.name||'')+'" ออกจากสรุป MRP (ไม่ลบสินค้า · เอากลับได้)',()=>{p.mrpSkip=true;saveDB();render();toast('ซ่อนจากสรุปแล้ว','ok');});}
+function mrpUnhideAll(){(DB.products||[]).forEach(p=>{if(p.mrpSkip)delete p.mrpSkip;});saveDB();render();toast('เอารายการที่ซ่อนกลับแล้ว','ok');}
 function renderRMTable(){
   const wrap=document.getElementById('planList');if(!wrap)return;
   const fgDem={};
@@ -7951,24 +7953,27 @@ function renderRMTable(){
   const forge={},bars={},asm={};
   const rmByPN={},asmByPN={};DB.products.forEach(x=>{if(x.type==='RM')rmByPN[normPN(x.pn)]=x;else if(x.type==='ASM')asmByPN[normPN(x.pn)]=x;});
   Object.keys(fgDem).forEach(id=>{const p=P(id);if(!p)return;const dem=fgDem[id];const key=normPN(p.pn);
-    const _rm=p.forgePart||((rmByPN[key]||{}).pn||'');if(_rm){(forge[_rm]=forge[_rm]||{qty:0}).qty+=dem;}
+    const rmp=p.forgePart?DB.products.find(y=>y.pn===p.forgePart):rmByPN[key];
+    if(rmp&&!rmp.mrpSkip){(forge[rmp.pn]=forge[rmp.pn]||{qty:0,id:rmp.id,name:rmp.name||'',oh:rmp.onHand||0}).qty+=dem;}
     const pb=perBar(p);if(pb>0){const spec=(p.steelUse||'-')+(p.material||p.steelGrade?(' · '+(p.material||p.steelGrade)):'');const e=bars[spec]=bars[spec]||{pieces:0,barsN:0};e.pieces+=dem;e.barsN+=Math.ceil(dem/pb);}
-    const _as=p.asmPart||((asmByPN[key]||{}).pn||'');if(_as){(asm[_as]=asm[_as]||{qty:0}).qty+=dem;}
+    const ap=p.asmPart?DB.products.find(y=>y.pn===p.asmPart):asmByPN[key];
+    if(ap&&!ap.mrpSkip){(asm[ap.pn]=asm[ap.pn]||{qty:0,id:ap.id,name:ap.name||'',oh:ap.onHand||0}).qty+=dem;}
   });
-  const rmName=pn=>{const x=DB.products.find(y=>y.pn===pn);return x?(x.name||''):'';};
-  const rmOn=pn=>{const x=DB.products.find(y=>y.pn===pn);return x?(x.onHand||0):0;};
   const stat=(q,oh)=>{const sh=q-oh;return sh>0?'<span style="color:var(--red);font-weight:700">ขาด '+fmt(sh)+'</span>':'<span style="color:var(--teal);font-weight:700">พอ</span>';};
-  const fRows=Object.keys(forge).sort().map(k=>`<tr><td>${esc(k)}</td><td class="muted">${esc(rmName(k))}</td><td class="num"><b>${fmt(forge[k].qty)}</b></td><td class="num">${fmt(rmOn(k))}</td><td class="c">${stat(forge[k].qty,rmOn(k))}</td></tr>`).join('')||'<tr><td colspan="5" class="muted" style="text-align:center;padding:14px">— ยังไม่มี (ตั้ง Part เหล็กตีที่สินค้าคงคลัง) —</td></tr>';
-  const aRows=Object.keys(asm).sort().map(k=>`<tr><td>${esc(k)}</td><td class="muted">${esc(rmName(k))}</td><td class="num"><b>${fmt(asm[k].qty)}</b></td><td class="num">${fmt(rmOn(k))}</td><td class="c">${stat(asm[k].qty,rmOn(k))}</td></tr>`).join('')||'<tr><td colspan="5" class="muted" style="text-align:center;padding:14px">— ยังไม่มี (ตั้ง Part ชุดประกอบที่สินค้าคงคลัง) —</td></tr>';
+  const act=(id)=>`<td style="white-space:nowrap;text-align:right"><button class="btn sm" onclick="openProduct('${id}')">ดู</button> <button class="btn sm" onclick="printProductCard('${id}')" title="พิมพ์บัตรสินค้า">🖨️</button> <button class="btn sm" onclick="openProductForm('${id}')">✏️</button> <button class="btn sm danger" onclick="mrpHideItem('${id}')" title="ซ่อนรายการนี้จากสรุป">ยกเลิก</button></td>`;
+  const fRows=Object.keys(forge).sort().map(k=>{const o=forge[k];return `<tr><td>${esc(k)}</td><td class="muted">${esc(o.name)}</td><td class="num"><b>${fmt(o.qty)}</b></td><td class="num">${fmt(o.oh)}</td><td class="c">${stat(o.qty,o.oh)}</td>${act(o.id)}</tr>`;}).join('')||'<tr><td colspan="6" class="muted" style="text-align:center;padding:14px">— ยังไม่มี (ตั้ง Part เหล็กตีที่สินค้าคงคลัง) —</td></tr>';
+  const aRows=Object.keys(asm).sort().map(k=>{const o=asm[k];return `<tr><td>${esc(k)}</td><td class="muted">${esc(o.name)}</td><td class="num"><b>${fmt(o.qty)}</b></td><td class="num">${fmt(o.oh)}</td><td class="c">${stat(o.qty,o.oh)}</td>${act(o.id)}</tr>`;}).join('')||'<tr><td colspan="6" class="muted" style="text-align:center;padding:14px">— ยังไม่มี (ตั้ง Part ชุดประกอบที่สินค้าคงคลัง) —</td></tr>';
   const bRows=Object.keys(bars).sort().map(k=>`<tr><td>${esc(k)}</td><td class="num">${fmt(bars[k].pieces)}</td><td class="num"><b style="color:var(--brand)">${fmt(bars[k].barsN)}</b></td></tr>`).join('')||'<tr><td colspan="3" class="muted" style="text-align:center;padding:14px">— ยังไม่มี (ตั้ง ใช้เหล็ก + งานโตxยาว ที่สินค้าคงคลัง) —</td></tr>';
-  wrap.innerHTML=`<div class="hint" style="margin:10px 12px"><span class="i">🧱</span><div>สรุปวัตถุดิบที่ต้องใช้ตาม <b>Forecast</b> ทั้งหมด · จับคู่อัตโนมัติ: <b>เหล็กตี/ชุดประกอบ</b> = Part Number เดียวกับสำเร็จรูป (สร้างสินค้า RM/ASM ให้มี Part เดียวกับ FG) · <b>เหล็กเส้น/ท่อ/สี่เหลี่ยม/ทองเหลือง</b> = ใช้เหล็ก ÷ งานโตxยาว</div></div>
+  const hid=(DB.products||[]).filter(p=>p.mrpSkip).length;
+  wrap.innerHTML=`<div class="hint" style="margin:10px 12px"><span class="i">🧱</span><div>สรุปวัตถุดิบที่ต้องใช้ตาม <b>Forecast</b> ทั้งหมด · จับคู่อัตโนมัติ: <b>เหล็กตี/ชุดประกอบ</b> = Part Number เดียวกับสำเร็จรูป · <b>เหล็กเส้น/ท่อ/สี่เหลี่ยม/ทองเหลือง</b> = ใช้เหล็ก ÷ งานโตxยาว</div></div>
+  ${hid?`<div style="padding:2px 12px 6px"><button class="btn sm" onclick="mrpUnhideAll()">♻️ เอารายการที่ซ่อนกลับ (${hid})</button></div>`:''}
   <div style="padding:0 12px 18px">
    <h3 style="margin:8px 0 4px;font-size:14px">🔨 เหล็กตี / วัตถุดิบตี (เชื่อมด้วย Part)</h3>
-   <div class="tbl-wrap"><table style="font-size:12px"><thead><tr><th>Part วัตถุดิบ</th><th>ชื่อ</th><th class="num">ต้องใช้ (ชิ้น)</th><th class="num">มีสต๊อค</th><th>สถานะ</th></tr></thead><tbody>${fRows}</tbody></table></div>
+   <div class="tbl-wrap"><table style="font-size:12px"><thead><tr><th>Part วัตถุดิบ</th><th>ชื่อ</th><th class="num">ต้องใช้ (ชิ้น)</th><th class="num">มีสต๊อค</th><th>สถานะ</th><th></th></tr></thead><tbody>${fRows}</tbody></table></div>
    <h3 style="margin:16px 0 4px;font-size:14px">📏 เหล็กเส้น/ท่อ/สี่เหลี่ยม/ทองเหลือง (คำนวณจำนวนเส้น)</h3>
    <div class="tbl-wrap"><table style="font-size:12px"><thead><tr><th>สเปควัตถุดิบ (ใช้เหล็ก)</th><th class="num">รวมชิ้นงาน</th><th class="num">จำนวนเส้นที่ต้องใช้</th></tr></thead><tbody>${bRows}</tbody></table></div>
    <h3 style="margin:16px 0 4px;font-size:14px">🧩 ชุดประกอบ (เชื่อมด้วย Part)</h3>
-   <div class="tbl-wrap"><table style="font-size:12px"><thead><tr><th>Part ชุดประกอบ</th><th>ชื่อ</th><th class="num">ต้องใช้</th><th class="num">มีสต๊อค</th><th>สถานะ</th></tr></thead><tbody>${aRows}</tbody></table></div>
+   <div class="tbl-wrap"><table style="font-size:12px"><thead><tr><th>Part ชุดประกอบ</th><th>ชื่อ</th><th class="num">ต้องใช้</th><th class="num">มีสต๊อค</th><th>สถานะ</th><th></th></tr></thead><tbody>${aRows}</tbody></table></div>
   </div>`;
 }
 function renderCPOTable(){
