@@ -275,7 +275,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='NCUI-2026.07.10b (NC: หัวคอลัมน์ DISCRIPTION/ผู้ผลิต · เรียงเริ่มต้นวันที่มาก-น้อย · ซ่อนคอลัมน์ผู้ผลิตได้)';
+const APP_BUILD='NCACT-2026.07.10c (NC: ซ่อน/แสดง TAG อิสระต่อใบ · เพิ่มสรุปการดำเนินการ)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -6624,7 +6624,7 @@ function viewNC(el){
   </div>
   <div class="panel"><div class="panel-h" style="flex-wrap:wrap;gap:8px">
     <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><select onchange="window.__ncMon=this.value;render()" style="padding:6px 10px">${months.map(m=>`<option value="${m}" ${m===mon?'selected':''}>${m==='ALL'?'ทั้งหมด':esc(m)}</option>`).join('')}</select><div class="searchbox"><input id="ncSearch" placeholder="ค้นหา PO/Part/ปัญหา" oninput="filterNCRows()"></div>${ncChip('ncfPo','🔢 PO','po')}${ncChip('ncfPart','🔩 Part','part')}${ncChip('ncfCust','👤 ลูกค้า','cust')}${ncChip('ncfMk','🏭 ผู้ผลิต','maker')}<select id="ncSort" onchange="filterNCRows()" style="max-width:170px;width:auto"><option value="no_desc">เลขที่: มาก → น้อย</option><option value="no_asc">เลขที่: น้อย → มาก</option><option value="date_desc" selected>วันที่: มาก - น้อย</option><option value="date_asc">วันที่: น้อย - มาก</option></select><button class="btn sm" onclick="['ncSearch','ncfPo','ncfPart','ncfCust','ncfMk'].forEach(i=>{var e=document.getElementById(i);if(e)e.value=''});var s=document.getElementById('ncSort');if(s)s.value='date_desc';filterNCRows()">ล้าง</button></div>
-    <div class="right" style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn sm" onclick="mkColToggle('nc')" title="ซ่อน/แสดงชื่อผู้ผลิต">${mkColShow('nc')?'🙈 ผู้ผลิต':'👁 ผู้ผลิต'}</button><button class="btn sm" onclick="ncColMenu()">👁 คอลัมน์</button><input type="file" id="ncFile" accept=".json" style="display:none" onchange="importNC(this)"><button class="btn sm" onclick="document.getElementById('ncFile').click()">📥 นำเข้า</button><button class="btn sm" onclick="printNCClaim()">🧾 เคลมผู้ผลิต</button><button class="btn sm" onclick="printNC()">🖨️ พิมพ์รายงาน</button><button class="btn pri" onclick="openNCForm()">+ แจ้งงานเสีย</button></div>
+    <div class="right" style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn sm pri" onclick="ncActionSummary()" title="สรุปการดำเนินการงานเสีย">📊 สรุปการดำเนินการ</button><button class="btn sm" onclick="mkColToggle('nc')" title="ซ่อน/แสดงชื่อผู้ผลิต">${mkColShow('nc')?'🙈 ผู้ผลิต':'👁 ผู้ผลิต'}</button><button class="btn sm" onclick="ncColMenu()">👁 คอลัมน์</button><input type="file" id="ncFile" accept=".json" style="display:none" onchange="importNC(this)"><button class="btn sm" onclick="document.getElementById('ncFile').click()">📥 นำเข้า</button><button class="btn sm" onclick="printNCClaim()">🧾 เคลมผู้ผลิต</button><button class="btn sm" onclick="printNC()">🖨️ พิมพ์รายงาน</button><button class="btn pri" onclick="openNCForm()">+ แจ้งงานเสีย</button></div>
   </div><div class="panel-b nopad">
     ${rows.length?`<div class="tbl-wrap"><table style="white-space:nowrap;font-size:11.5px"><thead><tr>
       <th>วันที่</th><th>เลขที่ PO</th><th>DISCRIPTION</th><th>CUSTOMER</th>${ncCol('lot')?'<th>LOT DATE</th>':''}${ncCol('qty')?'<th class="num">จำนวนสั่ง</th>':''}${mkColShow('nc')?'<th>ผู้ผลิต</th>':''}<th>ปัญหา</th><th>NC TAG</th><th>วิธีแก้ไข</th>${ncCol('ng')?'<th class="num">NG</th>':''}<th></th>
@@ -6686,11 +6686,49 @@ function ncRowHtml(r){
     <td>${esc(r.customer||'')}</td>${ncCol('lot')?`<td class="c muted">${esc(r.lot||'')}</td>`:''}${ncCol('qty')?`<td class="num">${r.qty?fmt(r.qty):'-'}</td>`:''}
     ${mkColShow('nc')?`<td><span class="tag amber">${esc(mkS||'-')}</span></td>`:''}
     <td style="color:var(--red);max-width:200px;overflow:hidden;text-overflow:ellipsis">${esc(r.defect||'')}</td>
-    <td class="c"><button class="btn sm" onclick="printNCTag('${r.id}')" title="พิมพ์ NC TAG (FM-QC-12)">🏷️ TAG</button></td>
+    <td class="c">${r.hideTag?`<button class="btn sm" style="opacity:.45" onclick="ncTagToggle('${r.id}')" title="TAG ถูกซ่อน — คลิกเพื่อแสดง">🙈 แสดง</button>`:`<button class="btn sm" onclick="printNCTag('${r.id}')" title="พิมพ์ NC TAG (FM-QC-12)">🏷️ TAG</button> <span onclick="ncTagToggle('${r.id}')" title="ซ่อน TAG ใบนี้" style="cursor:pointer;opacity:.4;font-size:11px">✕</span>`}</td>
     <td class="muted" style="max-width:220px;overflow:hidden;text-overflow:ellipsis">${esc(r.method||'')}</td>
     ${ncCol('ng')?`<td class="num">${r.tqmId?`<b class="linkish" style="color:var(--red)" title="คลิกเพื่อดูใน RTK-TQM: ${esc(r.tqmId)}" onclick="openTQMItem('${esc(r.tqmId)}')">${r.ng?fmt(r.ng):'-'} 🔗</b>`:`<b style="color:var(--red)">${r.ng?fmt(r.ng):'-'}</b>`}</td>`:''}
     <td style="white-space:nowrap"><button class="btn sm" onclick="ncToTQM('${r.id}')" title="ส่ง/ซิงก์เข้า RTK-TQM (QCDMS)">➡️ TQM</button> ${r.tqmId?`<span class="tag green linkish" title="คลิกเปิดดูใน RTK-TQM" onclick="openTQMItem('${esc(r.tqmId)}')">${esc(r.tqmId)} ↗</span> `:''}<button class="btn sm" onclick="viewNCDoc('${r.id}')">ดู</button> <button class="btn sm" onclick="openNCTag('${r.id}')" title="พิมพ์ NG TAG">🏷️</button> <button class="btn sm" onclick="printNCOne('${r.id}')">🖨️</button> <button class="btn sm" onclick="openNCForm(DB.docs.find(x=>x.id==='${r.id}'))">✏️</button> <button class="btn sm danger" onclick="delNC('${r.id}')">ลบ</button></td>
   </tr>`;
+}
+/* ซ่อน/แสดง NC TAG แยกอิสระต่อใบ (เก็บที่ตัวเอกสาร → ซิงก์คลาวด์อัตโนมัติ) */
+function ncTagToggle(id){const d=DB.docs.find(x=>x.id===id);if(!d)return;d.hideTag=!d.hideTag;saveDB();render();toast(d.hideTag?'ซ่อน TAG ใบนี้แล้ว':'แสดง TAG ใบนี้แล้ว','ok');}
+/* 📊 สรุปการดำเนินการ (NC) — ตามช่วงเดือนที่เลือก */
+function ncActionSummary(){
+  ensureSettings();
+  const mon=window.__ncMon||'ALL';
+  let rows=DB.docs.filter(d=>d.type==='NC');
+  if(mon!=='ALL')rows=rows.filter(d=>ncMonthOf(d.date)===mon);
+  const isDone=r=>String(r.method||'').trim().length>0;
+  const total=rows.length;
+  const tNg=rows.reduce((s,r)=>s+(Number(r.ng)||0),0);
+  const tCost=rows.reduce((s,r)=>s+(Number(r.cost)||0),0);
+  const done=rows.filter(isDone).length;
+  const tqm=rows.filter(r=>r.tqmId).length;
+  const pending=total-done;
+  const pct=total?Math.round(done/total*100):0;
+  const g={};
+  rows.forEach(r=>{const m=(makerShort(r.maker||'')||'').trim()||'(ไม่ระบุ)';
+    if(!g[m])g[m]={n:0,ng:0,cost:0,done:0};
+    const gg=g[m];gg.n++;gg.ng+=Number(r.ng)||0;gg.cost+=Number(r.cost)||0;if(isDone(r))gg.done++;});
+  const grp=Object.entries(g).sort((a,b)=>b[1].ng-a[1].ng);
+  const card=(l,v,c)=>`<div class="card" style="min-width:110px"><div class="lbl">${l}</div><div class="val"${c?` style="color:${c}"`:''}>${v}</div></div>`;
+  const body=`
+    <div class="desc" style="margin-bottom:8px">ช่วง: <b>${mon==='ALL'?'ทั้งหมด':esc(mon)}</b></div>
+    <div class="cards" style="margin-bottom:10px">
+      ${card('รายการทั้งหมด',fmt(total))}
+      ${card('NG รวม',fmt(tNg),'var(--red)')}
+      ${card('ดำเนินการแล้ว',fmt(done)+' <span style="font-size:12px;color:var(--ink2)">('+pct+'%)</span>','var(--teal)')}
+      ${card('คงค้าง',fmt(pending),pending?'var(--amber)':'')}
+      ${card('ส่ง TQM แล้ว',fmt(tqm))}
+      ${card('ค่าใช้จ่ายรวม',fmt2(tCost)+' ฿')}
+    </div>
+    <div class="tbl-wrap"><table style="font-size:12px"><thead><tr><th>ผู้ผลิต</th><th class="num">ใบ</th><th class="num">NG</th><th class="num">ดำเนินการ</th><th class="num">คงค้าง</th><th class="num">ค่าใช้จ่าย</th></tr></thead><tbody>
+    ${grp.map(([m,d])=>`<tr><td><span class="tag amber">${esc(m)}</span></td><td class="num">${fmt(d.n)}</td><td class="num" style="color:var(--red)">${fmt(d.ng)}</td><td class="num" style="color:var(--teal)">${fmt(d.done)}</td><td class="num"${(d.n-d.done)?' style="color:var(--amber)"':''}>${fmt(d.n-d.done)}</td><td class="num">${d.cost?fmt2(d.cost):'-'}</td></tr>`).join('')||'<tr><td colspan="6" class="muted">ไม่มีข้อมูล</td></tr>'}
+    </tbody><tfoot><tr style="font-weight:700;background:var(--panel2)"><td>รวม</td><td class="num">${fmt(total)}</td><td class="num" style="color:var(--red)">${fmt(tNg)}</td><td class="num" style="color:var(--teal)">${fmt(done)}</td><td class="num">${fmt(pending)}</td><td class="num">${fmt2(tCost)}</td></tr></tfoot></table></div>
+    <div class="hint" style="margin-top:8px"><span class="i">ℹ️</span><div>"ดำเนินการแล้ว" = ใบที่กรอก <b>วิธีการแก้ไข</b> แล้ว · "คงค้าง" = ยังไม่กรอกวิธีแก้ไข · เรียงตาม NG มาก→น้อย</div></div>`;
+  modal({title:'📊 สรุปการดำเนินการ (NC)',size:'lg',body:body,footer:'<button class="btn pri" onclick="closeModal()">ปิด</button>'});
 }
 function ncDistinct(field){const set=new Set();DB.docs.filter(d=>d.type==='NC').forEach(d=>{let v=field==='po'?d.po:field==='part'?d.part:field==='cust'?d.customer:field==='maker'?makerShort(d.maker||''):'';if(v)set.add(String(v));});return [...set].sort();}
 function ncChip(id,ph,field){return '<input id="'+id+'" class="fchip" list="dl_'+id+'" placeholder="'+ph+'" oninput="filterNCRows()" style="max-width:130px"><datalist id="dl_'+id+'">'+ncDistinct(field).map(v=>'<option value="'+esc(v)+'">').join('')+'</datalist>';}
