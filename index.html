@@ -275,7 +275,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='PRDLINK-2026.07.10i (ใบสั่งผลิต: ผู้ผลิตแสดงชื่อย่อ RTK-K แม่นขึ้น + พิมพ์ Part แล้วดึง CUSTOMER อัตโนมัติ)';
+const APP_BUILD='POMK-2026.07.10j (ช่องเลือก PO ทุกฟอร์มแสดงผู้ผลิตเป็นชื่อย่อ เช่น RTK-K แทนรหัสตัวเลข)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -1574,7 +1574,7 @@ function openDocForm(type){
       <button class="btn sm" style="margin-top:6px" onclick="addLine('FG')">+ เพิ่มรายการ</button>`;
   } else if(type==='WD'){
     body=`<div class="row c2">${dateF}
-      <div class="field"><label>อ้างอิงใบสั่งผลิต (PO)</label><select id="d_refprd"><option value="">— เลือก —</option>${DB.docs.filter(x=>x.type==='PRD'&&x.status==='approved').map(x=>{const it=(x.lines&&x.lines[0])||{};const p=it.fgId?P(it.fgId):null;return `<option value="${x.id}">${x.no} · ${esc(x.maker||'')} · ${esc(p?p.pn:(it.name||''))}</option>`}).join('')}</select></div></div>
+      <div class="field"><label>อ้างอิงใบสั่งผลิต (PO)</label><select id="d_refprd"><option value="">— เลือก —</option>${DB.docs.filter(x=>x.type==='PRD'&&x.status==='approved').map(x=>{const it=(x.lines&&x.lines[0])||{};const p=it.fgId?P(it.fgId):null;return `<option value="${x.id}">${x.no} · ${esc(x.maker?makerShort(x.maker):'')} · ${esc(p?p.pn:(it.name||''))}</option>`}).join('')}</select></div></div>
       <label style="font-size:12.5px;color:var(--ink2);font-weight:500;margin:6px 0">รายการวัตถุดิบที่เบิก (ตัดจากสต๊อควัตถุดิบ)</label>
       <div id="lineRoot"></div>
       <button class="btn sm" style="margin-top:6px" onclick="addLine('RM')">+ เพิ่มรายการ</button>`;
@@ -1852,7 +1852,7 @@ function rwPoLookup(i,val){
   rwLines[i].prdId=prd.id;rwLines[i].productId=pid;
   rwLines[i].name=p?(p.pn+(p.name&&p.name!=='-'?' '+p.name:'')):(it.name||'');
   rwLines[i].orderedQty=it.qty||prd.qty||0;rwLines[i].unit=it.unit||'Pcs.';
-  rwLines[i].maker=prd.maker||'';rwLines[i].dueDate=prd.due||it.dueDate||'';
+  var _mk=prd.maker||'';var _mks=makerShort(_mk);rwLines[i].maker=(_mks&&_mks!=='-')?_mks:_mk;rwLines[i].dueDate=prd.due||it.dueDate||'';
   renderRwLines();
 }
 function rwLineCalc(i){
@@ -1927,7 +1927,7 @@ function renderRwLines(){
   </tfoot>
   </table></div>
   <datalist id="dl_rwfg">${DB.products.filter(p=>p.type==='FG').slice(0,1800).map(p=>`<option value="${esc(p.pn+(p.name&&p.name!=='-'?' '+p.name:''))}">`).join('')}</datalist>
-  <datalist id="dl_rwpo">${DB.docs.filter(x=>x.type==='PRD').sort((a,b)=>b.ts-a.ts).map(x=>{const it=(x.lines||[])[0]||{};const p=it.fgId&&P(it.fgId)?P(it.fgId):null;return `<option value="${esc(x.no)}">${esc((x.maker||'')+' · '+(p?p.pn:(it.name||'')))}</option>`}).join('')}</datalist>
+  <datalist id="dl_rwpo">${DB.docs.filter(x=>x.type==='PRD').sort((a,b)=>b.ts-a.ts).map(x=>{const it=(x.lines||[])[0]||{};const p=it.fgId&&P(it.fgId)?P(it.fgId):null;return `<option value="${esc(x.no)}">${esc((x.maker?makerShort(x.maker):'')+' · '+(p?p.pn:(it.name||'')))}</option>`}).join('')}</datalist>
   <datalist id="dl_rwmkr">${mkrs.map(s=>`<option value="${esc(s)}">`).join('')}</datalist>
   <datalist id="dl_rwunit"><option value="Pcs."><option value="ชิ้น"><option value="อัน"><option value="ชุด"></datalist>
   <datalist id="dl_rwremark"><option value="รับครบตามจำนวน"><option value="รับบางส่วน"><option value="กรณีไม่เป็นไปตามกำหนด"><option value="ทวนสอบด้วยการชั่งน้ำหนัก"></datalist>`;
@@ -3106,7 +3106,7 @@ function renderSiLines(){
     <td colspan="5" style="border:${bd}"></td>
    </tr></tfoot>
   </table></div>
-  <datalist id="dl_sipo">${DB.docs.filter(x=>x.type==='PRD').sort((a,b)=>b.ts-a.ts).map(x=>{const it=(x.lines||[])[0]||{};const p=it.fgId&&P(it.fgId)?P(it.fgId):null;return `<option value="${esc(x.no)}">${esc((x.maker||'')+' · '+(p?p.pn:(it.name||'')))}</option>`}).join('')}</datalist>
+  <datalist id="dl_sipo">${DB.docs.filter(x=>x.type==='PRD').sort((a,b)=>b.ts-a.ts).map(x=>{const it=(x.lines||[])[0]||{};const p=it.fgId&&P(it.fgId)?P(it.fgId):null;return `<option value="${esc(x.no)}">${esc((x.maker?makerShort(x.maker):'')+' · '+(p?p.pn:(it.name||'')))}</option>`}).join('')}</datalist>
   <datalist id="dl_sifg">${DB.products.filter(p=>p.type==='FG').slice(0,1800).map(p=>`<option value="${esc(p.pn+(p.name&&p.name!=='-'?' '+p.name:''))}">`).join('')}</datalist>`;
   siTotals();
 }
@@ -3363,7 +3363,7 @@ function renderQcLines(){
     <td colspan="2" style="border:${bd}"></td>
    </tr></tfoot>
   </table></div>
-  <datalist id="dl_qcpo">${DB.docs.filter(x=>x.type==='PRD').sort((a,b)=>b.ts-a.ts).map(x=>{const it=(x.lines||[])[0]||{};const p=it.fgId&&P(it.fgId)?P(it.fgId):null;return `<option value="${esc(x.no)}">${esc((x.maker||'')+' · '+(p?p.pn:(it.name||'')))}</option>`}).join('')}</datalist>
+  <datalist id="dl_qcpo">${DB.docs.filter(x=>x.type==='PRD').sort((a,b)=>b.ts-a.ts).map(x=>{const it=(x.lines||[])[0]||{};const p=it.fgId&&P(it.fgId)?P(it.fgId):null;return `<option value="${esc(x.no)}">${esc((x.maker?makerShort(x.maker):'')+' · '+(p?p.pn:(it.name||'')))}</option>`}).join('')}</datalist>
   <datalist id="dl_qcfg">${DB.products.filter(p=>p.type==='FG').slice(0,1800).map(p=>`<option value="${esc(p.pn+(p.name&&p.name!=='-'?' '+p.name:''))}">`).join('')}</datalist>
   <datalist id="dl_qcmkr">${[...new Set(DB.docs.filter(x=>x.type==='QC').flatMap(d=>(d.lines||[]).map(l=>l.maker)).filter(Boolean))].map(s=>`<option value="${esc(s)}">`).join('')}</datalist>
   <datalist id="dl_qcinsp">${[...new Set(DB.docs.filter(x=>x.type==='QC').flatMap(d=>(d.lines||[]).map(l=>l.inspector)).filter(Boolean))].map(s=>`<option value="${esc(s)}">`).join('')}</datalist>
@@ -3817,7 +3817,7 @@ function renderPlLines(){
     <td colspan="3" style="border:${bd}"></td>
    </tr></tfoot>
   </table></div>
-  <datalist id="dl_plpo">${DB.docs.filter(x=>x.type==='PRD').sort((a,b)=>b.ts-a.ts).map(x=>{const it=(x.lines||[])[0]||{};const p=it.fgId&&P(it.fgId)?P(it.fgId):null;return `<option value="${esc(x.no)}">${esc((x.maker||'')+' · '+(p?p.pn:(it.name||'')))}</option>`}).join('')}</datalist>
+  <datalist id="dl_plpo">${DB.docs.filter(x=>x.type==='PRD').sort((a,b)=>b.ts-a.ts).map(x=>{const it=(x.lines||[])[0]||{};const p=it.fgId&&P(it.fgId)?P(it.fgId):null;return `<option value="${esc(x.no)}">${esc((x.maker?makerShort(x.maker):'')+' · '+(p?p.pn:(it.name||'')))}</option>`}).join('')}</datalist>
   <datalist id="dl_plfg">${DB.products.filter(p=>p.type==='FG').slice(0,1800).map(p=>`<option value="${esc(p.pn+(p.name&&p.name!=='-'?' '+p.name:''))}">`).join('')}</datalist>
   <datalist id="dl_plmkr">${[...new Set(DB.docs.filter(x=>x.type==='PL').flatMap(d=>(d.lines||[]).map(l=>l.maker)).filter(Boolean))].map(s=>`<option value="${esc(s)}">`).join('')}</datalist>
   <datalist id="dl_plvendor">${[...new Set(DB.docs.filter(x=>x.type==='PL').flatMap(d=>(d.lines||[]).map(l=>l.vendor)).filter(Boolean))].map(s=>`<option value="${esc(s)}">`).join('')}<option value="TPI"></datalist>
@@ -4107,7 +4107,7 @@ function renderDpLines(){
     <td colspan="2" style="border:${bd}"></td>
    </tr></tfoot>
   </table></div>
-  <datalist id="dl_dppo">${DB.docs.filter(x=>x.type==='PRD').sort((a,b)=>b.ts-a.ts).map(x=>{const it=(x.lines||[])[0]||{};const p=it.fgId&&P(it.fgId)?P(it.fgId):null;return `<option value="${esc(x.no)}">${esc((x.maker||'')+' · '+(p?p.pn:(it.name||'')))}</option>`}).join('')}</datalist>
+  <datalist id="dl_dppo">${DB.docs.filter(x=>x.type==='PRD').sort((a,b)=>b.ts-a.ts).map(x=>{const it=(x.lines||[])[0]||{};const p=it.fgId&&P(it.fgId)?P(it.fgId):null;return `<option value="${esc(x.no)}">${esc((x.maker?makerShort(x.maker):'')+' · '+(p?p.pn:(it.name||'')))}</option>`}).join('')}</datalist>
   <datalist id="dl_dpfg">${DB.products.filter(p=>p.type==='FG').slice(0,1800).map(p=>`<option value="${esc(p.pn+(p.name&&p.name!=='-'?' '+p.name:''))}">`).join('')}</datalist>
   <datalist id="dl_dpstep">${steps.map(s=>`<option value="${s}">`).join('')}</datalist>
   <datalist id="dl_dpmkr">${[...new Set(DB.docs.filter(x=>x.type==='DP').flatMap(d=>(d.lines||[]).map(l=>l.maker)).filter(Boolean))].map(s=>`<option value="${esc(s)}">`).join('')}</datalist>`;
@@ -5262,7 +5262,7 @@ function renderWdLines(){
     <td><div class="rm-x" style="height:30px" onclick="rmWdLine(${i})">✕</div></td>
   </tr>`}).join('')}
   </tbody></table></div>
-  <datalist id="dl_rm">${DB.products.filter(p=>p.type==='RM').slice(0,1200).map(p=>`<option value="${esc(p.pn+(p.name&&p.name!=='-'?' '+p.name:''))}">`).join('')}</datalist><datalist id="dl_wdpo">${DB.docs.filter(x=>x.type==='PRD').sort((a,b)=>b.ts-a.ts).map(x=>{const it=(x.lines||[])[0]||{};const p=it.fgId&&P(it.fgId)?P(it.fgId):null;return `<option value="${esc(x.no)}">${esc((x.maker||'')+' · '+(p?p.pn:(it.name||'')))}</option>`}).join('')}</datalist>`;
+  <datalist id="dl_rm">${DB.products.filter(p=>p.type==='RM').slice(0,1200).map(p=>`<option value="${esc(p.pn+(p.name&&p.name!=='-'?' '+p.name:''))}">`).join('')}</datalist><datalist id="dl_wdpo">${DB.docs.filter(x=>x.type==='PRD').sort((a,b)=>b.ts-a.ts).map(x=>{const it=(x.lines||[])[0]||{};const p=it.fgId&&P(it.fgId)?P(it.fgId):null;return `<option value="${esc(x.no)}">${esc((x.maker?makerShort(x.maker):'')+' · '+(p?p.pn:(it.name||'')))}</option>`}).join('')}</datalist>`;
   wdTotals();
 }
 function wdLineCalc(i){const l=wdLines[i];const e=document.getElementById('wdamt_'+i);if(e)e.textContent=fmt2((Number(l.price)||0)*(Number(l.qty)||0));wdTotals();}
