@@ -275,7 +275,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='DPSRC-2026.07.10g (ผลิตประจำวัน: ดึงอัตโนมัติจากใบสั่งผลิต RTK-K เท่านั้น — ยกเลิกการดึงจากรับชิ้นงาน RW)';
+const APP_BUILD='MKSHORT-2026.07.10h (ผู้ผลิตแสดงชื่อย่อเท่านั้นทุกจุด: คัดแยก/รับชิ้นงาน/รับเข้าสต๊อค/Timeline/NC — เช่น RTK-K)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -354,8 +354,20 @@ function makerByCode(code){return (DB.settings.makers||[]).find(m=>m.code===code
 /* แปลงรหัส/ค่า MAKER → "ชื่อย่อ" สำหรับแสดงผล (ไม่แสดงเป็นเลข NO.) */
 function makerShort(v){ if(v===0)v='0'; if(!v)return '-'; v=String(v).trim(); if(!v)return '-';
   var ms=(DB.settings&&DB.settings.makers)||[];
+  var norm=function(s){return String(s==null?'':s).replace(/\s+/g,'').toLowerCase();};
+  var nv=norm(v); var hasAbbr=function(x){return !!(x&&(x.abbr||'').trim());};
+  /* 1) จับคู่ตรงตัวด้วย รหัส/ชื่อย่อ/ชื่อเต็ม */
   var m=ms.find(function(x){return String(x.code)===v;})||ms.find(function(x){return (x.abbr||'')===v;})||ms.find(function(x){return (x.name||'')===v;});
-  if(m&&(m.abbr||'').trim())return m.abbr.trim();
+  /* 2) ถ้าไม่เจอ หรือเจอแต่ "ไม่มีชื่อย่อ" → หาเรกคอร์ดที่ "มีชื่อย่อ" แล้วเทียบแบบไม่สนช่องว่าง/ตัวพิมพ์ (กันเรกคอร์ดซ้ำที่ไม่มีชื่อย่อมาบัง) */
+  if(!hasAbbr(m)){
+    var m2=ms.find(function(x){return hasAbbr(x)&&norm(x.abbr)===nv;})
+        || ms.find(function(x){return hasAbbr(x)&&norm(x.name)===nv;})
+        || ms.find(function(x){return hasAbbr(x)&&norm(x.code)===nv;});
+    if(m2)m=m2;
+  }
+  if(hasAbbr(m))return m.abbr.trim();
+  /* 3) เผื่อไว้: หาชื่อย่อจากรายชื่อผู้ค้า (VENDOR_SEED) แบบเทียบชื่อไม่สนช่องว่าง */
+  try{ if(typeof VENDOR_SEED!=='undefined'&&VENDOR_SEED&&VENDOR_SEED.length){ var vs=VENDOR_SEED.find(function(x){return (x.a||'').trim()&&(norm(x.n)===nv||norm(x.a)===nv||String(x.c)===v);}); if(vs&&(vs.a||'').trim())return vs.a.trim(); } }catch(e){}
   if(m&&(m.name||'').trim())return m.name.trim();
   if(/^\d+$/.test(v))return '-';   /* เลขที่แมปชื่อย่อ/ชื่อไม่ได้ → ไม่แสดงเป็นตัวเลข */
   return v; }
@@ -6351,7 +6363,7 @@ function viewReport(el){
       return `<tr data-cust="${esc((p.customer||'').toLowerCase())}" data-maker="${esc(String(row.maker||a.maker||'').toLowerCase())}" data-po="${esc(String(row.poNo||'').toLowerCase())}" data-pn="${esc(String(p.pn).toLowerCase())}" data-date="${esc(row.date||'')}" data-wip="${wip}" data-qt="${qt}" data-bal="${outst}" data-ord="${ordered}">
         <td class="pn linkish" onclick="rptPick('${esc(p.pn)}')"><b>${esc(p.pn)}</b> <span class="muted">${esc(p.name||'')}</span></td>
         ${C('cust')?`<td>${esc(p.customer||'')}</td>`:''}
-        ${C('maker')?`<td>${esc(row.maker||a.maker||'')||dash}</td>`:''}
+        ${C('maker')?`<td>${(row.maker||a.maker)?'<span class="tag amber">'+esc(makerShort(row.maker||a.maker))+'</span>':dash}</td>`:''}
         ${C('pdate')?`<td class="muted">${esc(row.date)||dash}</td>`:''}
         ${C('po')?`<td class="pn">${esc(row.poNo||'')||dash}</td>`:''}
         ${C('ord')?`<td class="num"><b>${fmt(ordered)}</b></td>`:''}
