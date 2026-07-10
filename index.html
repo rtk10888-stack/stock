@@ -275,7 +275,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='NCACT-2026.07.10c (NC: ซ่อน/แสดง TAG อิสระต่อใบ · เพิ่มสรุปการดำเนินการ)';
+const APP_BUILD='QC2NC-2026.07.10d (คัดแยก: ปุ่ม ➡️ NC ส่งงาน NG เข้าผลิตภัณฑ์ไม่เป็นไปตามข้อกำหนด)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -3609,7 +3609,7 @@ function qcRow(d){
     <td class="num"><input type="number" value="${(f0.ok!=null&&f0.ok!=='')?f0.ok:''}" onchange="setQCOk('${d.id}',this.value)" style="width:70px;text-align:right;padding:4px 6px"></td>
     <td style="text-align:center"><button class="btn sm" onclick="openTagDialog('${d.id}')" title="พิมพ์ OK TAG ใส่ถุง">🏷️ TAG</button></td>
     <td class="num"${ng?' style="color:var(--red);font-weight:700"':''}>${fmt(ng)}</td>
-    <td style="text-align:center"><button class="btn sm" onclick="openNgTagDialog('${d.id}')" title="พิมพ์ NG TAG ใส่ถุง">🏷️ NG</button></td><td>${statusTag(d.status)}</td>
+    <td style="text-align:center"><button class="btn sm" onclick="openNgTagDialog('${d.id}')" title="พิมพ์ NG TAG ใส่ถุง">🏷️ NG</button>${ng>0?(d.ncId&&DB.docs.some(x=>x.id===d.ncId&&x.type==='NC')?` <button class="btn sm" style="background:var(--teal);color:#fff" onclick="qcToNC('${d.id}')" title="เปิดรายการ NC ที่ส่งแล้ว">✓ NC</button>`:` <button class="btn sm" style="background:#fee2e2;color:#b91c1c;font-weight:700" onclick="qcToNC('${d.id}')" title="ส่งรายการ NG เข้า ผลิตภัณฑ์ไม่เป็นไปตามข้อกำหนด (NC)">➡️ NC</button>`):''}</td><td>${statusTag(d.status)}</td>
     <td style="text-align:right;white-space:nowrap">
       <button class="btn sm" onclick="viewDoc('${d.id}')">ดู</button>
       <button class="btn sm" onclick="editQCInline('${d.id}')">✏️</button>
@@ -6832,6 +6832,25 @@ function submitNC(editId){
   saveDB();closeModal();render();toast('บันทึกรายการ NC แล้ว','ok');
 }
 function delNC(id){confirmBox('ลบรายการนี้?','',()=>{DB.docs=DB.docs.filter(x=>x.id!==id);saveDB();closeModal();render();toast('ลบแล้ว','ok');});}
+/* ส่งรายการ NG จากใบคัดแยก (QC) → สร้างรายการ "ผลิตภัณฑ์ไม่เป็นไปตามข้อกำหนด" (NC) */
+function qcToNC(id){
+  const qc=DB.docs.find(x=>x.id===id&&x.type==='QC');if(!qc){toast('ไม่พบใบคัดแยก','err');return;}
+  if(qc.ncId){const ex=DB.docs.find(x=>x.id===qc.ncId&&x.type==='NC');if(ex){viewNCDoc(ex.id);return;}}
+  const f0=(qc.lines&&qc.lines[0])||{};
+  const p=f0.productId?P(f0.productId):null;
+  const ng=(qc.lines||[]).reduce((s,l)=>s+(Number(l.ng)||0),0);
+  if(!ng){toast('ใบนี้ไม่มี NG','err');return;}
+  const defect=[...new Set((qc.lines||[]).flatMap(l=>(l.defects||[]).map(x=>x.type+(x.qty?('×'+x.qty):''))).filter(Boolean))].join(', ');
+  const tot=(f0.total!=null&&f0.total!=='')?Number(f0.total)||0:((Number(f0.ok)||0)+ng);
+  const nc={id:uid(),type:'NC',ts:Date.now(),status:'active',no:nextNo('NC'),
+    date:qc.date||todayISO(),po:f0.poNo||'',part:p?p.pn:(f0.name||''),
+    customer:f0.cust||qc.customer||'',lot:f0.lot||qc.date||'',qty:tot,
+    maker:f0.maker||qc.maker||'',reporter:f0.inspector||'RTK',loc:'QC คัดแยก',
+    defect:defect||'NG จากการคัดแยก',method:'',ng:ng,cost:0,resp:'',
+    srcQcId:qc.id,srcQcNo:qc.no};
+  DB.docs.push(nc);qc.ncId=nc.id;saveDB();render();
+  modal({title:'✅ ส่งเข้า NC แล้ว',body:`<div class="kv"><span class="k">เลขที่ NC</span><b style="color:var(--teal)">${esc(nc.no)}</b></div><div class="kv"><span class="k">Part</span>${esc(nc.part||'-')}</div><div class="kv"><span class="k">ปัญหา</span><b style="color:var(--red)">${esc(nc.defect)}</b></div><div class="kv"><span class="k">NG</span><b style="color:var(--red)">${fmt(ng)}</b></div><div class="hint" style="margin-top:8px"><span class="i">ℹ️</span><div>สร้างรายการใน "ผลิตภัณฑ์ไม่เป็นไปตามข้อกำหนด" แล้ว — ไปกรอก<b>วิธีการแก้ไข</b>ต่อได้เลย</div></div>`,footer:`<button class="btn" onclick="closeModal()">อยู่หน้านี้</button><button class="btn pri" onclick="closeModal();go('nc')">ไปที่ NC →</button>`});
+}
 /* ===== เชื่อมโยง NC → RTK-TQM (QCDMS) : เขียน Item ลง GitHub data.json โดยตรง (แหล่งจริงที่ TQM ดึง) ===== */
 const TQM_SK='QCDMS_DATA_V3';
 const TQM_REPO='rtk10888-stack/RTK', TQM_FILE='data.json', TQM_TKKEY='QCDMS_GH_TOKEN';
