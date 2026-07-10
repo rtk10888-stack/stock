@@ -275,7 +275,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='POMK-2026.07.10j (ช่องเลือก PO ทุกฟอร์มแสดงผู้ผลิตเป็นชื่อย่อ เช่น RTK-K แทนรหัสตัวเลข)';
+const APP_BUILD='RTKKFIX-2026.07.10k (รับชิ้นงาน/รับเข้าสต๊อคดึงผู้ผลิตจากบรรทัด + ปุ่มแปลงข้อมูลเก่า RTK-K ในตั้งค่า)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -2360,7 +2360,7 @@ function rwRow(d){
   return `<tr data-no="${esc(d.no)}" data-ts="${d.ts||0}" data-amt="${totQty}" data-date="${esc(d.date||'')}" data-mon="${(d.date||'').slice(0,7)}" data-mk="${esc(mkAll)}" data-item="${esc(itemAll)}" data-po="${esc(poTxt)}">
     <td class="pn linkish" onclick="viewDoc('${d.id}')">${d.no}</td><td class="muted">${d.date}</td>
     <td><span class="tag violet">${esc(poTxt)}</span></td>
-    <td>${rwShowMaker()?`<span class="tag amber">${esc(makerShort(d.maker))}</span> `:''}<span class="muted">${esc(head)}</span></td>
+    <td>${rwShowMaker()?`<span class="tag amber">${esc(makerShort(d.maker||(d.lines||[]).map(l=>l.maker).find(Boolean)||''))}</span> `:''}<span class="muted">${esc(head)}</span></td>
     ${rwShowCust()?`<td>${esc((_f.productId&&P(_f.productId)?(P(_f.productId).customer||''):'')||d.customer||'')}</td>`:''}
     ${rwShowPrice()?`<td class="num">${fp?fmt2(fp):'<span class="muted">-</span>'}</td>`:''}
     <td class="num">${fmt(totQty)}</td>
@@ -3148,7 +3148,7 @@ function siRow(d){
   return `<tr data-no="${esc(d.no)}" data-ts="${d.ts||0}" data-amt="${w}" data-qcok="${Number(f0.qcOk)||0}" data-qcng="${Number(f0.qcNg)||0}" data-date="${esc(d.date||'')}" data-mon="${(d.date||'').slice(0,7)}" data-mk="${esc(mkAll)}" data-item="${esc(itemAll)}" data-po="${esc(poTxt)}">
     <td class="pn linkish" onclick="viewDoc('${d.id}')">${d.no}</td><td class="muted">${d.date}</td>
     <td><span class="tag violet">${esc(poTxt)}</span></td>
-    <td>${mkColShow('si')?`<span class="tag amber">${esc(makerShort(d.maker))}</span> `:''}<span class="muted">${esc(head)}</span></td>
+    <td>${mkColShow('si')?`<span class="tag amber">${esc(makerShort(d.maker||(d.lines||[]).map(l=>l.maker).find(Boolean)||''))}</span> `:''}<span class="muted">${esc(head)}</span></td>
     <td class="muted">${esc(f0.cust||'')}</td>
     <td class="num"><input type="number" value="${(f0.qcOk!=null&&f0.qcOk!=='')?f0.qcOk:''}" placeholder="พักจาก QC" onchange="setSIqcOk('${d.id}',this.value)" style="width:78px;text-align:right;padding:4px 6px"></td>
     <td class="num"><input type="number" value="${(f0.qcNg!=null&&f0.qcNg!=='')?f0.qcNg:''}" onchange="setSIqcNg('${d.id}',this.value)" style="width:70px;text-align:right;padding:4px 6px"></td>
@@ -7316,11 +7316,28 @@ function sortSelectHTML(id,mode,handler){
   return '<select class="btn sm" style="padding:4px 6px" onchange="'+handler+'(this.value)" title="จัดเรียงตาม NO.">'
     +opt('asc','NO. ↑ น้อย→มาก')+opt('desc','NO. ↓ มาก→น้อย')+opt('none','ลำดับเดิม')+'</select>';
 }
+/* แปลงข้อมูลผู้ผลิตเก่าที่อ้างถึง RTK-K (รหัส "10"/ชื่อเต็ม) → ชื่อย่อ "RTK-K" · ไม่แตะรหัสในใบสั่งผลิต(PRD) เพื่อคงการเชื่อมโยง makerByCode */
+function migrateMakerRTKK(){
+  var n=0;
+  var fix=function(v){ if(v==null)return v; var s=String(v).trim(); if(!s||s==='RTK-K')return v; try{ if(makerShort(s)==='RTK-K'){n++;return 'RTK-K';} }catch(e){} return v; };
+  (DB.docs||[]).forEach(function(d){
+    if(d.type!=='PRD'){ var nv=fix(d.maker); if(nv!==d.maker)d.maker=nv; }
+    if(Array.isArray(d.lines))d.lines.forEach(function(l){ var lv=fix(l.maker); if(lv!==l.maker)l.maker=lv; });
+  });
+  return n;
+}
+function repairMakerRTKK(){
+  confirmBox('แปลงข้อมูลผู้ผลิตเก่า → "RTK-K"?','เขียนทับค่าผู้ผลิตในเอกสารเก่า (รับชิ้นงาน/รับเข้าสต๊อค/คัดแยก/ผลิตประจำวัน/ส่งชุบ/NC + รายการย่อย) ที่อ้างถึง RTK-K เช่นรหัส "10" หรือชื่อเต็ม → เป็นชื่อย่อ "RTK-K" · ไม่แตะรหัสในใบสั่งผลิต · บันทึกและดันขึ้นคลาวด์อัตโนมัติ',function(){
+    var n=migrateMakerRTKK();
+    if(n>0){saveDB();render();}
+    modal({title:'✅ แปลงข้อมูลเสร็จ',body:'<div class="kv"><span class="k">แก้ไขค่าผู้ผลิต</span><b style="color:var(--teal)">'+fmt(n)+' จุด</b></div><div class="hint" style="margin-top:8px"><span class="i">ℹ️</span><div>'+(n>0?'เขียนทับเป็น RTK-K และซิงก์ขึ้นคลาวด์แล้ว':'ไม่พบข้อมูลเก่าที่ต้องแปลง (แสดง RTK-K อยู่แล้ว)')+'</div></div>',footer:'<button class="btn pri" onclick="closeModal()">ตกลง</button>'});
+  });
+}
 function makersEditor(){
   ensureSettings();const ms=DB.settings.makers||[];
   var rows=ms.map(function(m,i){return {m:m,i:i};});
   if(mkSortMode==='asc'||mkSortMode==='desc')rows.sort(function(a,b){var r=cmpCode(a.m.code,b.m.code);return mkSortMode==='desc'?-r:r;});
-  return `<div class="panel"><div class="panel-h"><h2>🏭 ผู้ผลิต (MAKER)</h2><div class="right" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">${sortSelectHTML('mkSortSel',mkSortMode,'setMkSort')}<button class="btn sm" onclick="cleanDupMakers()" title="ลบรายการ MAKER ที่ซ้ำชื่อกัน">🧹 ล้างรายการซ้ำ</button><input type="file" id="makerXlsxFile" accept=".xlsx,.xls,.csv" style="display:none" onchange="importMakerXlsx(this)"><button class="btn sm" onclick="document.getElementById('makerXlsxFile').click()" title="คอลัมน์: NO. / ชื่อย่อ / ชื่อเต็ม / ที่อยู่ / โทร / เลขภาษี / ผู้ติดต่อ">📥 นำเข้า Excel</button><button class="btn sm" onclick="addMaker()">+ เพิ่ม</button></div></div>
+  return `<div class="panel"><div class="panel-h"><h2>🏭 ผู้ผลิต (MAKER)</h2><div class="right" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">${sortSelectHTML('mkSortSel',mkSortMode,'setMkSort')}<button class="btn sm" onclick="cleanDupMakers()" title="ลบรายการ MAKER ที่ซ้ำชื่อกัน">🧹 ล้างรายการซ้ำ</button><button class="btn sm" onclick="repairMakerRTKK()" title="แปลงข้อมูลเก่าที่อ้างถึง RTK-K (รหัส 10/ชื่อเต็ม) ให้เป็นชื่อย่อ RTK-K">🔧 แปลง RTK-K เก่า</button><input type="file" id="makerXlsxFile" accept=".xlsx,.xls,.csv" style="display:none" onchange="importMakerXlsx(this)"><button class="btn sm" onclick="document.getElementById('makerXlsxFile').click()" title="คอลัมน์: NO. / ชื่อย่อ / ชื่อเต็ม / ที่อยู่ / โทร / เลขภาษี / ผู้ติดต่อ">📥 นำเข้า Excel</button><button class="btn sm" onclick="addMaker()">+ เพิ่ม</button></div></div>
   <div class="panel-b"><div class="tbl-wrap"><table><thead><tr><th>NO.</th><th>ชื่อย่อ</th><th>ชื่อผู้ผลิต (เต็ม)</th><th>โทร</th><th></th></tr></thead><tbody>
   ${rows.map(function(x){var m=x.m,i=x.i;return `<tr><td class="pn">${esc(m.code)}</td><td><b>${esc(m.abbr||'')||'<span class=muted>—</span>'}</b></td><td>${esc(m.name||'')||'<span class=muted>—</span>'}</td><td class="muted">${esc(m.tel||'')}</td><td style="text-align:right;white-space:nowrap"><button class="btn sm" onclick="editMaker(${i})">แก้</button> <button class="btn sm danger" onclick="delMaker(${i})">ลบ</button></td></tr>`;}).join('')||'<tr><td colspan=5 class="muted">ยังไม่มี</td></tr>'}
   </tbody></table></div></div></div>`;
