@@ -257,7 +257,7 @@ function lanStartPoll(){
   if(lanPoll)return;
   lanPoll=setInterval(async()=>{
     if(applyingRemote)return;
-    if(modalOpen()){window.__pendingSync=true;return;}
+    if(uiBusy()){window.__pendingSync=true;return;}
     try{ const r=await fetch(lanBase+'/api/state?meta=1',{cache:'no-store'}); if(!r.ok)throw 0;
       const j=await r.json(); const t=j.updated_at?new Date(j.updated_at).getTime():0;
       if(t>lanLastUpdated && j.client_id!==CLIENT_ID){
@@ -275,7 +275,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='QC2NC-2026.07.10d (คัดแยก: ปุ่ม ➡️ NC ส่งงาน NG เข้าผลิตภัณฑ์ไม่เป็นไปตามข้อกำหนด)';
+const APP_BUILD='IVFIX-2026.07.10f (แก้ฟอร์มบันทึกอินไลน์เด้งหายระหว่างกรอก — ซิงก์เบื้องหลังไม่รีเฟรชทับ, ปิดเมื่อกดบันทึกเท่านั้น)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -442,7 +442,7 @@ function openRestoreMenu(){ var ab=getAutoBak(); var cur=_docCount(DB); var info
 function doRestoreAutoBak(){ var ab=getAutoBak(); if(!ab||!ab.json){toast('ไม่มีสำเนาอัตโนมัติ','err');return;} if(!confirm('กู้คืนข้อมูลจากสำเนาอัตโนมัติ ('+ab.n+' เอกสาร) ทับข้อมูลปัจจุบัน แล้วดันขึ้นคลาวด์?\n\nข้อมูลปัจจุบันจะถูกแทนที่'))return; try{ var d=JSON.parse(ab.json); if(!d.products)throw 0; DB=d; saveDB(); closeModal(); render(); toast('↩️ กู้คืนแล้ว '+fmt(_docCount(DB))+' เอกสาร · กำลังดันขึ้นคลาวด์','ok'); try{pushCloud(true);}catch(e){} }catch(e){toast('สำเนาเสียหาย กู้ไม่ได้','err');} }
 async function reloadFromCloud(){
   if(!supa)return;
-  if(modalOpen()){window.__pendingSync=true;return;}
+  if(uiBusy()){window.__pendingSync=true;return;}
   try{
     const {data}=await supa.from('app_state').select('data,updated_at').eq('id',ROW_ID).maybeSingle();
     if(data&&data.data){ if(!remoteReplaceSafe(data.data)){ safetySnapshot('guard'); warnDrop(_docCount(DB),_docCount(data.data)); lastRemoteUpdated=new Date(data.updated_at).getTime(); setSyncStatus('synced'); return; } safetySnapshot('ก่อนดึงคลาวด์'); applyingRemote=true; DB=data.data; lastRemoteUpdated=new Date(data.updated_at).getTime(); lastSyncedJSON=JSON.stringify(DB); lsSet(LS_KEY,lastSyncedJSON); render(); applyingRemote=false; setSyncStatus('synced'); }
@@ -456,13 +456,13 @@ function subscribeRealtime(){
       if(row&&row.client_id===CLIENT_ID)return;
       const t=row&&row.updated_at?new Date(row.updated_at).getTime():0;
       if(t&&t<=lastRemoteUpdated)return;
-      if(row&&row.data){ if(modalOpen()){window.__pendingSync=true;setSyncStatus('synced');return;} if(!remoteReplaceSafe(row.data)){ safetySnapshot('guard'); warnDrop(_docCount(DB),_docCount(row.data)); lastRemoteUpdated=t; setSyncStatus('synced'); return; } safetySnapshot('ก่อนอัปเดตจากอุปกรณ์อื่น'); applyingRemote=true; DB=row.data; lastRemoteUpdated=t; lastSyncedJSON=JSON.stringify(DB); lsSet(LS_KEY,lastSyncedJSON); render(); applyingRemote=false; toast('🔄 ข้อมูลอัปเดตจากอุปกรณ์อื่น','ok'); }
+      if(row&&row.data){ if(uiBusy()){window.__pendingSync=true;setSyncStatus('synced');return;} if(!remoteReplaceSafe(row.data)){ safetySnapshot('guard'); warnDrop(_docCount(DB),_docCount(row.data)); lastRemoteUpdated=t; setSyncStatus('synced'); return; } safetySnapshot('ก่อนอัปเดตจากอุปกรณ์อื่น'); applyingRemote=true; DB=row.data; lastRemoteUpdated=t; lastSyncedJSON=JSON.stringify(DB); lsSet(LS_KEY,lastSyncedJSON); render(); applyingRemote=false; toast('🔄 ข้อมูลอัปเดตจากอุปกรณ์อื่น','ok'); }
       else reloadFromCloud();
     }).subscribe();
   }catch(e){}
   setInterval(async()=>{
     if(!supa||applyingRemote)return;
-    if(modalOpen()){window.__pendingSync=true;return;}
+    if(uiBusy()){window.__pendingSync=true;return;}
     try{ const {data}=await supa.from('app_state').select('updated_at,client_id').eq('id',ROW_ID).maybeSingle();
       if(data){ const t=new Date(data.updated_at).getTime(); if(t>lastRemoteUpdated&&data.client_id!==CLIENT_ID)reloadFromCloud(); cloudOK=true; setSyncStatus('synced'); }
     }catch(e){ cloudOK=false; setSyncStatus('offline'); }
@@ -1729,6 +1729,7 @@ function prdRow(d){
       <button class="btn sm" onclick="viewDoc('${d.id}')">ดู</button>
       <button class="btn sm" onclick="printPO('${d.id}')">🖨️</button>
       <button class="btn sm" onclick="editPRD('${d.id}')">✏️</button>
+      ${d.status==='statonly'?`<button class="btn sm ok" onclick="docEnterSystem('${d.id}')" title="นำเข้าระบบจริง (จากสรุปเท่านั้น) — สำหรับตรวจสอบย้อนหลัง">✅ เข้าระบบ</button>`:''}
       ${d.status==='pending'?`<button class="btn sm ok" onclick="approveDoc('${d.id}')">อนุมัติ</button> <button class="btn sm danger" onclick="deleteDoc('${d.id}')">🗑️ ลบ</button>`:''}
       ${d.status==='approved'?`<button class="btn sm danger" onclick="cancelDoc('${d.id}')">ยกเลิก</button>`:''}
       ${d.status==='cancelled'?`<button class="btn sm danger" onclick="delDocConfirm('${d.id}')">🗑️ ลบ</button>`:''}
@@ -2351,6 +2352,7 @@ function rwRow(d){
       <button class="btn sm" onclick="viewDoc('${d.id}')">ดู</button>
       <button class="btn sm" onclick="printRW('${d.id}')">🖨️</button>
       <button class="btn sm" onclick="editRWInline('${d.id}')">✏️</button>
+      ${d.status==='statonly'?`<button class="btn sm ok" onclick="docEnterSystem('${d.id}')" title="นำเข้าระบบจริง (จากสรุปเท่านั้น) — ปรับยอดสต๊อกตามใบนี้">✅ เข้าระบบ</button>`:''}
       ${d.status==='pending'?`<button class="btn sm ok" onclick="approveDoc('${d.id}')">อนุมัติ</button>`:''}
       ${d.status==='approved'?`<button class="btn sm danger" onclick="cancelDoc('${d.id}')">ยกเลิก</button>`:''}
       ${d.status==='cancelled'?`<button class="btn sm danger" onclick="delDocConfirm('${d.id}')">🗑️ ลบ</button>`:''}
@@ -3137,6 +3139,7 @@ function siRow(d){
     <td style="text-align:right;white-space:nowrap">
       <button class="btn sm" onclick="viewDoc('${d.id}')">ดู</button>
       <button class="btn sm" onclick="editSIInline('${d.id}')">✏️</button>
+      ${d.status==='statonly'?`<button class="btn sm ok" onclick="docEnterSystem('${d.id}')" title="นำเข้าระบบจริง (จากสรุปเท่านั้น) — ปรับยอดสต๊อกตามใบนี้">✅ เข้าระบบ</button>`:''}
       ${d.status==='pending'?`<button class="btn sm ok" onclick="approveDoc('${d.id}')">อนุมัติ</button> <button class="btn sm danger" onclick="deleteDoc('${d.id}')">🗑️ ลบ</button>`:''}
       ${d.status==='approved'?`<button class="btn sm danger" onclick="cancelDoc('${d.id}')">ยกเลิก</button>`:''}
       ${d.status==='cancelled'?`<button class="btn sm danger" onclick="delDocConfirm('${d.id}')">🗑️ ลบ</button>`:''}
@@ -3613,6 +3616,7 @@ function qcRow(d){
     <td style="text-align:right;white-space:nowrap">
       <button class="btn sm" onclick="viewDoc('${d.id}')">ดู</button>
       <button class="btn sm" onclick="editQCInline('${d.id}')">✏️</button>
+      ${d.status==='statonly'?`<button class="btn sm ok" onclick="docEnterSystem('${d.id}')" title="นำเข้าระบบจริง (จากสรุปเท่านั้น) — สำหรับตรวจสอบย้อนหลัง">✅ เข้าระบบ</button>`:''}
       ${d.status==='pending'?`<button class="btn sm ok" onclick="approveDoc('${d.id}')">อนุมัติ</button> <button class="btn sm danger" onclick="deleteDoc('${d.id}')">🗑️ ลบ</button>`:''}
       ${d.status==='approved'?`<button class="btn sm danger" onclick="cancelDoc('${d.id}')">ยกเลิก</button>`:''}
       ${d.status==='cancelled'?`<button class="btn sm danger" onclick="delDocConfirm('${d.id}')">🗑️ ลบ</button>`:''}
@@ -5338,6 +5342,19 @@ function doApprove(d){
   if(d.type==='IV2'||(d.type==='INV'&&(d.date||'')<'2026-07-03')){try{invDrawFromQTime(d);}catch(e){}}
   const r=applyDoc(d);if(!r.ok)return r;
   d.status='approved';d.approvedAt=new Date().toLocaleString('th-TH');return {ok:true};
+}
+/* นำเอกสารสถานะ "📊 สรุปเท่านั้น" เข้าระบบจริง (สำหรับตรวจสอบย้อนหลัง) — โพสต์สต๊อกตามชนิดเอกสาร */
+function docEnterSystem(id){
+  const d=DB.docs.find(x=>x.id===id);if(!d)return;
+  if(d.status!=='statonly'){toast('เอกสารนี้ไม่ใช่สถานะ "สรุปเท่านั้น"','err');return;}
+  const willStock=(d.type==='RW'||d.type==='SI');
+  const extra=willStock?' และปรับยอดสต๊อกตามเอกสารนี้':(d.type==='PRD'?' และออกใบเบิกวัตถุดิบอัตโนมัติ':'');
+  confirmBox('นำเอกสาร '+d.no+' เข้าระบบ?','เปลี่ยนจาก 📊 สรุปเท่านั้น → เข้าระบบจริง'+extra+' · ใช้สำหรับการตรวจสอบย้อนหลัง',function(){
+    d.statOnly=false;
+    if(d.type==='PRD'){ d.status='approved';d.approvedAt=new Date().toLocaleString('th-TH');try{genWDfromPRD(d);}catch(e){} }
+    else { const r=doApprove(d); if(!r.ok){d.statOnly=true;d.status='statonly';toast('เข้าระบบไม่ได้: '+r.err,'err');return;} }
+    saveDB();closeModal();render();toast('นำ '+d.no+' เข้าระบบแล้ว'+(willStock?' · ปรับยอดสต๊อกแล้ว':''),'ok');
+  });
 }
 function approveDoc(id){const d=DB.docs.find(x=>x.id===id);if(!d||d.status!=='pending')return;
   // re-validate single-bucket docs
@@ -8994,6 +9011,13 @@ function modal({title,body,footer,size}){
   try{translatePage();}catch(e){}
 }
 function modalOpen(){var r=document.getElementById('modalRoot');return !!(r&&r.children&&r.children.length);}
+/* "กำลังใช้งาน UI" = มี modal เปิด หรือ ฟอร์มบันทึกแบบอินไลน์กำลังเปิดกรอกอยู่ → เลื่อนการซิงก์เบื้องหลังไว้ก่อน กันฟอร์มเด้งหาย/ข้อมูลที่กรอกค้างหาย */
+function uiBusy(){
+  if(modalOpen())return true;
+  var ids=['ivFormBody','iwFormBody','grFormBody','rwFormBody','dpFormBody','plFormBody','qcFormBody','siFormBody'];
+  for(var i=0;i<ids.length;i++){var b=document.getElementById(ids[i]);if(b&&b.style.display!=='none')return true;}
+  return false;
+}
 function closeModal(){document.getElementById('modalRoot').innerHTML='';if(window.__pendingSync){window.__pendingSync=false;try{if(supa){if(JSON.stringify(DB)!==lastSyncedJSON){pushCloud(true);}else{reloadFromCloud();}}}catch(e){}}}
 function confirmBox(title,msg,onYes){
   window.__yes=onYes;
