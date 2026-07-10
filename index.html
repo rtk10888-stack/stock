@@ -275,7 +275,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='MKSHORT-2026.07.10h (ผู้ผลิตแสดงชื่อย่อเท่านั้นทุกจุด: คัดแยก/รับชิ้นงาน/รับเข้าสต๊อค/Timeline/NC — เช่น RTK-K)';
+const APP_BUILD='PRDLINK-2026.07.10i (ใบสั่งผลิต: ผู้ผลิตแสดงชื่อย่อ RTK-K แม่นขึ้น + พิมพ์ Part แล้วดึง CUSTOMER อัตโนมัติ)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -364,6 +364,11 @@ function makerShort(v){ if(v===0)v='0'; if(!v)return '-'; v=String(v).trim(); if
         || ms.find(function(x){return hasAbbr(x)&&norm(x.name)===nv;})
         || ms.find(function(x){return hasAbbr(x)&&norm(x.code)===nv;});
     if(m2)m=m2;
+  }
+  /* 2.5) ยังไม่เจอ → เทียบแบบ "มีส่วนที่ตรงกัน" (เช่น ชื่อมี/ไม่มีคำว่า "จำกัด") เฉพาะกรณีที่มีตัวเดียวเท่านั้น (กันจับผิดตัว เช่น RTK-K vs RTK-V) */
+  if(!hasAbbr(m)&&nv.length>=6){
+    var cand=ms.filter(function(x){if(!hasAbbr(x))return false;var nn=norm(x.name);return nn.length>=6&&(nv.indexOf(nn)>=0||nn.indexOf(nv)>=0);});
+    if(cand.length===1)m=cand[0];
   }
   if(hasAbbr(m))return m.abbr.trim();
   /* 3) เผื่อไว้: หาชื่อย่อจากรายชื่อผู้ค้า (VENDOR_SEED) แบบเทียบชื่อไม่สนช่องว่าง */
@@ -4690,7 +4695,7 @@ function openPRDForm(edit,prefill){
     <div class="row c3">
       <div class="field"><label>MAKER (ผู้ผลิต) NO.</label><input id="po_makercode" list="dl_makercode" value="${edit?esc(edit.maker||''):''}" placeholder="ใส่รหัส → ดึงชื่อ" oninput="prdMakerFill('code')" onchange="prdMakerFill('code')"><datalist id="dl_makercode">${makers.map(m=>`<option value="${esc(m.code)}">${esc(m.name||'')}</option>`).join('')}</datalist></div>
       <div class="field"><label>MAKER (ผู้ผลิต)</label><input id="po_maker" list="dl_makers" value="${edit?esc(edit.makerAbbr||''):''}" placeholder="VS4, JARUN..." oninput="prdMakerFill('name')" onchange="prdMakerFill('name')"><datalist id="dl_makers">${makers.map(m=>`<option value="${esc(m.abbr||m.name||'')}">${esc(m.code)} · ${esc(m.name||'')}</option>`).join('')}</datalist></div>
-      <div class="field"><label>CUSTOMER (ลูกค้า)</label><input id="po_customer" list="dl_prdcust" value="${edit?esc(edit.customer||''):''}" placeholder="ดึงจาก Part อัตโนมัติ · แก้ไขได้"><datalist id="dl_prdcust">${[...new Set((DB.settings.customers||[]).concat(DB.products.map(p=>p.customer).filter(Boolean)))].map(c=>`<option value="${esc(c)}">`).join('')}</datalist></div>
+      <div class="field"><label>CUSTOMER (ลูกค้า)</label><input id="po_customer" list="dl_prdcust" value="${edit?esc(edit.customer||''):''}" oninput="this.dataset.auto=''" placeholder="ดึงจาก Part อัตโนมัติ · แก้ไขได้"><datalist id="dl_prdcust">${[...new Set((DB.settings.customers||[]).concat(DB.products.map(p=>p.customer).filter(Boolean)))].map(c=>`<option value="${esc(c)}">`).join('')}</datalist></div>
     </div>
     <div class="row c2">
       <div class="field"><label>MAKER (ผู้ผลิต) — ชื่อเต็ม <span class="req">*</span></label><input id="po_makerfull" value="${edit?esc((edit.makerInfo&&edit.makerInfo.name)||''):''}" placeholder="ชื่อผู้ผลิต (เต็ม)"></div>
@@ -4765,9 +4770,12 @@ function renderPrdLines(){
   <datalist id="dl_fg">${DB.products.filter(p=>p.type==='FG').slice(0,1600).map(p=>`<option value="${esc(p.pn+(p.name&&p.name!=='-'?' '+p.name:''))}">`).join('')}</datalist>`;
   prdTotals();
 }
-function prdPick(i,val){prdLines[i].name=val;const pn=(val||'').split(' ')[0];const p=DB.products.find(x=>x.type==='FG'&&x.pn===pn);prdLines[i].fgId=p?p.id:'';const _pp=p?(p.prodPrice||p.salePrice||0):0;const tr=document.querySelectorAll('#prdRoot tbody tr')[i];const ins=tr?tr.querySelectorAll('input'):null;if(p&&!prdLines[i].price&&_pp){prdLines[i].price=_pp;if(ins&&ins[2])ins[2].value=_pp;}
+function prdPick(i,val){prdLines[i].name=val;const vv=String(val||'').trim();const pn=vv.split(' ')[0];
+  const p=DB.products.find(x=>x.type==='FG'&&x.pn===pn)||DB.products.find(x=>x.type==='FG'&&(x.pn+(x.name&&x.name!=='-'?' '+x.name:'')).trim()===vv)||findProdByName(vv,'FG');
+  prdLines[i].fgId=p?p.id:'';const _pp=p?(p.prodPrice||p.salePrice||0):0;const tr=document.querySelectorAll('#prdRoot tbody tr')[i];const ins=tr?tr.querySelectorAll('input'):null;if(p&&!prdLines[i].price&&_pp){prdLines[i].price=_pp;if(ins&&ins[2])ins[2].value=_pp;}
   if(p){const wl=parseSegMM(p.dim)||0;const blmm=parseSegMM(p.steelUse)||0;const blm=blmm?Math.round(blmm/10)/100:0;prdLines[i].workLen=wl||'';prdLines[i].barLen=blm||'';if(ins&&ins[4])ins[4].value=wl||'';if(ins&&ins[5])ins[5].value=blm||'';prdBars(i);
-    var cf=document.getElementById('po_customer');if(cf&&p.customer&&!cf.value.trim())cf.value=p.customer;}
+    /* ดึง CUSTOMER อัตโนมัติจาก Part — เติมเมื่อช่องว่างหรือค่าเดิมมาจากการเติมอัตโนมัติ (เคารพค่าที่ผู้ใช้พิมพ์เอง) */
+    var cf=document.getElementById('po_customer');var cust=(p.customer||'').trim();if(cust&&cust!=='ไม่ระบุ'&&cf&&(!cf.value.trim()||cf.dataset.auto==='1')){cf.value=cust;cf.dataset.auto='1';}}
   prdTotals();}
 function prdBars(i){const l=prdLines[i];if(!l)return;const qty=Number(l.qty)||0;const wl=Number(l.workLen)||0;const blm=Number(l.barLen)||0;const blmm=blm*1000;const per=(wl>0&&blmm>0)?Math.floor(blmm/wl):0;l.perBar=per;if(per>0&&qty>0)l.bars=Math.ceil(qty/per);const e=document.getElementById('prbars_'+i);if(e)e.value=l.bars||'';}
 function prdTotals(){
