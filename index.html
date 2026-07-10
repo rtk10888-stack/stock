@@ -275,7 +275,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='IVFIX-2026.07.10f (แก้ฟอร์มบันทึกอินไลน์เด้งหายระหว่างกรอก — ซิงก์เบื้องหลังไม่รีเฟรชทับ, ปิดเมื่อกดบันทึกเท่านั้น)';
+const APP_BUILD='DPSRC-2026.07.10g (ผลิตประจำวัน: ดึงอัตโนมัติจากใบสั่งผลิต RTK-K เท่านั้น — ยกเลิกการดึงจากรับชิ้นงาน RW)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -1388,9 +1388,9 @@ function viewDocs(type){
   const dispLabel=(type==='PO')?'ใบสั่งซื้อวัตถุดิบ & วัสดุสิ้นเปลือง':cfg.label;
   setTitle(cfg.icon+' '+dispLabel,'สร้าง / อนุมัติ / ติดตามสถานะ');
   let docs=DB.docs.filter(d=>(d.type===type||(type==='PO'&&d.type==='SUP'))&&!(type==='PL'&&d.dplan)).sort((a,b)=>(type==='RW'||type==='SI'||type==='INV')?(String(b.date||'').localeCompare(String(a.date||''))||String(b.no||'').localeCompare(String(a.no||''),undefined,{numeric:true})):String(b.no||'').localeCompare(String(a.no||''),undefined,{numeric:true})); /* ค่าเริ่มต้น: เลขที่ มาก→น้อย ทุกโมดูล */
-  if(type==='DP'){ /* ดึงใบสั่งผลิต(PRD) + รับชิ้นงาน(RW) ของ RTK-K มาแสดงในผลิตประจำวันด้วย */
+  if(type==='DP'){ /* ดึงเฉพาะ "ใบสั่งผลิต(PRD) ที่สั่งผลิต RTK-K" มาแสดงในผลิตประจำวันแบบอัตโนมัติ (ยกเลิกการดึงจากรับชิ้นงาน RW แล้ว) */
     const isRTKK=v=>{var s=String(v||'').toUpperCase();return s==='RTK-K'||makerShort(v)==='RTK-K';};
-    const extra=DB.docs.filter(d=>d.status!=='cancelled'&&((d.type==='PRD'&&isRTKK(d.maker||d.makerAbbr))||(d.type==='RW'&&(d.lines||[]).some(l=>isRTKK(l.maker)))));
+    const extra=DB.docs.filter(d=>d.status!=='cancelled'&&d.type==='PRD'&&isRTKK(d.maker||d.makerAbbr));
     docs=docs.concat(extra);
     const _dpPn=d=>{var l=(d.lines&&d.lines[0])||{};var pid=l.productId||l.fgId;var p=pid?P(pid):null;return String(p?p.pn:(l.name||'')).toLowerCase();};docs.sort((a,b)=>{var ka=a.type==='PRD'?0:1,kb=b.type==='PRD'?0:1;if(ka!==kb)return ka-kb;return _dpPn(a).localeCompare(_dpPn(b),undefined,{numeric:true})||String(a.no||'').localeCompare(String(b.no||''),undefined,{numeric:true});}); /* ใบสั่งผลิตขึ้นก่อน แล้ว PART ก→ฮ */
   }
