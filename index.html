@@ -275,7 +275,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SEMIQC-2026.07.09t (คัดแยก: คอลัมน์สั่งผลิตจำนวน + SUBTOTAL ค้างส่ง/ค้างคัด)';
+const APP_BUILD='SEMIQC-2026.07.09u (คัดแยก SUBTOTAL: สั่งผลิต/PO ครั้งเดียว · รับชิ้นงาน/วันครั้งเดียว)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -1431,7 +1431,7 @@ function viewDocs(type){
   const qcStgSum=isQC?docs.reduce((s,d)=>{const f=(d.lines||[])[0]||{};const pr=f.productId?P(f.productId):null;const fl=pr?prodFlow(pr):'';return s+((fl==='ไม่ชุบ-QC'||fl==='ชุบ-QC')&&pr?pr.wip:0);},0):0;
   const qcOkSum=isQC?docs.reduce((s,d)=>s+(Number(((d.lines||[])[0]||{}).ok)||0),0):0;
   const qcOrdSum=isQC?(function(){var seen={},v=0;docs.forEach(function(d){var po=_normPO(((d.lines||[])[0]||{}).poNo||'');if(po&&!seen[po]){seen[po]=1;v+=prdOrderByPO(po);}});return v;})():0;
-  const qcRqSum=isQC?(function(){var seen={},v=0;docs.forEach(function(d){var f=(d.lines||[])[0]||{};var po=_normPO(f.poNo||'');if(po&&!seen[po]){seen[po]=1;v+=(qcRecvInfo(f)||{}).qty||0;}});return v;})():0;
+  const qcRqSum=isQC?(function(){var seen={},v=0;docs.forEach(function(d){var f=(d.lines||[])[0]||{};var po=_normPO(f.poNo||'');var ri=qcRecvInfo(f)||{};var k=po+'|'+(ri.date||'');if(po&&!seen[k]){seen[k]=1;v+=ri.qty||0;}});return v;})():0;
   const siMons=isSI?[...new Set(docs.map(d=>(d.date||'').slice(0,7)).filter(Boolean))].sort().reverse():[];
   const siItems=isSI?[...new Set(docs.flatMap(d=>(d.lines||[]).map(l=>l.productId&&P(l.productId)?P(l.productId).pn:l.name)).filter(Boolean))].sort():[];
   const siMkrs=isSI?[...new Set(docs.flatMap(d=>(d.lines||[]).map(l=>l.maker)).filter(Boolean))].sort():[];
@@ -3597,7 +3597,7 @@ function qcRow(d){
   const f0=(d.lines&&d.lines[0])||{};
   const _rcv=qcRecvInfo(f0);const _ord=prdOrderByPO(poTxt);
   const _pr=f0.productId?P(f0.productId):null;const _fl=_pr?prodFlow(_pr):'';const _stg=(_fl==='ไม่ชุบ-QC'||_fl==='ชุบ-QC')&&_pr?_pr.wip:0;const _totV=(f0.total!=null&&f0.total!=='')?Number(f0.total)||0:_stg;
-  return `<tr data-no="${esc(d.no)}" data-ts="${d.ts||0}" data-amt="${ng}" data-stg="${_stg||0}" data-tot="${_totV}" data-ok="${Number(f0.ok)||0}" data-mon="${(d.date||'').slice(0,7)}" data-mk="${esc(mkAll)}" data-item="${esc(itemAll)}" data-po="${esc(poTxt)}" data-ord="${_ord||0}" data-rqty="${_rcv.qty||0}">
+  return `<tr data-no="${esc(d.no)}" data-ts="${d.ts||0}" data-amt="${ng}" data-stg="${_stg||0}" data-tot="${_totV}" data-ok="${Number(f0.ok)||0}" data-mon="${(d.date||'').slice(0,7)}" data-mk="${esc(mkAll)}" data-item="${esc(itemAll)}" data-po="${esc(poTxt)}" data-ord="${_ord||0}" data-rqty="${_rcv.qty||0}" data-rdate="${esc(_rcv.date||'')}">
     <td class="pn linkish" onclick="viewDoc('${d.id}')">${d.no}</td><td class="muted">${d.date}</td>
     <td><span class="tag violet">${esc(poTxt)}</span></td>
     <td>${qcC('maker')?`<span class="tag amber">${esc(makerShort(d.maker))}</span> `:''}<span class="muted">${esc(head)}</span></td>
@@ -3622,7 +3622,7 @@ function filterQcRows(){
   const g=id=>((document.getElementById(id)||{}).value||'').trim().toLowerCase();
   const q=g('docSearch'),no=g('qcNoF'),mon=((document.getElementById('qcMon')||{}).value||'').trim(),mk=g('qcMkr'),it=g('qcItem');
   let sum=0,stot=0,sok=0,sstg=0,sord=0,srq=0;var seenO={},seenR={};
-  document.querySelectorAll('#docRows tr').forEach(tr=>{const ds=tr.dataset||{};const t=tr.textContent.toLowerCase();const show=(!q||t.includes(q))&&(!no||(ds.no||'').toLowerCase().includes(no))&&(!mon||(ds.mon||'').includes(mon))&&(!mk||(ds.mk||'').toLowerCase().includes(mk))&&(!it||(ds.item||'').includes(it));tr.style.display=show?'':'none';if(show){sum+=Number(ds.amt||0);stot+=Number(ds.tot||0);sok+=Number(ds.ok||0);sstg+=Number(ds.stg||0);var _po=ds.po||'';if(_po&&!seenO[_po]){seenO[_po]=1;sord+=Number(ds.ord||0);}if(_po&&!seenR[_po]){seenR[_po]=1;srq+=Number(ds.rqty||0);}}});
+  document.querySelectorAll('#docRows tr').forEach(tr=>{const ds=tr.dataset||{};const t=tr.textContent.toLowerCase();const show=(!q||t.includes(q))&&(!no||(ds.no||'').toLowerCase().includes(no))&&(!mon||(ds.mon||'').includes(mon))&&(!mk||(ds.mk||'').toLowerCase().includes(mk))&&(!it||(ds.item||'').includes(it));tr.style.display=show?'':'none';if(show){sum+=Number(ds.amt||0);stot+=Number(ds.tot||0);sok+=Number(ds.ok||0);sstg+=Number(ds.stg||0);var _po=(ds.po||'').replace(/^PO/i,'').trim();if(_po&&!seenO[_po]){seenO[_po]=1;sord+=Number(ds.ord||0);}var _rk=_po+'|'+(ds.rdate||'');if(_po&&!seenR[_rk]){seenR[_rk]=1;srq+=Number(ds.rqty||0);}}});
   const st=document.getElementById('qcSubtotal');if(st)st.textContent=fmt(sum);const sstgf=document.getElementById('qcSubStg');if(sstgf)sstgf.textContent=fmt(sstg);const stt=document.getElementById('qcSubTotF');if(stt)stt.textContent=fmt(stot);const sokf=document.getElementById('qcSubOkF');if(sokf)sokf.textContent=fmt(sok);var _srt=sok+sum;var _e;if(_e=document.getElementById('qcSumOrd'))_e.textContent=fmt(sord);if(_e=document.getElementById('qcSumRq'))_e.textContent=fmt(srq);if(_e=document.getElementById('qcSumD1'))_e.textContent=fmt(sord-srq);if(_e=document.getElementById('qcSumSorted'))_e.textContent=fmt(_srt);if(_e=document.getElementById('qcSumD2'))_e.textContent=fmt(srq-_srt);
   const sortv=((document.getElementById('qcSort')||{}).value)||'ts_desc';
   const tb=document.getElementById('docRows');
