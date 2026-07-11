@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>RTK Store Control — ระบบควบคุมสต๊อคสินค้า</title>
+<title>ISO 9001 / IATF 16949 — ระบบบริหารคุณภาพ</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -186,7 +186,7 @@ td.num,th.num{text-align:right;font-family:'Inter',sans-serif;font-variant-numer
   <aside class="sidebar">
     <div class="brand">
       <div style="display:flex;flex-direction:column;align-items:center"><div class="logo">RTK</div><div id="buildSidebarM" class="buildm"></div></div>
-      <div><div class="t1">Store Control</div><div class="t2">ระบบควบคุมสต๊อค <span id="buildSidebar"></span></div></div>
+      <div><div class="t1">ISO 9001 / IATF 16949</div><div class="t2">ระบบบริหารคุณภาพ <span id="buildSidebar"></span></div></div>
     </div>
     <nav class="nav" id="nav"></nav>
   </aside>
@@ -275,7 +275,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='RTKKFIX-2026.07.10k (รับชิ้นงาน/รับเข้าสต๊อคดึงผู้ผลิตจากบรรทัด + ปุ่มแปลงข้อมูลเก่า RTK-K ในตั้งค่า)';
+const APP_BUILD='QMS-2026.07.10l (เปลี่ยนชื่อระบบเป็น ISO 9001 / IATF 16949 · ระบบบริหารคุณภาพ)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
