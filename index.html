@@ -275,7 +275,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='ISO8910-2026.07.10q (เพิ่มโมดูล 8 OPERATION · 9 PERFORMANCE · 10 IMPROVEMENT + แบบฟอร์มควบคุมเอกสารครบทุกโมดูล ข้อ 4–10)';
+const APP_BUILD='DC7-2026.07.10r (เพิ่มแบบฟอร์มควบคุมเอกสารในโมดูล 7 SUPPORT — ครบทุกหมวด ISO ข้อ 4–10)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -6623,6 +6623,7 @@ var DC_DEFAULTS={
   context:[{code:'QM-04',name:'บริบทองค์กร (Context)',rev:'01',date:''},{code:'FM-04-01',name:'การวิเคราะห์ SWOT',rev:'01',date:''},{code:'FM-04-02',name:'ทะเบียนผู้มีส่วนได้ส่วนเสีย',rev:'01',date:''},{code:'FM-04-03',name:'ขอบเขตระบบคุณภาพ (Quality Manual)',rev:'01',date:''},{code:'FM-04-04',name:'แผนผังกระบวนการ (Process Map)',rev:'01',date:''}],
   topmgmt:[{code:'QM-05',name:'ภาวะผู้นำ (Leadership)',rev:'01',date:''},{code:'QP-05-01',name:'นโยบายคุณภาพ',rev:'01',date:''},{code:'FM-05-01',name:'ผังองค์กร & ใบพรรณนางาน (JD)',rev:'01',date:''}],
   planning:[{code:'FM-06-01',name:'ทะเบียนความเสี่ยงและโอกาส',rev:'01',date:''},{code:'FM-06-02',name:'แผนฉุกเฉิน (Contingency Plan)',rev:'01',date:''},{code:'FM-06-03',name:'วัตถุประสงค์คุณภาพ (KPI)',rev:'01',date:''},{code:'FM-06-04',name:'การควบคุมการเปลี่ยนแปลง',rev:'01',date:''}],
+  support:[{code:'FM-07-01',name:'Skill Matrix / ประวัติการอบรม',rev:'01',date:''},{code:'FM-07-02',name:'ทะเบียนเครื่องมือวัด & แผนสอบเทียบ',rev:'01',date:''},{code:'FM-07-03',name:'แผนบำรุงรักษาเครื่องจักร (PM)',rev:'01',date:''},{code:'FM-07-04',name:'แผนการสื่อสาร (Communication Plan)',rev:'01',date:''},{code:'FM-07-05',name:'ทะเบียนเอกสาร (Master List)',rev:'01',date:''}],
   operation:[{code:'FM-08-01',name:'Control Plan',rev:'01',date:''},{code:'FM-08-02',name:'PFMEA',rev:'01',date:''},{code:'FM-08-03',name:'ทะเบียนผู้ขายที่อนุมัติ (AVL)',rev:'01',date:''},{code:'FM-08-04',name:'ใบตรวจรับ / ปล่อยงาน',rev:'01',date:''}],
   performance:[{code:'FM-09-01',name:'รายงาน KPI / ความพึงพอใจลูกค้า',rev:'01',date:''},{code:'FM-09-02',name:'แผน/รายงานการตรวจติดตามภายใน',rev:'01',date:''},{code:'FM-09-03',name:'รายงานทบทวนฝ่ายบริหาร',rev:'01',date:''}],
   improvement:[{code:'FM-10-01',name:'ใบปฏิบัติการแก้ไข (CAR / 8D)',rev:'01',date:''},{code:'FM-10-02',name:'ทะเบียน CAPA',rev:'01',date:''},{code:'FM-10-03',name:'ข้อเสนอปรับปรุง (Kaizen)',rev:'01',date:''}]
@@ -7039,7 +7040,7 @@ function viewSupport(el){
       +'<div class="tbl-wrap"><table style="font-size:12px"><thead><tr><th>รหัสฟอร์ม</th><th>ชื่อเอกสาร</th><th></th></tr></thead><tbody>'+dc+'</tbody></table></div><button class="btn sm" style="margin-top:8px" onclick="supArrAdd(\'dcc\',{code:\'\',name:\'\'})">+ เพิ่มฟอร์ม</button>';
   }
   el.innerHTML='<div class="panel"><div class="panel-h" style="flex-wrap:wrap;gap:8px"><h2>🛠️ การสนับสนุน — ISO 9001 / IATF 16949 (ข้อ 7)</h2><div class="right" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><span class="desc">Rev. <input value="'+esc(s.rev||'')+'" onchange="supSet(\'rev\',this.value)" style="width:44px;text-align:center;padding:2px 4px"></span><button class="btn sm" onclick="printSupport()">🖨️ พิมพ์เอกสาร</button></div></div>'
-    +'<div class="panel-b"><div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">'+tbn('71','7.1 ทรัพยากร')+tbn('72','7.2 ความสามารถ')+tbn('73','7.3 ความตระหนัก')+tbn('74','7.4 การสื่อสาร')+tbn('75','7.5 เอกสารข้อมูล')+'</div>'+body+'</div></div>';
+    +'<div class="panel-b"><div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">'+tbn('71','7.1 ทรัพยากร')+tbn('72','7.2 ความสามารถ')+tbn('73','7.3 ความตระหนัก')+tbn('74','7.4 การสื่อสาร')+tbn('75','7.5 เอกสารข้อมูล')+'</div>'+body+docCtrlHTML('support')+'</div></div>';
 }
 function printSupport(){
   ensureSupport();ensureSettings();var s=DB.support;var co=DB.settings.company||{};
@@ -7061,6 +7062,7 @@ function printSupport(){
     +'<h2>7.4 การสื่อสาร</h2><table><thead><tr><th style="width:24%">สื่อสารอะไร</th><th>เมื่อใด</th><th>กับใคร</th><th>อย่างไร</th><th>โดยใคร</th></tr></thead><tbody>'+cmRows+'</tbody></table>'
     +'<h2>7.5 เอกสารข้อมูล</h2>'+kv('7.5.1 ทั่วไป',s.doc.general)+kv('7.5.2 การจัดทำและปรับปรุง',s.doc.create)+kv('7.5.3 การควบคุมเอกสาร',s.doc.control)
     +'<h3>แบบฟอร์มควบคุมเอกสาร (FM-DCC)</h3><table><thead><tr><th style="width:20%">รหัส</th><th>ชื่อเอกสาร</th></tr></thead><tbody>'+dcRows+'</tbody></table>'
+    +dcPrintTable('support')
     +'<div style="display:flex;justify-content:space-between;margin-top:28px;font-size:11px"><div style="width:30%;text-align:center">___________________<br>จัดทำ</div><div style="width:30%;text-align:center">___________________<br>ทบทวน</div><div style="width:30%;text-align:center">___________________<br>อนุมัติ</div></div>'
     +'<div class="noprint"><button onclick="window.print()" style="padding:8px 22px;cursor:pointer">🖨️ พิมพ์ / PDF</button></div>'
     +'<scr'+'ipt>setTimeout(function(){window.print()},400)</scr'+'ipt></body></html>';
