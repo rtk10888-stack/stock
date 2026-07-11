@@ -277,7 +277,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='STICKY-2026.07.10s (ล็อกแท็บหัวข้อไว้ด้านบนเวลาเลื่อน — ทุกโมดูล ISO ข้อ 4–10)';
+const APP_BUILD='OPDEPT-2026.07.10t (8 OPERATION จัดใหม่ตามฝ่าย: PLANNING/SALE/R&D/PC/PD/ST/QC/NC/ACC ตามเอกสารจริง)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -7074,36 +7074,55 @@ function printSupport(){
 function ensureOperation(){
   if(!DB.operation)DB.operation={};
   var o=DB.operation;
-  if(!o.plan)o.plan={
-    control:'วางแผนและควบคุมกระบวนการผลิตให้เป็นไปตามข้อกำหนด: จัดทำใบสั่งผลิต (PRD) · Control Plan · Work Instruction (WI) · เกณฑ์การยอมรับ และเตรียมทรัพยากร/เครื่องมือวัดก่อนเริ่มงาน (ระบบนี้รองรับผ่าน ใบสั่งผลิต→ผลิต→QC→รับเข้าสต๊อค→ส่งมอบ)',
-    design:'8.3 การออกแบบผลิตภัณฑ์ — ไม่ประยุกต์ใช้ (ผลิตตามแบบลูกค้า) · แต่คงใช้ "การออกแบบกระบวนการผลิต" (Process Design) ตาม IATF: จัดทำ Process Flow · PFMEA · Control Plan ก่อนผลิตจริง'
+  if(!o.planning)o.planning={
+    productPlan:'8.1 วางแผนการผลิต (Product Plan): แปลงคำสั่งซื้อ (PO ลูกค้า)/Forecast เป็นแผนผลิต · กำหนดลำดับงาน ทรัพยากร เครื่องมือ และการควบคุมก่อนเริ่มผลิต (เชื่อมโมดูล ใบสั่งผลิต)',
+    review:'8.2 การพิจารณาข้อกำหนดผลิตภัณฑ์และบริการก่อนรับงาน: ทำได้ตามสเปค · กำหนดส่ง · ราคา'
   };
-  if(!o.req)o.req={
-    communicate:'สื่อสารกับลูกค้า: ให้ข้อมูลผลิตภัณฑ์ · รับคำสั่งซื้อ/ใบเสนอราคา · จัดการข้อร้องเรียน/ข้อมูลป้อนกลับ · ดูแลทรัพย์สินลูกค้า · แผนฉุกเฉิน (8.2.1)',
-    determine:'กำหนดข้อกำหนดของผลิตภัณฑ์: สเปค/แบบงาน · ข้อกำหนดกฎหมาย · ข้อกำหนดจำเป็นต่อการใช้งาน (8.2.2)',
-    review:'ทบทวนความสามารถก่อนรับคำสั่งผลิต: ทำได้ตามสเปค · กำหนดส่ง · ราคา — บันทึกในใบสั่งผลิต/ใบเสนอราคา (8.2.3)',
-    change:'เมื่อข้อกำหนดเปลี่ยน แก้ไขเอกสารที่เกี่ยวข้องและสื่อสารผู้เกี่ยวข้องทุกฝ่าย (8.2.4)'
+  if(!o.sale)o.sale={
+    communicate:'8.2.1 สื่อสารกับลูกค้า: รับ PO/RFQ · แจ้งสถานะงาน/การเปลี่ยนแปลง · รับข้อร้องเรียนและข้อมูลป้อนกลับ',
+    quotation:'จัดทำใบเสนอราคา (Quotation) จากการ Breakdown ต้นทุน (วัตถุดิบ + ค่าแรง + ชุบ + กำไร) · ควบคุมแบบที่อยู่ระหว่างเสนอราคา (Drawing Quotation)',
+    score:'ติดตามคะแนนประเมินจากลูกค้า (Customer Send Score Report) นำมาปรับปรุงบริการ'
   };
-  if(!o.sup)o.sup={
-    general:'ควบคุมผู้ให้บริการภายนอก (ผู้ขายวัตถุดิบ · ผู้รับจ้างผลิต/ชุบ) ให้ส่งมอบตรงข้อกำหนด (8.4.1)',
-    select:'คัดเลือก/ประเมินผู้ขายตามเกณฑ์ (คุณภาพ · ราคา · การส่งมอบ) · ประเมินซ้ำประจำปี · จัดทำ AVL (Approved Vendor List) (8.4.2)',
-    info:'แจ้งข้อกำหนดให้ผู้ขายชัดเจน: สเปค · จำนวน · กำหนดส่ง · ข้อกำหนดคุณภาพ/เอกสาร (8.4.3)'
+  if(!o.rnd)o.rnd={
+    general:'8.3.1 ทั่วไป (เชิงป้องกัน): วางแผนการออกแบบและพัฒนากระบวนการผลิต',
+    approval:'8.3.1.1 ข้อกำหนดวิธีการ/กระบวนการอนุมัติก่อนผลิต (First Article / PPAP)',
+    fmea:'8.3.2.1 วิเคราะห์ลักษณะความล้มเหลวและผลกระทบของกระบวนการ (Process FMEA)',
+    input:'8.3.3 ปัจจัยนำเข้าการออกแบบ: แบบ/สเปคลูกค้า · ข้อกำหนดกฎหมาย · บทเรียนที่ผ่านมา',
+    critical:'8.3.3.3 การควบคุมชิ้นส่วน/คุณลักษณะสำคัญ (Special/Critical Characteristics)',
+    control:'8.3.4 การควบคุมการออกแบบ: ทบทวน · ทวนสอบ · ยืนยันความถูกต้อง',
+    output:'8.3.5 ผลการออกแบบ (Output): Control Plan · WI · เกณฑ์การยอมรับ',
+    change:'8.3.6 ควบคุมการเปลี่ยนแปลงทางวิศวกรรม (Engineering Change / 4M: Man-Machine-Material-Method) · อนุมัติและแจ้งลูกค้า'
+  };
+  if(!o.pc)o.pc={
+    general:'8.4.1 ทั่วไป: ควบคุมผู้ให้บริการภายนอกให้ส่งมอบตรงข้อกำหนด',
+    outsource:'8.4.2 ชนิด/ขอบเขตการควบคุม Outsource (จ้างผลิต/ชุบภายนอก): ตรวจรับ · ประเมินผล',
+    info:'8.4.3 ข้อมูลสำหรับผู้ให้บริการภายนอก: สเปค · จำนวน · กำหนดส่ง · ข้อกำหนดคุณภาพ/เอกสาร'
   };
   if(!o.supList||!o.supList.length)o.supList=[
     {name:'มาเฮงกี่',scope:'วัตถุดิบเหล็ก',rating:'A'},
     {name:'VS4 / JARUN',scope:'จ้างผลิต (กลึง)',rating:'A'},
     {name:'C.B.S. Plating',scope:'ชุบผิว',rating:'B'}
   ];
-  if(!o.prod)o.prod={
-    control:'ควบคุมการผลิตภายใต้สภาวะที่ควบคุม: มี WI/Control Plan · เครื่องมือวัดที่สอบเทียบ · การตรวจระหว่างผลิต · การบำรุงรักษาเครื่องจักร (8.5.1)',
-    trace:'ชี้บ่งและสอบกลับได้ (Traceability): ใช้เลขที่ PO/LOT · ป้าย TAG (OK/NG/DELIVERY) · ระบบบันทึกเชื่อมโยงทุกขั้นตอน (ดูได้จาก รายงาน Timeline) (8.5.2)',
-    custProp:'ดูแลทรัพย์สินลูกค้า (แมทลูกค้า/แบบ/เครื่องมือ): ชี้บ่ง · เก็บรักษา · แจ้งลูกค้าหากเสียหาย (โมดูล รับแมทลูกค้า) (8.5.3)',
-    preserve:'ถนอมรักษาชิ้นงาน: บรรจุเหมาะสม · ป้องกันสนิม · จัดเก็บถูกวิธี · หลักการ FIFO (8.5.4)',
-    postdel:'กิจกรรมหลังส่งมอบ: การรับประกัน · การจัดการงานคืน/เคลม/บริการหลังการขาย (8.5.5)',
-    change:'ควบคุมการเปลี่ยนแปลงการผลิต — ทบทวนผลกระทบและอนุมัติก่อนดำเนินการ · แจ้งลูกค้าหากจำเป็น (8.5.6)'
+  if(!o.pd)o.pd={
+    control:'8.5 การผลิตภายใต้สภาวะที่ควบคุม: WI/Control Plan · เครื่องมือวัดที่สอบเทียบ · การตรวจระหว่างผลิต',
+    setup:'8.5.1.3 การตั้งเครื่องจักร (Job Set Up) + ตรวจชิ้นแรก (First-off) ก่อนเดินเครื่อง',
+    overhaul:'8.5.1.5 การบำรุงรักษา/ยกเครื่องจักร (Overhaul / PM) ตามแผน',
+    trace:'8.5.2 การบ่งชี้และสอบกลับ (Traceability): PO/LOT · ป้าย TAG · ระบบ Timeline'
   };
-  if(o.release==null)o.release='ปล่อยผลิตภัณฑ์เมื่อผ่านเกณฑ์ที่กำหนด (QC ผ่าน) · เก็บหลักฐานการปล่อย/ผู้อนุมัติ · ระบบไม่อนุญาตให้ส่งมอบหากยังไม่ผ่านการตรวจ (8.6)';
-  if(o.ncout==null)o.ncout='ควบคุมผลลัพธ์ที่ไม่เป็นไปตามข้อกำหนด: ชี้บ่ง · กักกัน (พื้นที่แดง) · ตัดสินการจัดการ (แก้ไข/คัดแยก/ทิ้ง/ยอมรับพิเศษโดยได้รับอนุมัติ) · บันทึกใบ NC และแจ้งลูกค้าหากจำเป็น (โมดูล งานไม่ตรงข้อกำหนด) (8.7)';
+  if(!o.st)o.st={
+    preserve:'8.5.4 การถนอมรักษา (Preservation): บรรจุเหมาะสม · ป้องกันสนิม · จัดเก็บแบบ FIFO · ควบคุมสภาพคลัง (เชื่อมโมดูล รับเข้าสต๊อค/คลัง)'
+  };
+  if(!o.qc)o.qc={
+    release:'8.6 การตรวจปล่อยผลิตภัณฑ์: ปล่อยเมื่อผ่านเกณฑ์ · เก็บหลักฐาน/ผู้อนุมัติ · ไม่ปล่อยงานหากยังไม่ผ่าน (เชื่อมโมดูล คัดแยก OK/NG)',
+    instrument:'7.1.5 เครื่องมือตรวจวัด: สอบเทียบตามรอบ · ป้ายสถานะ · ทะเบียนเครื่องมือ (MSA)'
+  };
+  if(!o.ncq)o.ncq={
+    manage:'8.7 จัดการผลิตภัณฑ์ที่ไม่เป็นไปตามข้อกำหนด: ชี้บ่ง · กักกัน · ตัดสิน (แก้ไข/คัดแยก/ทิ้ง/ยอมรับพิเศษ) · บันทึกใบ NC (เชื่อมโมดูล งานไม่ตรงข้อกำหนด)',
+    mom:'ประชุมพิจารณา NC (MoM) และติดตามผลการแก้ไข (M&E Tracking) — ฟอร์ม FM-QMR-05/21/25'
+  };
+  if(!o.acc)o.acc={
+    general:'8.8 บัญชีและการเงินที่สนับสนุนการปฏิบัติการ: ต้นทุน · ใบกำกับภาษี/ภาษี · การรับ-จ่าย (เชื่อมโมดูล Invoice/ภาษี)'
+  };
   if(o.rev==null)o.rev='01';
 }
 function opTab(x){window.__opTab=x;render();}
@@ -7121,38 +7140,56 @@ function viewOperation(el){
   var sec=function(lbl,val,fn,rows){return '<div class="field"><label style="font-weight:700;font-size:13px">'+lbl+'</label><textarea onchange="'+fn+'" rows="'+(rows||2)+'" style="width:100%;padding:8px;resize:vertical;border:1px solid var(--line);border-radius:8px">'+esc(val||'')+'</textarea></div>';};
   var body='';
   if(tab==='81'){
-    body=ref('<b>ข้อ 8.1 การวางแผนและควบคุมการปฏิบัติการ:</b> วางแผนกระบวนการผลิต กำหนดเกณฑ์ ทรัพยากร และการควบคุม เพื่อผลิตให้ตรงข้อกำหนด')
-      +sec('8.1 การวางแผนและควบคุมการผลิต',o.plan.control,"opGrp('plan','control',this.value)",3)
-      +sec('8.3 การออกแบบและพัฒนา',o.plan.design,"opGrp('plan','design',this.value)",3);
+    body=ref('<b>8.1 PLANNING — วางแผนการผลิต (ข้อ 8.1):</b> วางแผนและควบคุมการผลิตให้เป็นไปตามข้อกำหนด')
+      +sec('8.1 การวางแผนผลิตภัณฑ์ (Product Plan)',o.planning.productPlan,"opGrp('planning','productPlan',this.value)",3)
+      +sec('8.2 การพิจารณาข้อกำหนดผลิตภัณฑ์และบริการ',o.planning.review,"opGrp('planning','review',this.value)",2);
   } else if(tab==='82'){
-    body=ref('<b>ข้อ 8.2 ข้อกำหนดสำหรับผลิตภัณฑ์และบริการ:</b> สื่อสารกับลูกค้า · กำหนด · ทบทวน · และจัดการการเปลี่ยนแปลงข้อกำหนด')
-      +sec('8.2.1 การสื่อสารกับลูกค้า',o.req.communicate,"opGrp('req','communicate',this.value)")
-      +sec('8.2.2 การกำหนดข้อกำหนด',o.req.determine,"opGrp('req','determine',this.value)")
-      +sec('8.2.3 การทบทวนข้อกำหนด',o.req.review,"opGrp('req','review',this.value)")
-      +sec('8.2.4 การเปลี่ยนแปลงข้อกำหนด',o.req.change,"opGrp('req','change',this.value)");
+    body=ref('<b>8.2 SALE — ขาย (ข้อ 8.2):</b> สื่อสารกับลูกค้า · เสนอราคา · ติดตามคะแนนประเมิน')
+      +sec('8.2.1 การสื่อสารกับลูกค้า',o.sale.communicate,"opGrp('sale','communicate',this.value)")
+      +sec('การเสนอราคา (Quotation / Breakdown ต้นทุน)',o.sale.quotation,"opGrp('sale','quotation',this.value)")
+      +sec('คะแนนประเมินจากลูกค้า (Customer Score)',o.sale.score,"opGrp('sale','score',this.value)");
+  } else if(tab==='83'){
+    body=ref('<b>8.3 R&D — วิจัยและพัฒนา (ข้อ 8.3):</b> ออกแบบและพัฒนากระบวนการผลิต · PFMEA · ควบคุมการเปลี่ยนแปลง (4M)')
+      +sec('8.3.1 ทั่วไป (เชิงป้องกัน)',o.rnd.general,"opGrp('rnd','general',this.value)")
+      +sec('8.3.1.1 การอนุมัติก่อนผลิต (PPAP / First Article)',o.rnd.approval,"opGrp('rnd','approval',this.value)")
+      +sec('8.3.2.1 การวิเคราะห์ FMEA ของกระบวนการ',o.rnd.fmea,"opGrp('rnd','fmea',this.value)")
+      +sec('8.3.3 ปัจจัยนำเข้า (Input)',o.rnd.input,"opGrp('rnd','input',this.value)")
+      +sec('8.3.3.3 การควบคุมชิ้นส่วนสำคัญ',o.rnd.critical,"opGrp('rnd','critical',this.value)")
+      +sec('8.3.4 การควบคุม',o.rnd.control,"opGrp('rnd','control',this.value)")
+      +sec('8.3.5 ผลการออกแบบ (Output)',o.rnd.output,"opGrp('rnd','output',this.value)")
+      +sec('8.3.6 ควบคุมการเปลี่ยนแปลง (Engineering Change / 4M)',o.rnd.change,"opGrp('rnd','change',this.value)");
   } else if(tab==='84'){
     var sl=o.supList.map(function(r,i){var f=function(k,w){return '<td'+(w?' style="width:'+w+'"':'')+'><input value="'+esc(r[k]||'')+'" onchange="opSupSet('+i+',\''+k+'\',this.value)" style="width:100%;padding:5px"></td>';};return '<tr>'+f('name','36%')+f('scope','')+f('rating','16%')+'<td><div class="rm-x" onclick="opSupDel('+i+')">✕</div></td></tr>';}).join('');
-    body=ref('<b>ข้อ 8.4 การควบคุมผู้ให้บริการภายนอก:</b> คัดเลือก/ประเมิน/ควบคุมผู้ขายและผู้รับจ้าง และแจ้งข้อกำหนดให้ชัดเจน')
-      +sec('8.4.1 ทั่วไป',o.sup.general,"opGrp('sup','general',this.value)")
-      +sec('8.4.2 การคัดเลือกและประเมินผู้ขาย',o.sup.select,"opGrp('sup','select',this.value)")
-      +sec('8.4.3 ข้อมูลสำหรับผู้ขาย',o.sup.info,"opGrp('sup','info',this.value)")
+    body=ref('<b>8.4 PC — จัดซื้อ (ข้อ 8.4):</b> ควบคุมผู้ให้บริการภายนอก · Outsource · ข้อมูลผู้ขาย')
+      +sec('8.4.1 ทั่วไป',o.pc.general,"opGrp('pc','general',this.value)")
+      +sec('8.4.2 ชนิด/ขอบเขต Outsource (จ้างบุคคลภายนอก)',o.pc.outsource,"opGrp('pc','outsource',this.value)")
+      +sec('8.4.3 ข้อมูลสำหรับผู้ให้บริการภายนอก',o.pc.info,"opGrp('pc','info',this.value)")
       +'<div style="font-weight:700;margin:6px 0 2px">ทะเบียนผู้ขายที่อนุมัติ (AVL / Approved Vendor List)</div>'
       +'<div class="tbl-wrap"><table style="font-size:12px"><thead><tr><th>ผู้ขาย/ผู้รับจ้าง</th><th>ขอบเขต</th><th>เกรด (A/B/C)</th><th></th></tr></thead><tbody>'+sl+'</tbody></table></div><button class="btn sm" style="margin-top:8px" onclick="opSupAdd()">+ เพิ่มผู้ขาย</button>';
   } else if(tab==='85'){
-    body=ref('<b>ข้อ 8.5 การผลิตและการให้บริการ:</b> ควบคุมการผลิต · การชี้บ่ง/สอบกลับ · ทรัพย์สินลูกค้า · การถนอมรักษา · กิจกรรมหลังส่งมอบ · การเปลี่ยนแปลง')
-      +sec('8.5.1 การควบคุมการผลิต',o.prod.control,"opGrp('prod','control',this.value)")
-      +sec('8.5.2 การชี้บ่งและสอบกลับ (Traceability)',o.prod.trace,"opGrp('prod','trace',this.value)")
-      +sec('8.5.3 ทรัพย์สินของลูกค้า/ผู้ขาย',o.prod.custProp,"opGrp('prod','custProp',this.value)")
-      +sec('8.5.4 การถนอมรักษา (Preservation)',o.prod.preserve,"opGrp('prod','preserve',this.value)")
-      +sec('8.5.5 กิจกรรมหลังส่งมอบ',o.prod.postdel,"opGrp('prod','postdel',this.value)")
-      +sec('8.5.6 การควบคุมการเปลี่ยนแปลง',o.prod.change,"opGrp('prod','change',this.value)");
+    body=ref('<b>8.5 PD — ผลิต (ข้อ 8.5):</b> ควบคุมการผลิต · Set Up · Overhaul · บ่งชี้/สอบกลับ')
+      +sec('8.5 การควบคุมการผลิต',o.pd.control,"opGrp('pd','control',this.value)")
+      +sec('8.5.1.3 การตั้งเครื่องจักร (Job Set Up)',o.pd.setup,"opGrp('pd','setup',this.value)")
+      +sec('8.5.1.5 การบำรุงรักษา / Overhaul เครื่องจักร',o.pd.overhaul,"opGrp('pd','overhaul',this.value)")
+      +sec('8.5.2 การบ่งชี้และสอบกลับ',o.pd.trace,"opGrp('pd','trace',this.value)");
+  } else if(tab==='854'){
+    body=ref('<b>8.5.4 ST — สโตร์ (ข้อ 8.5.4):</b> การถนอมรักษาและจัดเก็บ')
+      +sec('8.5.4 การถนอมรักษา (Preservation)',o.st.preserve,"opGrp('st','preserve',this.value)",3);
+  } else if(tab==='86'){
+    body=ref('<b>8.6 QC — คุณภาพ (ข้อ 8.6):</b> การตรวจปล่อยผลิตภัณฑ์ · เครื่องมือตรวจวัด')
+      +sec('8.6 การตรวจปล่อยผลิตภัณฑ์ (Release)',o.qc.release,"opGrp('qc','release',this.value)",3)
+      +sec('7.1.5 เครื่องมือตรวจวัด (Instrument / สอบเทียบ)',o.qc.instrument,"opGrp('qc','instrument',this.value)");
+  } else if(tab==='87'){
+    body=ref('<b>8.7 NC — ผลิตภัณฑ์ไม่เป็นไปตามข้อกำหนด (ข้อ 8.7):</b> จัดการของเสีย/สิ่งที่ไม่เป็นไปตามข้อกำหนด')
+      +sec('8.7 การจัดการผลิตภัณฑ์ที่ไม่เป็นไปตามข้อกำหนด',o.ncq.manage,"opGrp('ncq','manage',this.value)",3)
+      +sec('การประชุม/ติดตามการแก้ไข (MoM / M&E Tracking)',o.ncq.mom,"opGrp('ncq','mom',this.value)")
+      +'<div class="hint" style="background:#f0fdf4"><span class="i">🔗</span><div>บันทึก/ดูใบ NC จริงได้ที่เมนู <b>งานไม่ตรงข้อกำหนด (NC)</b></div></div>';
   } else {
-    body=ref('<b>ข้อ 8.6 การปล่อยผลิตภัณฑ์ · ข้อ 8.7 การควบคุมผลลัพธ์ที่ไม่เป็นไปตามข้อกำหนด</b>')
-      +sec('8.6 การปล่อยผลิตภัณฑ์และบริการ (Release)',o.release,"opSet('release',this.value)",3)
-      +sec('8.7 การควบคุมผลลัพธ์ที่ไม่เป็นไปตามข้อกำหนด (Nonconforming Output)',o.ncout,"opSet('ncout',this.value)",3);
+    body=ref('<b>8.8 ACC — บัญชี (สนับสนุนการปฏิบัติการ):</b> ต้นทุน · ภาษี · การรับ-จ่าย')
+      +sec('8.8 งานบัญชีและการเงิน',o.acc.general,"opGrp('acc','general',this.value)",3);
   }
-  el.innerHTML='<div class="panel iso-doc"><div class="panel-h" style="flex-wrap:wrap;gap:8px"><h2>🏗️ การปฏิบัติการ — ISO 9001 / IATF 16949 (ข้อ 8)</h2><div class="right" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><span class="desc">Rev. <input value="'+esc(o.rev||'')+'" onchange="opSet(\'rev\',this.value)" style="width:44px;text-align:center;padding:2px 4px"></span><button class="btn sm" onclick="printSection(\'operation\')">🖨️ พิมพ์เอกสาร</button></div></div>'
-    +'<div class="panel-b"><div class="iso-tabs">'+tbn('81','8.1 วางแผน/ออกแบบ')+tbn('82','8.2 ข้อกำหนดลูกค้า')+tbn('84','8.4 ควบคุมผู้ขาย')+tbn('85','8.5 การผลิต')+tbn('86','8.6/8.7 ปล่อยงาน&ของเสีย')+'</div>'+body+docCtrlHTML('operation')+'</div></div>';
+  el.innerHTML='<div class="panel iso-doc"><div class="panel-h" style="flex-wrap:wrap;gap:8px"><h2>🏗️ การปฏิบัติการ (Process Control) — ISO 9001 / IATF 16949 (ข้อ 8)</h2><div class="right" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><span class="desc">Rev. <input value="'+esc(o.rev||'')+'" onchange="opSet(\'rev\',this.value)" style="width:44px;text-align:center;padding:2px 4px"></span><button class="btn sm" onclick="printSection(\'operation\')">🖨️ พิมพ์เอกสาร</button></div></div>'
+    +'<div class="panel-b"><div class="iso-tabs">'+tbn('81','8.1 PLANNING วางแผน')+tbn('82','8.2 SALE ขาย')+tbn('83','8.3 R&D')+tbn('84','8.4 PC จัดซื้อ')+tbn('85','8.5 PD ผลิต')+tbn('854','8.5.4 ST สโตร์')+tbn('86','8.6 QC')+tbn('87','8.7 NC')+tbn('88','8.8 ACC บัญชี')+'</div>'+body+docCtrlHTML('operation')+'</div></div>';
 }
 /* ===== 9 PERFORMANCE — การประเมินสมรรถนะ (ISO 9001 / IATF 16949 ข้อ 9) ===== */
 function ensurePerformance(){
@@ -7258,13 +7295,17 @@ function printSection(which){
   ensureSettings();var co=DB.settings.company||{};var e2=function(x){return esc(String(x==null?'':x)).replace(/\n/g,'<br>');};
   var kv=function(l,v){return '<h3>'+l+'</h3><div>'+e2(v)+'</div>';};
   var title='',rev='',secs='';
-  if(which==='operation'){ensureOperation();var o=DB.operation;rev=o.rev;title='การปฏิบัติการ (Operation) — ข้อ 8';
-    secs='<h2>8.1 วางแผน/ควบคุมการผลิต · 8.3 ออกแบบ</h2>'+kv('8.1',o.plan.control)+kv('8.3',o.plan.design)
-      +'<h2>8.2 ข้อกำหนดผลิตภัณฑ์</h2>'+kv('8.2.1 สื่อสารลูกค้า',o.req.communicate)+kv('8.2.2 กำหนดข้อกำหนด',o.req.determine)+kv('8.2.3 ทบทวน',o.req.review)+kv('8.2.4 เปลี่ยนแปลง',o.req.change)
-      +'<h2>8.4 ควบคุมผู้ขาย</h2>'+kv('8.4.1',o.sup.general)+kv('8.4.2 คัดเลือก/ประเมิน',o.sup.select)+kv('8.4.3 ข้อมูลผู้ขาย',o.sup.info)
+  if(which==='operation'){ensureOperation();var o=DB.operation;rev=o.rev;title='การปฏิบัติการ (Process Control) — ข้อ 8';
+    secs='<h2>8.1 PLANNING วางแผนการผลิต</h2>'+kv('8.1 Product Plan',o.planning.productPlan)+kv('8.2 พิจารณาข้อกำหนด',o.planning.review)
+      +'<h2>8.2 SALE ขาย</h2>'+kv('8.2.1 สื่อสารลูกค้า',o.sale.communicate)+kv('การเสนอราคา',o.sale.quotation)+kv('คะแนนลูกค้า',o.sale.score)
+      +'<h2>8.3 R&D วิจัยและพัฒนา</h2>'+kv('8.3.1 ทั่วไป',o.rnd.general)+kv('8.3.1.1 อนุมัติก่อนผลิต',o.rnd.approval)+kv('8.3.2.1 PFMEA',o.rnd.fmea)+kv('8.3.3 Input',o.rnd.input)+kv('8.3.3.3 ชิ้นส่วนสำคัญ',o.rnd.critical)+kv('8.3.4 การควบคุม',o.rnd.control)+kv('8.3.5 Output',o.rnd.output)+kv('8.3.6 Engineering Change (4M)',o.rnd.change)
+      +'<h2>8.4 PC จัดซื้อ</h2>'+kv('8.4.1 ทั่วไป',o.pc.general)+kv('8.4.2 Outsource',o.pc.outsource)+kv('8.4.3 ข้อมูลผู้ขาย',o.pc.info)
       +'<table><thead><tr><th style="width:36%">ผู้ขาย</th><th>ขอบเขต</th><th style="width:14%">เกรด</th></tr></thead><tbody>'+o.supList.map(function(r){return '<tr><td>'+e2(r.name)+'</td><td>'+e2(r.scope)+'</td><td>'+e2(r.rating)+'</td></tr>';}).join('')+'</tbody></table>'
-      +'<h2>8.5 การผลิตและบริการ</h2>'+kv('8.5.1 ควบคุมการผลิต',o.prod.control)+kv('8.5.2 สอบกลับ',o.prod.trace)+kv('8.5.3 ทรัพย์สินลูกค้า',o.prod.custProp)+kv('8.5.4 ถนอมรักษา',o.prod.preserve)+kv('8.5.5 หลังส่งมอบ',o.prod.postdel)+kv('8.5.6 เปลี่ยนแปลง',o.prod.change)
-      +'<h2>8.6 ปล่อยผลิตภัณฑ์ · 8.7 ควบคุมของเสีย</h2>'+kv('8.6',o.release)+kv('8.7',o.ncout);
+      +'<h2>8.5 PD ผลิต</h2>'+kv('8.5 ควบคุมการผลิต',o.pd.control)+kv('8.5.1.3 Job Set Up',o.pd.setup)+kv('8.5.1.5 Overhaul',o.pd.overhaul)+kv('8.5.2 บ่งชี้/สอบกลับ',o.pd.trace)
+      +'<h2>8.5.4 ST สโตร์</h2>'+kv('8.5.4 การถนอมรักษา',o.st.preserve)
+      +'<h2>8.6 QC คุณภาพ</h2>'+kv('8.6 การตรวจปล่อย',o.qc.release)+kv('7.1.5 เครื่องมือตรวจวัด',o.qc.instrument)
+      +'<h2>8.7 NC ผลิตภัณฑ์ไม่เป็นไปตามข้อกำหนด</h2>'+kv('8.7 การจัดการ NC',o.ncq.manage)+kv('MoM / M&E',o.ncq.mom)
+      +'<h2>8.8 ACC บัญชี</h2>'+kv('8.8 บัญชีและการเงิน',o.acc.general);
   } else if(which==='performance'){ensurePerformance();var q=DB.performance;rev=q.rev;title='การประเมินสมรรถนะ (Performance Evaluation) — ข้อ 9';
     secs='<h2>9.1 เฝ้าติดตาม/วัด/วิเคราะห์</h2>'+kv('9.1.1 ทั่วไป',q.mon.general)+kv('9.1.2 ความพึงพอใจลูกค้า',q.mon.custSat)+kv('9.1.3 วิเคราะห์',q.mon.analysis)
       +'<h2>9.2 การตรวจติดตามภายใน</h2>'+kv('แนวทาง',q.audit.general)+kv('โปรแกรม',q.audit.program)
