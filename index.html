@@ -275,7 +275,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='LEADER-2026.07.10n (เพิ่มโมดูล 5 TOP MANAGEMENT: 5.1 ผู้นำ&ความมุ่งมั่น · 5.2 นโยบาย · 5.3 บทบาทหน้าที่ + พิมพ์เอกสาร ISO)';
+const APP_BUILD='PLANNING-2026.07.10o (เพิ่มโมดูล 6 PLANNING: 6.1 ความเสี่ยง&โอกาส(Risk/Contingency) · 6.2 KPI 11 ตัว · 6.3 ควบคุมการเปลี่ยนแปลง + พิมพ์เอกสาร ISO)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -632,12 +632,13 @@ const NAV=[
   {g:'ISO 9001 / IATF 16949'},
   {id:'context',ico:'📘',label:'4 CONTEXT'},
   {id:'topmgmt',ico:'👔',label:'5 TOP MANAGEMENT'},
+  {id:'planning',ico:'🗺️',label:'6 PLANNING'},
   {g:'อื่นๆ'},
   {id:'settings',ico:'⚙️',label:'ตั้งค่า'},
 ];
 let route='dashboard';
 function pendingCount(){return DB.docs.filter(d=>d.status==='pending').length}
-const ABBR={dashboard:'HOME',monitor:'KPI',inventory:'STOCK',approvals:'APPR',po:'PO',ip:'IMPORT',sp:'SPECIAL',gr:'RECV',recvip:'RECV-IMP',recvsp:'RECV-SP',sup:'SUPPLY',prd:'PROD',wd:'ISSUE',ws:'SUP-ISS',dp:'DAILY',rw:'RECV-W',plate:'PLATE',qc:'QC',qcip:'QC-IMP',qcsp:'QC-SP',qcsemi:'QC-SEMI',si:'STK-IN',stkip:'STK-IMP',stksp:'STK-SP',stksemi:'STK-SEMI',rmc:'CUST-MAT',inv:'INV',iv2:'INV-SP',adj:'ADJ',moves:'MOVE',report:'REPORT',tax:'VAT-IN',taxsale:'VAT-OUT',wht:'WHT',nc:'NC',context:'CONTEXT',topmgmt:'LEADER',demand:'PLAN',mrp:'MRP',settings:'SET'};
+const ABBR={dashboard:'HOME',monitor:'KPI',inventory:'STOCK',approvals:'APPR',po:'PO',ip:'IMPORT',sp:'SPECIAL',gr:'RECV',recvip:'RECV-IMP',recvsp:'RECV-SP',sup:'SUPPLY',prd:'PROD',wd:'ISSUE',ws:'SUP-ISS',dp:'DAILY',rw:'RECV-W',plate:'PLATE',qc:'QC',qcip:'QC-IMP',qcsp:'QC-SP',qcsemi:'QC-SEMI',si:'STK-IN',stkip:'STK-IMP',stksp:'STK-SP',stksemi:'STK-SEMI',rmc:'CUST-MAT',inv:'INV',iv2:'INV-SP',adj:'ADJ',moves:'MOVE',report:'REPORT',tax:'VAT-IN',taxsale:'VAT-OUT',wht:'WHT',nc:'NC',context:'CONTEXT',topmgmt:'LEADER',planning:'PLANNING',demand:'PLAN',mrp:'MRP',settings:'SET'};
 function curLang(){try{return localStorage.getItem('rtk_lang')||'th'}catch(e){return 'th'}}
 var LANGS=[['th','TH ไทย'],['en','US English'],['cn','CN 中文'],['km','KH ខ្មែរ'],['lo','LA ລາວ'],['my','MM မြန်មာ']];
 var LANGT={
@@ -701,7 +702,7 @@ function render(){
   const map={dashboard:viewDashboard,inventory:viewInventory,track:viewJobTrack,approvals:viewApprovals,monitor:viewMonitor,
     po:()=>viewDocs('PO'),ip:()=>viewDocs('IP'),sp:()=>viewDocs('SP'),gr:()=>viewDocs('GR'),prd:()=>viewDocs('PRD'),wd:()=>viewDocs('WD'),
     dp:()=>viewDocs('DP'),rw:()=>viewDocs('RW'),plate:()=>viewDocs('PL'),qc:()=>viewDocs('QC'),si:()=>viewDocs('SI'),rmc:viewRMC,fgi:viewFGI,sup:viewSUP,ws:viewWS,recvip:()=>viewRcv('GI'),recvsp:()=>viewRcv('GS'),qcip:()=>viewQck('QI'),qcsp:()=>viewQck('QS'),qcsemi:()=>viewQck('QSE'),stkip:()=>viewStk('SII'),stksp:()=>viewStk('SIS'),stksemi:()=>viewStk('SSE'),
-    inv:()=>viewDocs('INV'),iv2:()=>viewDocs('IV2'),adj:()=>viewDocs('ADJ'),moves:viewMoves,report:viewReport,tax:viewTax,taxsale:viewTaxSale,wht:viewWHT,nc:viewNC,context:viewContext,topmgmt:viewTopMgmt,settings:viewSettings,
+    inv:()=>viewDocs('INV'),iv2:()=>viewDocs('IV2'),adj:()=>viewDocs('ADJ'),moves:viewMoves,report:viewReport,tax:viewTax,taxsale:viewTaxSale,wht:viewWHT,nc:viewNC,context:viewContext,topmgmt:viewTopMgmt,planning:viewPlanning,settings:viewSettings,
     demand:viewDemand,mrp:viewMRP};
   (map[route]||viewDashboard)(el);
   setBuild();
@@ -6798,6 +6799,116 @@ function printTopMgmt(){
     +'<h2>5.3 บทบาท ความรับผิดชอบ และอำนาจหน้าที่</h2><table><thead><tr><th style="width:26%">ตำแหน่ง/บทบาท</th><th style="width:40%">ความรับผิดชอบ</th><th style="width:34%">อำนาจหน้าที่</th></tr></thead><tbody>'+roleRows+'</tbody></table>'
     +'<div class="box" style="margin-top:6px"><h3>5.3.1 ตัวแทนฝ่ายบริหาร (QMR)</h3>'+e2(t.qmr)+'<h3>5.3.2 ผู้มีอำนาจสั่งหยุดไลน์การผลิต</h3>'+e2(t.stopline)+'</div>'
     +'<div style="display:flex;justify-content:space-between;margin-top:36px;font-size:11px"><div style="width:30%;text-align:center">___________________<br>จัดทำ</div><div style="width:30%;text-align:center">___________________<br>ทบทวน</div><div style="width:30%;text-align:center">___________________<br>อนุมัติ</div></div>'
+    +'<div class="noprint"><button onclick="window.print()" style="padding:8px 22px;cursor:pointer">🖨️ พิมพ์ / PDF</button></div>'
+    +'<scr'+'ipt>setTimeout(function(){window.print()},400)</scr'+'ipt></body></html>';
+  var w=window.open('','_blank');if(!w){toast('เบราว์เซอร์บล็อก popup','err');return}w.document.write(html);w.document.close();
+}
+/* ===== 6 PLANNING — การวางแผน (ISO 9001 / IATF 16949 ข้อ 6) ===== */
+function ensurePlanning(){
+  if(!DB.planning)DB.planning={};
+  var p=DB.planning;
+  if(p.risk61==null)p.risk61='เมื่อวางแผนระบบคุณภาพ บริษัทพิจารณาประเด็นภายใน/ภายนอก (ข้อ 4.1) และความต้องการของผู้มีส่วนได้ส่วนเสีย (ข้อ 4.2) แล้วประเมินความเสี่ยงและโอกาส 5 ด้าน: ด้านคุณภาพ · ด้านราคา/ต้นทุน · ด้านการส่งมอบ · ผู้มีส่วนได้ส่วนเสีย · ปัจจัยอื่นๆ — ทบทวนปีละครั้ง (เอกสาร: การประเมินความเสี่ยงและแผนดำเนินการ 7-1-YYYY)';
+  if(!p.riskReg||!p.riskReg.length)p.riskReg=[
+    {area:'ด้านคุณภาพ',risk:'งานเคลม/ของเสียเกินเป้า ลูกค้าไม่พอใจ',act:'ควบคุม QC เข้ม · ทบทวน FMEA/Control Plan · CAPA',owner:'QA'},
+    {area:'ด้านการส่งมอบ',risk:'ส่งมอบไม่ทันกำหนด',act:'วางแผนผลิต · ติดตามผู้ผลิต · สต๊อกกันชน',owner:'วางแผน'},
+    {area:'ด้านราคา/ต้นทุน',risk:'วัตถุดิบราคาผันผวน/ต้นทุนสูง',act:'เจรจา · หาแหล่งวัตถุดิบสำรอง · ควบคุมของเสีย',owner:'จัดซื้อ'},
+    {area:'ผู้มีส่วนได้ส่วนเสีย',risk:'ข้อกำหนดลูกค้า/กฎหมายเปลี่ยน',act:'ติดตามข้อกำหนด · อัปเดตระบบ',owner:'QMR'},
+    {area:'Product recall (IATF)',risk:'ต้องเรียกคืนสินค้า',act:'Traceability · กักกัน · แจ้งลูกค้า',owner:'QA'},
+    {area:'Complaint (IATF)',risk:'ข้อร้องเรียนจากลูกค้า',act:'8D / CAPA · วิเคราะห์สาเหตุ',owner:'QA'},
+    {area:'Product Audit (IATF)',risk:'ตรวจสอบผลิตภัณฑ์ไม่ผ่าน',act:'Product Audit ตามแผน',owner:'QA'},
+    {area:'Scrap / Repair / Rework (IATF)',risk:'ของเสีย/ซ่อม/ทำซ้ำสูง',act:'ลด defect ในกระบวนการ · วิเคราะห์แนวโน้ม',owner:'ผลิต'}
+  ];
+  if(p.preventive==null)p.preventive='นำผลการประเมินความเสี่ยงและบทเรียนจากงานเคลม/ของเสีย มากำหนดมาตรการป้องกัน (Preventive Action) เชิงรุก เช่น ทบทวน FMEA, Poka-Yoke, บำรุงรักษาเชิงป้องกัน (PM), อบรมพนักงาน (IATF 6.1.2.2)';
+  if(!p.contingency||!p.contingency.length)p.contingency=[
+    {sc:'1. เครื่องจักรเสีย',plan:'เครื่องสำรอง/แผนซ่อมเร่งด่วน · จ้างผลิตภายนอก · PM ตามแผน',owner:'ผลิต/ซ่อมบำรุง'},
+    {sc:'2. ไฟไหม้',plan:'ระบบดับเพลิง · แผนอพยพ · ประกันภัย · สำรองข้อมูล',owner:'ความปลอดภัย'},
+    {sc:'3. โครงสร้างพื้นฐานเสียหาย',plan:'ซ่อมด่วน · พื้นที่/เครื่องมือสำรอง',owner:'ธุรการ/ซ่อมบำรุง'},
+    {sc:'4. โจมตีทางไซเบอร์',plan:'สำรองข้อมูลสม่ำเสมอ · Antivirus/Firewall · แผนกู้ระบบ',owner:'IT'},
+    {sc:'5. ระบบสาธารณูปโภคขัดข้อง (ไฟ/น้ำ)',plan:'เครื่องปั่นไฟสำรอง · ถังน้ำสำรอง',owner:'ซ่อมบำรุง'},
+    {sc:'6. Supplier ขาดวัตถุดิบ/ชิ้นส่วน',plan:'ผู้ขายสำรอง (2nd source) · สต๊อกกันชน',owner:'จัดซื้อ'},
+    {sc:'7. พนักงานขาด/ขาดแคลนแรงงาน',plan:'Multi-skill · OT · แรงงานสำรอง/Outsource',owner:'HR'}
+  ];
+  if(!p.obj||!p.obj.length)p.obj=[
+    {kpi:'1. เพิ่มยอดขายจากปีก่อน',target:'≥ 2%',plan:'ขยายฐานลูกค้า/เพิ่มงาน',owner:'ฝ่ายขาย'},
+    {kpi:'2. ความพึงพอใจของลูกค้า',target:'≥ 85%',plan:'สำรวจ · ปรับปรุงบริการ',owner:'QA/ขาย'},
+    {kpi:'3. ส่งมอบตรงเวลา (ลูกค้า)',target:'≥ 95%',plan:'วางแผนผลิต · ติดตามงาน',owner:'วางแผน'},
+    {kpi:'4. งานเคลมจากลูกค้า',target:'≤ 15 PPM',plan:'QC เข้ม · CAPA',owner:'QA'},
+    {kpi:'5. ผู้ผลิตส่งมอบตรงเวลา',target:'≥ 95%',plan:'ประเมิน/ติดตามผู้ผลิต',owner:'จัดซื้อ'},
+    {kpi:'6. งานเคลมผู้ผลิต',target:'≤ 5%',plan:'ตรวจรับเข้ม · แจ้งแก้ไข',owner:'QA/จัดซื้อ'},
+    {kpi:'7. ของเสียในกระบวนการผลิต',target:'≤ 5%',plan:'ควบคุมกระบวนการ · SPC',owner:'ผลิต'},
+    {kpi:'8. วัตถุดิบส่งมอบตรงเวลา',target:'≥ 95%',plan:'วางแผนจัดซื้อล่วงหน้า',owner:'จัดซื้อ'},
+    {kpi:'9. ประเมินสมรรถนะพนักงาน',target:'≥ 2%',plan:'อบรม · Multi-skill',owner:'HR'},
+    {kpi:'10. ลดของเสียงาน REWORK',target:'≥ 90%',plan:'วิเคราะห์สาเหตุ · ปรับปรุง',owner:'ผลิต/QA'},
+    {kpi:'11. ลดอัตราเครื่องจักรเสีย',target:'≤ 2%',plan:'บำรุงรักษาเชิงป้องกัน (PM)',owner:'ซ่อมบำรุง'}
+  ];
+  if(p.custAlign==null)p.custAlign='วัตถุประสงค์คุณภาพ (KPI) กำหนดให้สอดคล้องกับข้อกำหนด/เป้าหมายของลูกค้า เช่น เป้า PPM และ % ส่งมอบตรงเวลาที่ลูกค้ากำหนด · ทบทวนในการประชุมทบทวนฝ่ายบริหาร (Management Review) และประกาศให้ทุกฝ่ายทราบ (IATF 6.2.2.1)';
+  if(p.change==null)p.change='การเปลี่ยนแปลงระบบคุณภาพ (เพิ่ม/ย้ายเครื่องจักร · เปลี่ยนกระบวนการ · เปลี่ยนวัตถุดิบ/ผู้ผลิต · แก้ไขเอกสาร) ต้องวางแผนล่วงหน้า โดยพิจารณา: วัตถุประสงค์และผลกระทบ · ความสมบูรณ์ของระบบ · ทรัพยากร · ผู้รับผิดชอบและอำนาจ · แจ้งลูกค้าหากกระทบผลิตภัณฑ์ (IATF/CSR) และบันทึกการเปลี่ยนแปลง';
+  if(!p.changelog)p.changelog=[{date:'',item:'',impact:'',by:''}];
+  if(p.rev==null)p.rev='01';
+}
+function plnTab(x){window.__plnTab=x;render();}
+function plnSet(k,v){ensurePlanning();DB.planning[k]=v;saveDB();}
+function plnArrSet(arr,i,f,v){ensurePlanning();if(DB.planning[arr][i]){DB.planning[arr][i][f]=v;saveDB();}}
+function plnArrAdd(arr,obj){ensurePlanning();DB.planning[arr].push(obj);saveDB();render();}
+function plnArrDel(arr,i){ensurePlanning();DB.planning[arr].splice(i,1);saveDB();render();}
+function viewPlanning(el){
+  ensureSettings();ensurePlanning();
+  var p=DB.planning;var tab=window.__plnTab||'61';
+  setTitle('🗺️ 6 การวางแผน (Planning)','ISO 9001 / IATF 16949 ข้อ 6 · ความเสี่ยง&โอกาส · วัตถุประสงค์คุณภาพ · ควบคุมการเปลี่ยนแปลง');
+  var tb=function(id,lbl){return '<button class="btn sm'+(tab===id?' pri':'')+'" onclick="plnTab(\''+id+'\')">'+lbl+'</button>';};
+  var ref=function(x){return '<div class="hint" style="margin-bottom:10px"><span class="i">📘</span><div>'+x+'</div></div>';};
+  var ta=function(lbl,val,fn,rows){return '<div class="field"><label style="font-weight:700;font-size:13.5px">'+lbl+'</label><textarea onchange="'+fn+'" rows="'+(rows||3)+'" style="width:100%;padding:8px;resize:vertical;border:1px solid var(--line);border-radius:8px">'+esc(val||'')+'</textarea></div>';};
+  var body='';
+  if(tab==='61'){
+    var rr=p.riskReg.map(function(r,i){var f=function(k){return '<td><input value="'+esc(r[k]||'')+'" onchange="plnArrSet(\'riskReg\','+i+',\''+k+'\',this.value)" style="width:100%;padding:5px"></td>';};return '<tr>'+f('area')+f('risk')+f('act')+f('owner')+'<td><div class="rm-x" onclick="plnArrDel(\'riskReg\','+i+')">✕</div></td></tr>';}).join('');
+    var cc=p.contingency.map(function(r,i){var f=function(k){return '<td><input value="'+esc(r[k]||'')+'" onchange="plnArrSet(\'contingency\','+i+',\''+k+'\',this.value)" style="width:100%;padding:5px"></td>';};return '<tr>'+f('sc')+f('plan')+f('owner')+'<td><div class="rm-x" onclick="plnArrDel(\'contingency\','+i+')">✕</div></td></tr>';}).join('');
+    body=ref('<b>ข้อ 6.1 การดำเนินการเพื่อจัดการความเสี่ยงและโอกาส:</b> พิจารณาประเด็น (4.1) และผู้มีส่วนได้ส่วนเสีย (4.2) เพื่อกำหนดความเสี่ยง/โอกาส · วางแผนจัดการและประเมินประสิทธิผล')
+      +ta('6.1.1–6.1.2 ภาพรวมการประเมินและวางแผนจัดการความเสี่ยง',p.risk61,"plnSet('risk61',this.value)",3)
+      +'<div style="font-weight:700;margin:6px 0 2px">6.1.2.1 ทะเบียนความเสี่ยง (Risk Register) — IATF บังคับให้รวมความเสี่ยงจาก: Product recall, Complaint, Product Audit, Scrap, Repair, Rework</div>'
+      +'<div class="tbl-wrap"><table style="font-size:12px"><thead><tr><th style="width:20%">ด้าน/ที่มา</th><th style="width:30%">ความเสี่ยง</th><th style="width:40%">มาตรการจัดการ</th><th>ผู้รับผิดชอบ</th><th></th></tr></thead><tbody>'+rr+'</tbody></table></div><button class="btn sm" style="margin:8px 0" onclick="plnArrAdd(\'riskReg\',{area:\'\',risk:\'\',act:\'\',owner:\'\'})">+ เพิ่มความเสี่ยง</button>'
+      +ta('6.1.2.2 การป้องกัน (Preventive Action) — IATF',p.preventive,"plnSet('preventive',this.value)",3)
+      +'<div style="font-weight:700;margin:6px 0 2px">6.1.2.3 แผนฉุกเฉิน (Contingency Plan) — IATF</div>'
+      +'<div class="tbl-wrap"><table style="font-size:12px"><thead><tr><th style="width:26%">สถานการณ์</th><th style="width:52%">แผนรองรับ</th><th>ผู้รับผิดชอบ</th><th></th></tr></thead><tbody>'+cc+'</tbody></table></div><button class="btn sm" style="margin-top:8px" onclick="plnArrAdd(\'contingency\',{sc:\'\',plan:\'\',owner:\'\'})">+ เพิ่มสถานการณ์</button>';
+  } else if(tab==='62'){
+    var ob=p.obj.map(function(r,i){var f=function(k,w){return '<td'+(w?' style="width:'+w+'"':'')+'><input value="'+esc(r[k]||'')+'" onchange="plnArrSet(\'obj\','+i+',\''+k+'\',this.value)" style="width:100%;padding:5px"></td>';};return '<tr>'+f('kpi','30%')+f('target','13%')+f('plan','34%')+f('owner','')+'<td><div class="rm-x" onclick="plnArrDel(\'obj\','+i+')">✕</div></td></tr>';}).join('');
+    body=ref('<b>ข้อ 6.2 วัตถุประสงค์คุณภาพและการวางแผนให้บรรลุ:</b> กำหนดวัตถุประสงค์ (KPI) ที่<b>วัดผลได้</b> สอดคล้องกับนโยบาย · ติดตามผล · สื่อสาร · ทบทวนและปรับปรุง')
+      +'<div style="font-weight:700;margin:4px 0 2px">6.2.1 ตัวชี้วัดประสิทธิภาพหลัก (KPI) + 6.2.2 แผนการดำเนินการ</div>'
+      +'<div class="tbl-wrap"><table style="font-size:12px"><thead><tr><th>ตัวชี้วัด (KPI)</th><th>เป้าหมาย</th><th>แผนการดำเนินการ</th><th>ผู้รับผิดชอบ</th><th></th></tr></thead><tbody>'+ob+'</tbody></table></div><button class="btn sm" style="margin:8px 0" onclick="plnArrAdd(\'obj\',{kpi:\'\',target:\'\',plan:\'\',owner:\'\'})">+ เพิ่มตัวชี้วัด</button>'
+      +ta('6.2.2.1 ความสอดคล้องกับข้อกำหนดลูกค้า (IATF)',p.custAlign,"plnSet('custAlign',this.value)",3);
+  } else {
+    var lg=p.changelog.map(function(r,i){var f=function(k,t){return '<td><input '+(t==='date'?'type="date" ':'')+'value="'+esc(r[k]||'')+'" onchange="plnArrSet(\'changelog\','+i+',\''+k+'\',this.value)" style="width:100%;padding:5px"></td>';};return '<tr>'+f('date','date')+f('item')+f('impact')+f('by')+'<td><div class="rm-x" onclick="plnArrDel(\'changelog\','+i+')">✕</div></td></tr>';}).join('');
+    body=ref('<b>ข้อ 6.3 การวางแผนการเปลี่ยนแปลง:</b> เมื่อจำเป็นต้องเปลี่ยนแปลงระบบคุณภาพ ต้องดำเนินการอย่าง<b>มีแผน</b> โดยพิจารณา วัตถุประสงค์/ผลกระทบ · ความสมบูรณ์ของระบบ · ทรัพยากร · ความรับผิดชอบและอำนาจ')
+      +ta('แนวทางควบคุมการเปลี่ยนแปลง (Change Control)',p.change,"plnSet('change',this.value)",4)
+      +'<div style="font-weight:700;margin:6px 0 2px">บันทึกการเปลี่ยนแปลง (Change Log)</div>'
+      +'<div class="tbl-wrap"><table style="font-size:12px"><thead><tr><th style="width:15%">วันที่</th><th style="width:38%">รายการเปลี่ยนแปลง</th><th style="width:32%">ผลกระทบ/การจัดการ</th><th>ผู้อนุมัติ</th><th></th></tr></thead><tbody>'+lg+'</tbody></table></div><button class="btn sm" style="margin-top:8px" onclick="plnArrAdd(\'changelog\',{date:\'\',item:\'\',impact:\'\',by:\'\'})">+ เพิ่มบันทึก</button>';
+  }
+  el.innerHTML='<div class="panel"><div class="panel-h" style="flex-wrap:wrap;gap:8px"><h2>🗺️ การวางแผน — ISO 9001 / IATF 16949 (ข้อ 6)</h2><div class="right" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><span class="desc">Rev. <input value="'+esc(p.rev||'')+'" onchange="plnSet(\'rev\',this.value)" style="width:44px;text-align:center;padding:2px 4px"></span><button class="btn sm" onclick="printPlanning()">🖨️ พิมพ์เอกสาร</button></div></div>'
+    +'<div class="panel-b"><div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">'+tb('61','6.1 ความเสี่ยง & โอกาส')+tb('62','6.2 วัตถุประสงค์คุณภาพ (KPI)')+tb('63','6.3 ควบคุมการเปลี่ยนแปลง')+'</div>'+body+'</div></div>';
+}
+function printPlanning(){
+  ensurePlanning();ensureSettings();var p=DB.planning;var co=DB.settings.company||{};
+  var e2=function(s){return esc(String(s==null?'':s)).replace(/\n/g,'<br>');};
+  var rrRows=p.riskReg.map(function(r){return '<tr><td>'+e2(r.area)+'</td><td>'+e2(r.risk)+'</td><td>'+e2(r.act)+'</td><td>'+e2(r.owner)+'</td></tr>';}).join('');
+  var ccRows=p.contingency.map(function(r){return '<tr><td>'+e2(r.sc)+'</td><td>'+e2(r.plan)+'</td><td>'+e2(r.owner)+'</td></tr>';}).join('');
+  var obRows=p.obj.map(function(r){return '<tr><td>'+e2(r.kpi)+'</td><td>'+e2(r.target)+'</td><td>'+e2(r.plan)+'</td><td>'+e2(r.owner)+'</td></tr>';}).join('');
+  var lgRows=p.changelog.map(function(r){return '<tr><td>'+e2(r.date)+'</td><td>'+e2(r.item)+'</td><td>'+e2(r.impact)+'</td><td>'+e2(r.by)+'</td></tr>';}).join('');
+  var html='<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"><title>6 PLANNING</title><style>'
+    +"@page{size:A4;margin:12mm}*{font-family:'Tahoma',sans-serif;box-sizing:border-box}body{margin:0;font-size:11.5px;color:#111}"
+    +"h1{font-size:16px;text-align:center;margin:0 0 2px}.sub{text-align:center;font-size:11px;color:#555;margin-bottom:10px}"
+    +"h2{font-size:13px;background:#eef;border-left:4px solid #3b3fae;padding:4px 8px;margin:14px 0 6px}h3{font-size:12px;margin:8px 0 2px}"
+    +"table{width:100%;border-collapse:collapse;font-size:10.5px;margin-top:4px}th,td{border:1px solid #666;padding:4px 6px;text-align:left;vertical-align:top}th{background:#f1f1f7}"
+    +".box{border:1px solid #666;padding:8px}.noprint{text-align:center;margin:14px 0}@media print{.noprint{display:none}}</style></head><body>"
+    +'<h1>'+esc(co.thName||co.name||'RTK')+' — การวางแผน (Planning)</h1>'
+    +'<div class="sub">ISO 9001 / IATF 16949 · ข้อ 6 · Rev. '+esc(p.rev||'')+' · พิมพ์ '+esc(todayISO())+'</div>'
+    +'<h2>6.1 ความเสี่ยงและโอกาส</h2><div class="box">'+e2(p.risk61)+'</div>'
+    +'<h3>6.1.2.1 ทะเบียนความเสี่ยง (Risk Register)</h3><table><thead><tr><th style="width:20%">ด้าน/ที่มา</th><th style="width:28%">ความเสี่ยง</th><th style="width:38%">มาตรการจัดการ</th><th>ผู้รับผิดชอบ</th></tr></thead><tbody>'+rrRows+'</tbody></table>'
+    +'<h3>6.1.2.2 การป้องกัน (Preventive Action)</h3><div class="box">'+e2(p.preventive)+'</div>'
+    +'<h3>6.1.2.3 แผนฉุกเฉิน (Contingency Plan)</h3><table><thead><tr><th style="width:26%">สถานการณ์</th><th style="width:52%">แผนรองรับ</th><th>ผู้รับผิดชอบ</th></tr></thead><tbody>'+ccRows+'</tbody></table>'
+    +'<h2>6.2 วัตถุประสงค์คุณภาพ (KPI)</h2><table><thead><tr><th style="width:30%">ตัวชี้วัด (KPI)</th><th style="width:13%">เป้าหมาย</th><th style="width:37%">แผนการดำเนินการ</th><th>ผู้รับผิดชอบ</th></tr></thead><tbody>'+obRows+'</tbody></table>'
+    +'<div class="box" style="margin-top:6px"><b>6.2.2.1 ความสอดคล้องกับลูกค้า:</b> '+e2(p.custAlign)+'</div>'
+    +'<h2>6.3 การควบคุมการเปลี่ยนแปลง</h2><div class="box">'+e2(p.change)+'</div>'
+    +'<table style="margin-top:6px"><thead><tr><th style="width:15%">วันที่</th><th style="width:38%">รายการเปลี่ยนแปลง</th><th style="width:32%">ผลกระทบ/การจัดการ</th><th>ผู้อนุมัติ</th></tr></thead><tbody>'+lgRows+'</tbody></table>'
+    +'<div style="display:flex;justify-content:space-between;margin-top:30px;font-size:11px"><div style="width:30%;text-align:center">___________________<br>จัดทำ</div><div style="width:30%;text-align:center">___________________<br>ทบทวน</div><div style="width:30%;text-align:center">___________________<br>อนุมัติ</div></div>'
     +'<div class="noprint"><button onclick="window.print()" style="padding:8px 22px;cursor:pointer">🖨️ พิมพ์ / PDF</button></div>'
     +'<scr'+'ipt>setTimeout(function(){window.print()},400)</scr'+'ipt></body></html>';
   var w=window.open('','_blank');if(!w){toast('เบราว์เซอร์บล็อก popup','err');return}w.document.write(html);w.document.close();
