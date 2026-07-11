@@ -275,7 +275,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='PLANNING-2026.07.10o (เพิ่มโมดูล 6 PLANNING: 6.1 ความเสี่ยง&โอกาส(Risk/Contingency) · 6.2 KPI 11 ตัว · 6.3 ควบคุมการเปลี่ยนแปลง + พิมพ์เอกสาร ISO)';
+const APP_BUILD='SUPPORT-2026.07.10p (เพิ่มโมดูล 7 SUPPORT: 7.1 ทรัพยากร · 7.2 ความสามารถ · 7.3 ความตระหนัก · 7.4 การสื่อสาร · 7.5 เอกสารข้อมูล+FM-DCC)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -633,12 +633,13 @@ const NAV=[
   {id:'context',ico:'📘',label:'4 CONTEXT'},
   {id:'topmgmt',ico:'👔',label:'5 TOP MANAGEMENT'},
   {id:'planning',ico:'🗺️',label:'6 PLANNING'},
+  {id:'support',ico:'🛠️',label:'7 SUPPORT'},
   {g:'อื่นๆ'},
   {id:'settings',ico:'⚙️',label:'ตั้งค่า'},
 ];
 let route='dashboard';
 function pendingCount(){return DB.docs.filter(d=>d.status==='pending').length}
-const ABBR={dashboard:'HOME',monitor:'KPI',inventory:'STOCK',approvals:'APPR',po:'PO',ip:'IMPORT',sp:'SPECIAL',gr:'RECV',recvip:'RECV-IMP',recvsp:'RECV-SP',sup:'SUPPLY',prd:'PROD',wd:'ISSUE',ws:'SUP-ISS',dp:'DAILY',rw:'RECV-W',plate:'PLATE',qc:'QC',qcip:'QC-IMP',qcsp:'QC-SP',qcsemi:'QC-SEMI',si:'STK-IN',stkip:'STK-IMP',stksp:'STK-SP',stksemi:'STK-SEMI',rmc:'CUST-MAT',inv:'INV',iv2:'INV-SP',adj:'ADJ',moves:'MOVE',report:'REPORT',tax:'VAT-IN',taxsale:'VAT-OUT',wht:'WHT',nc:'NC',context:'CONTEXT',topmgmt:'LEADER',planning:'PLANNING',demand:'PLAN',mrp:'MRP',settings:'SET'};
+const ABBR={dashboard:'HOME',monitor:'KPI',inventory:'STOCK',approvals:'APPR',po:'PO',ip:'IMPORT',sp:'SPECIAL',gr:'RECV',recvip:'RECV-IMP',recvsp:'RECV-SP',sup:'SUPPLY',prd:'PROD',wd:'ISSUE',ws:'SUP-ISS',dp:'DAILY',rw:'RECV-W',plate:'PLATE',qc:'QC',qcip:'QC-IMP',qcsp:'QC-SP',qcsemi:'QC-SEMI',si:'STK-IN',stkip:'STK-IMP',stksp:'STK-SP',stksemi:'STK-SEMI',rmc:'CUST-MAT',inv:'INV',iv2:'INV-SP',adj:'ADJ',moves:'MOVE',report:'REPORT',tax:'VAT-IN',taxsale:'VAT-OUT',wht:'WHT',nc:'NC',context:'CONTEXT',topmgmt:'LEADER',planning:'PLANNING',support:'SUPPORT',demand:'PLAN',mrp:'MRP',settings:'SET'};
 function curLang(){try{return localStorage.getItem('rtk_lang')||'th'}catch(e){return 'th'}}
 var LANGS=[['th','TH ไทย'],['en','US English'],['cn','CN 中文'],['km','KH ខ្មែរ'],['lo','LA ລາວ'],['my','MM မြန်មာ']];
 var LANGT={
@@ -702,7 +703,7 @@ function render(){
   const map={dashboard:viewDashboard,inventory:viewInventory,track:viewJobTrack,approvals:viewApprovals,monitor:viewMonitor,
     po:()=>viewDocs('PO'),ip:()=>viewDocs('IP'),sp:()=>viewDocs('SP'),gr:()=>viewDocs('GR'),prd:()=>viewDocs('PRD'),wd:()=>viewDocs('WD'),
     dp:()=>viewDocs('DP'),rw:()=>viewDocs('RW'),plate:()=>viewDocs('PL'),qc:()=>viewDocs('QC'),si:()=>viewDocs('SI'),rmc:viewRMC,fgi:viewFGI,sup:viewSUP,ws:viewWS,recvip:()=>viewRcv('GI'),recvsp:()=>viewRcv('GS'),qcip:()=>viewQck('QI'),qcsp:()=>viewQck('QS'),qcsemi:()=>viewQck('QSE'),stkip:()=>viewStk('SII'),stksp:()=>viewStk('SIS'),stksemi:()=>viewStk('SSE'),
-    inv:()=>viewDocs('INV'),iv2:()=>viewDocs('IV2'),adj:()=>viewDocs('ADJ'),moves:viewMoves,report:viewReport,tax:viewTax,taxsale:viewTaxSale,wht:viewWHT,nc:viewNC,context:viewContext,topmgmt:viewTopMgmt,planning:viewPlanning,settings:viewSettings,
+    inv:()=>viewDocs('INV'),iv2:()=>viewDocs('IV2'),adj:()=>viewDocs('ADJ'),moves:viewMoves,report:viewReport,tax:viewTax,taxsale:viewTaxSale,wht:viewWHT,nc:viewNC,context:viewContext,topmgmt:viewTopMgmt,planning:viewPlanning,support:viewSupport,settings:viewSettings,
     demand:viewDemand,mrp:viewMRP};
   (map[route]||viewDashboard)(el);
   setBuild();
@@ -6909,6 +6910,132 @@ function printPlanning(){
     +'<h2>6.3 การควบคุมการเปลี่ยนแปลง</h2><div class="box">'+e2(p.change)+'</div>'
     +'<table style="margin-top:6px"><thead><tr><th style="width:15%">วันที่</th><th style="width:38%">รายการเปลี่ยนแปลง</th><th style="width:32%">ผลกระทบ/การจัดการ</th><th>ผู้อนุมัติ</th></tr></thead><tbody>'+lgRows+'</tbody></table>'
     +'<div style="display:flex;justify-content:space-between;margin-top:30px;font-size:11px"><div style="width:30%;text-align:center">___________________<br>จัดทำ</div><div style="width:30%;text-align:center">___________________<br>ทบทวน</div><div style="width:30%;text-align:center">___________________<br>อนุมัติ</div></div>'
+    +'<div class="noprint"><button onclick="window.print()" style="padding:8px 22px;cursor:pointer">🖨️ พิมพ์ / PDF</button></div>'
+    +'<scr'+'ipt>setTimeout(function(){window.print()},400)</scr'+'ipt></body></html>';
+  var w=window.open('','_blank');if(!w){toast('เบราว์เซอร์บล็อก popup','err');return}w.document.write(html);w.document.close();
+}
+/* ===== 7 SUPPORT — การสนับสนุน (ISO 9001 / IATF 16949 ข้อ 7) ===== */
+function ensureSupport(){
+  if(!DB.support)DB.support={};
+  var s=DB.support;
+  if(!s.res)s.res={
+    general:'บริษัทกำหนดและจัดหาทรัพยากรที่จำเป็นสำหรับการจัดทำ นำไปใช้ รักษา และปรับปรุงระบบคุณภาพ (บุคลากร · โครงสร้างพื้นฐาน · สภาพแวดล้อม · เครื่องมือวัด · ความรู้)',
+    people:'จัดบุคลากรที่มีความสามารถเพียงพอในทุกกระบวนการ (ผลิต/QC/จัดซื้อ/คลัง) พร้อมแผนอัตรากำลังและแผนทดแทน',
+    infra:'จัดหาและบำรุงรักษาโครงสร้างพื้นฐาน: อาคารโรงงาน · เครื่องจักร (CNC/Auto Lathe) · ระบบไฟฟ้า/ลม · ระบบ IT — มีแผนบำรุงรักษาเชิงป้องกัน (PM)',
+    env:'ควบคุมสภาพแวดล้อมการทำงานให้เหมาะสม: ความสะอาด (5ส) · แสงสว่าง · อุณหภูมิ · ความปลอดภัย เพื่อคุณภาพงานและความปลอดภัยของพนักงาน',
+    mon:'จัดหาและควบคุมเครื่องมือวัด (เวอร์เนีย ไมโครมิเตอร์ เกจ) ให้ได้รับการสอบเทียบ (Calibration) ตามรอบ พร้อมป้ายสถานะและทะเบียนเครื่องมือวัด (MSA ตาม IATF)',
+    knowledge:'รวบรวมและรักษาความรู้ขององค์กร: มาตรฐานการทำงาน (WI) · บทเรียนจากปัญหา (Lessons Learned) · ความรู้เฉพาะทางของช่าง เพื่อถ่ายทอดและป้องกันการสูญหาย'
+  };
+  if(!s.comp)s.comp={
+    criteria:'กำหนดเกณฑ์ความสามารถ (Competency) ที่จำเป็นของแต่ละตำแหน่ง (ทักษะ/ความรู้/ประสบการณ์) ในใบพรรณนางาน (JD) และ Skill Matrix',
+    provide:'ประเมินและพัฒนาความสามารถผ่านการอบรม (OJT / ภายนอก) · สอนงาน · หรือรับบุคลากรที่มีคุณสมบัติ',
+    effect:'ประเมินประสิทธิผลของการอบรม/พัฒนา (ทดสอบ · สังเกตการปฏิบัติงาน · ผล KPI) และทบทวน Skill Matrix',
+    evidence:'เก็บหลักฐาน: ประวัติการอบรม · ใบรับรอง · Skill Matrix · ผลการประเมิน (เป็นเอกสารควบคุม)'
+  };
+  if(!s.aware)s.aware={
+    policy:'พนักงานตระหนักและเข้าใจนโยบายคุณภาพขององค์กร',
+    objectives:'พนักงานทราบวัตถุประสงค์คุณภาพ (KPI) ที่เกี่ยวข้องกับงานของตน',
+    involve:'พนักงานเข้าใจว่าตนมีส่วนช่วยให้ระบบคุณภาพบรรลุผลอย่างไร (การมีส่วนร่วม)',
+    noncon:'พนักงานเข้าใจผลกระทบหากไม่ปฏิบัติตามข้อกำหนด (ของเสีย · เคลม · สูญเสียลูกค้า)',
+    prodsafe:'พนักงานตระหนักถึงความปลอดภัยของผลิตภัณฑ์ (Product Safety) และผลต่อผู้ใช้ (IATF 7.3.1)',
+    motivation:'ส่งเสริมแรงจูงใจและการมอบอำนาจให้พนักงานบรรลุวัตถุประสงค์คุณภาพ (รางวัล/กิจกรรม/ข้อเสนอแนะ) (IATF 7.3.2)'
+  };
+  if(!s.comm||!s.comm.length)s.comm=[
+    {what:'นโยบายคุณภาพ',when:'ต้นปี / เมื่อเปลี่ยนแปลง',who:'พนักงานทุกคน',how:'บอร์ด · อบรม · Morning Talk',by:'QMR'},
+    {what:'วัตถุประสงค์คุณภาพ (KPI)',when:'รายเดือน',who:'หัวหน้าแผนก/พนักงาน',how:'ประชุม · รายงานผล',by:'หัวหน้าแผนก'},
+    {what:'ผลงานเสีย / NC',when:'เมื่อเกิด / รายวัน',who:'ฝ่ายผลิต / QA',how:'ใบ NC · ประชุมเช้า',by:'QC'},
+    {what:'ข้อกำหนด/ข้อร้องเรียนลูกค้า',when:'เมื่อได้รับ',who:'ฝ่ายที่เกี่ยวข้อง',how:'อีเมล · ประชุม',by:'ฝ่ายขาย'},
+    {what:'การเปลี่ยนแปลงกระบวนการ/เอกสาร',when:'ก่อนดำเนินการ',who:'ผู้เกี่ยวข้อง / ลูกค้า',how:'เอกสาร · แจ้งเตือน',by:'QMR'}
+  ];
+  if(!s.doc)s.doc={
+    general:'ระบบคุณภาพมีเอกสารข้อมูลตามที่มาตรฐานกำหนดและที่องค์กรจำเป็น (คู่มือคุณภาพ · ระเบียบปฏิบัติ · WI · แบบฟอร์ม · บันทึก)',
+    create:'การจัดทำ/ปรับปรุงเอกสาร: มีการชี้บ่ง (รหัส/ชื่อ/Rev./วันที่) · รูปแบบเหมาะสม · ทบทวนและอนุมัติก่อนนำไปใช้',
+    control:'ควบคุมเอกสารข้อมูล: แจกจ่ายให้เข้าถึงเฉพาะผู้เกี่ยวข้อง · ป้องกันการใช้เอกสารล้าสมัย · ควบคุมเอกสารภายนอก · เก็บรักษาและทำลายตามรอบ (ใช้ฟอร์ม FM-DCC)'
+  };
+  if(!s.dcc||!s.dcc.length)s.dcc=[
+    {code:'FM-DCC-01',name:'ร้องขอดำเนินการด้านเอกสาร (DAR)'},
+    {code:'FM-DCC-02',name:'ทะเบียนเอกสาร'},
+    {code:'FM-DCC-03',name:'บันทึกการควบคุมการใช้ แจกจ่ายและแก้ไข'},
+    {code:'FM-DCC-04',name:'ตรวจสอบเอกสาร'},
+    {code:'FM-DCC-05',name:'บันทึกทำลายเอกสาร'},
+    {code:'FM-DCC-06',name:'การรักษาความลับเกี่ยวกับผลิตภัณฑ์และโครงการพัฒนาของลูกค้า'},
+    {code:'FM-DCC-07',name:'Master List เอกสารภายนอก'}
+  ];
+  if(s.rev==null)s.rev='01';
+}
+function supTab(x){window.__supTab=x;render();}
+function supSet(k,v){ensureSupport();DB.support[k]=v;saveDB();}
+function supGrp(g,k,v){ensureSupport();DB.support[g][k]=v;saveDB();}
+function supArrSet(a,i,f,v){ensureSupport();if(DB.support[a][i]){DB.support[a][i][f]=v;saveDB();}}
+function supArrAdd(a,o){ensureSupport();DB.support[a].push(o);saveDB();render();}
+function supArrDel(a,i){ensureSupport();DB.support[a].splice(i,1);saveDB();render();}
+function viewSupport(el){
+  ensureSettings();ensureSupport();
+  var s=DB.support;var tab=window.__supTab||'71';
+  setTitle('🛠️ 7 การสนับสนุน (Support)','ISO 9001 / IATF 16949 ข้อ 7 · ทรัพยากร · ความสามารถ · ความตระหนัก · การสื่อสาร · เอกสาร');
+  var tbn=function(id,lbl){return '<button class="btn sm'+(tab===id?' pri':'')+'" onclick="supTab(\''+id+'\')">'+lbl+'</button>';};
+  var ref=function(x){return '<div class="hint" style="margin-bottom:10px"><span class="i">📘</span><div>'+x+'</div></div>';};
+  var sec=function(lbl,val,fn,rows){return '<div class="field"><label style="font-weight:700;font-size:13px">'+lbl+'</label><textarea onchange="'+fn+'" rows="'+(rows||2)+'" style="width:100%;padding:8px;resize:vertical;border:1px solid var(--line);border-radius:8px">'+esc(val||'')+'</textarea></div>';};
+  var body='';
+  if(tab==='71'){
+    body=ref('<b>ข้อ 7.1 ทรัพยากร:</b> องค์กรต้องกำหนดและจัดหาทรัพยากรที่จำเป็นต่อระบบคุณภาพ — บุคลากร โครงสร้างพื้นฐาน สภาพแวดล้อม เครื่องมือวัด และความรู้ขององค์กร')
+      +sec('7.1.1 ข้อกำหนดทั่วไป',s.res.general,"supGrp('res','general',this.value)")
+      +sec('7.1.2 บุคลากร (People)',s.res.people,"supGrp('res','people',this.value)")
+      +sec('7.1.3 โครงสร้างพื้นฐาน (Infrastructure)',s.res.infra,"supGrp('res','infra',this.value)")
+      +sec('7.1.4 สภาพแวดล้อมในการดำเนินการ',s.res.env,"supGrp('res','env',this.value)")
+      +sec('7.1.5 ทรัพยากรการตรวจติดตามและตรวจวัด (เครื่องมือวัด/สอบเทียบ)',s.res.mon,"supGrp('res','mon',this.value)")
+      +sec('7.1.6 ความรู้ขององค์กร (Organizational Knowledge)',s.res.knowledge,"supGrp('res','knowledge',this.value)");
+  } else if(tab==='72'){
+    body=ref('<b>ข้อ 7.2 ความสามารถ (Competence):</b> กำหนดเกณฑ์ความสามารถที่จำเป็น · จัดให้มี/พัฒนา · ประเมินประสิทธิผล · และเก็บหลักฐานเป็นเอกสาร')
+      +sec('1) กำหนดเกณฑ์ความสามารถ',s.comp.criteria,"supGrp('comp','criteria',this.value)")
+      +sec('2) ประเมินและจัดให้มีความสามารถ',s.comp.provide,"supGrp('comp','provide',this.value)")
+      +sec('3) ประเมินประสิทธิผลของการดำเนินการ',s.comp.effect,"supGrp('comp','effect',this.value)")
+      +sec('4) เก็บหลักฐานเอกสาร',s.comp.evidence,"supGrp('comp','evidence',this.value)");
+  } else if(tab==='73'){
+    body=ref('<b>ข้อ 7.3 ความตระหนัก (Awareness):</b> พนักงานต้องตระหนักถึงนโยบาย · วัตถุประสงค์ · การมีส่วนร่วม · ผลกระทบของการไม่ปฏิบัติตาม · ความปลอดภัยของผลิตภัณฑ์ (IATF)')
+      +sec('1. นโยบายคุณภาพ',s.aware.policy,"supGrp('aware','policy',this.value)")
+      +sec('2. วัตถุประสงค์คุณภาพที่เกี่ยวข้อง',s.aware.objectives,"supGrp('aware','objectives',this.value)")
+      +sec('3. การมีส่วนร่วม',s.aware.involve,"supGrp('aware','involve',this.value)")
+      +sec('4. ผลกระทบของการไม่ปฏิบัติตามข้อกำหนด',s.aware.noncon,"supGrp('aware','noncon',this.value)")
+      +sec('5. ความปลอดภัยของผลิตภัณฑ์ (IATF)',s.aware.prodsafe,"supGrp('aware','prodsafe',this.value)")
+      +sec('7.3.2 แรงจูงใจและการมอบอำนาจ (IATF)',s.aware.motivation,"supGrp('aware','motivation',this.value)");
+  } else if(tab==='74'){
+    var cm=s.comm.map(function(r,i){var f=function(k){return '<td><input value="'+esc(r[k]||'')+'" onchange="supArrSet(\'comm\','+i+',\''+k+'\',this.value)" style="width:100%;padding:5px"></td>';};return '<tr>'+f('what')+f('when')+f('who')+f('how')+f('by')+'<td><div class="rm-x" onclick="supArrDel(\'comm\','+i+')">✕</div></td></tr>';}).join('');
+    body=ref('<b>ข้อ 7.4 การสื่อสาร:</b> องค์กรต้องกำหนดการสื่อสารทั้งภายในและภายนอก — <b>สื่อสารอะไร · เมื่อใด · กับใคร · อย่างไร · โดยใคร</b>')
+      +'<div class="tbl-wrap"><table style="font-size:12px"><thead><tr><th style="width:24%">สื่อสารอะไร</th><th style="width:18%">เมื่อใด</th><th style="width:18%">กับใคร</th><th style="width:22%">อย่างไร</th><th>โดยใคร</th><th></th></tr></thead><tbody>'+cm+'</tbody></table></div><button class="btn sm" style="margin-top:8px" onclick="supArrAdd(\'comm\',{what:\'\',when:\'\',who:\'\',how:\'\',by:\'\'})">+ เพิ่มการสื่อสาร</button>';
+  } else {
+    var dc=s.dcc.map(function(r,i){var f=function(k,w){return '<td'+(w?' style="width:'+w+'"':'')+'><input value="'+esc(r[k]||'')+'" onchange="supArrSet(\'dcc\','+i+',\''+k+'\',this.value)" style="width:100%;padding:5px"></td>';};return '<tr>'+f('code','20%')+f('name','')+'<td><div class="rm-x" onclick="supArrDel(\'dcc\','+i+')">✕</div></td></tr>';}).join('');
+    body=ref('<b>ข้อ 7.5 เอกสารข้อมูล (Documented Information):</b> ระบบต้องมีเอกสารตามที่มาตรฐานกำหนด · จัดทำ/ปรับปรุงอย่างมีการควบคุม · และควบคุมการแจกจ่าย/แก้ไข/เก็บรักษา')
+      +sec('7.5.1 ทั่วไป',s.doc.general,"supGrp('doc','general',this.value)")
+      +sec('7.5.2 การจัดทำและการปรับปรุง',s.doc.create,"supGrp('doc','create',this.value)")
+      +sec('7.5.3 การควบคุมเอกสารข้อมูล',s.doc.control,"supGrp('doc','control',this.value)",3)
+      +'<div style="font-weight:700;margin:6px 0 2px">แบบฟอร์มควบคุมเอกสาร (Document Control — FM-DCC)</div>'
+      +'<div class="tbl-wrap"><table style="font-size:12px"><thead><tr><th>รหัสฟอร์ม</th><th>ชื่อเอกสาร</th><th></th></tr></thead><tbody>'+dc+'</tbody></table></div><button class="btn sm" style="margin-top:8px" onclick="supArrAdd(\'dcc\',{code:\'\',name:\'\'})">+ เพิ่มฟอร์ม</button>';
+  }
+  el.innerHTML='<div class="panel"><div class="panel-h" style="flex-wrap:wrap;gap:8px"><h2>🛠️ การสนับสนุน — ISO 9001 / IATF 16949 (ข้อ 7)</h2><div class="right" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><span class="desc">Rev. <input value="'+esc(s.rev||'')+'" onchange="supSet(\'rev\',this.value)" style="width:44px;text-align:center;padding:2px 4px"></span><button class="btn sm" onclick="printSupport()">🖨️ พิมพ์เอกสาร</button></div></div>'
+    +'<div class="panel-b"><div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">'+tbn('71','7.1 ทรัพยากร')+tbn('72','7.2 ความสามารถ')+tbn('73','7.3 ความตระหนัก')+tbn('74','7.4 การสื่อสาร')+tbn('75','7.5 เอกสารข้อมูล')+'</div>'+body+'</div></div>';
+}
+function printSupport(){
+  ensureSupport();ensureSettings();var s=DB.support;var co=DB.settings.company||{};
+  var e2=function(x){return esc(String(x==null?'':x)).replace(/\n/g,'<br>');};
+  var kv=function(l,v){return '<h3>'+l+'</h3><div>'+e2(v)+'</div>';};
+  var cmRows=s.comm.map(function(r){return '<tr><td>'+e2(r.what)+'</td><td>'+e2(r.when)+'</td><td>'+e2(r.who)+'</td><td>'+e2(r.how)+'</td><td>'+e2(r.by)+'</td></tr>';}).join('');
+  var dcRows=s.dcc.map(function(r){return '<tr><td>'+e2(r.code)+'</td><td>'+e2(r.name)+'</td></tr>';}).join('');
+  var html='<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"><title>7 SUPPORT</title><style>'
+    +"@page{size:A4;margin:12mm}*{font-family:'Tahoma',sans-serif;box-sizing:border-box}body{margin:0;font-size:11.5px;color:#111}"
+    +"h1{font-size:16px;text-align:center;margin:0 0 2px}.sub{text-align:center;font-size:11px;color:#555;margin-bottom:10px}"
+    +"h2{font-size:13px;background:#eef;border-left:4px solid #3b3fae;padding:4px 8px;margin:14px 0 4px}h3{font-size:12px;margin:7px 0 1px}"
+    +"table{width:100%;border-collapse:collapse;font-size:10.5px;margin-top:4px}th,td{border:1px solid #666;padding:4px 6px;text-align:left;vertical-align:top}th{background:#f1f1f7}"
+    +".noprint{text-align:center;margin:14px 0}@media print{.noprint{display:none}}</style></head><body>"
+    +'<h1>'+esc(co.thName||co.name||'RTK')+' — การสนับสนุน (Support)</h1>'
+    +'<div class="sub">ISO 9001 / IATF 16949 · ข้อ 7 · Rev. '+esc(s.rev||'')+' · พิมพ์ '+esc(todayISO())+'</div>'
+    +'<h2>7.1 ทรัพยากร</h2>'+kv('7.1.1 ข้อกำหนดทั่วไป',s.res.general)+kv('7.1.2 บุคลากร',s.res.people)+kv('7.1.3 โครงสร้างพื้นฐาน',s.res.infra)+kv('7.1.4 สภาพแวดล้อม',s.res.env)+kv('7.1.5 เครื่องมือวัด/สอบเทียบ',s.res.mon)+kv('7.1.6 ความรู้ขององค์กร',s.res.knowledge)
+    +'<h2>7.2 ความสามารถ</h2>'+kv('1) เกณฑ์ความสามารถ',s.comp.criteria)+kv('2) จัดให้มี/พัฒนา',s.comp.provide)+kv('3) ประเมินประสิทธิผล',s.comp.effect)+kv('4) หลักฐานเอกสาร',s.comp.evidence)
+    +'<h2>7.3 ความตระหนัก</h2>'+kv('1. นโยบายคุณภาพ',s.aware.policy)+kv('2. วัตถุประสงค์คุณภาพ',s.aware.objectives)+kv('3. การมีส่วนร่วม',s.aware.involve)+kv('4. ผลกระทบการไม่ปฏิบัติตาม',s.aware.noncon)+kv('5. ความปลอดภัยผลิตภัณฑ์ (IATF)',s.aware.prodsafe)+kv('7.3.2 แรงจูงใจ (IATF)',s.aware.motivation)
+    +'<h2>7.4 การสื่อสาร</h2><table><thead><tr><th style="width:24%">สื่อสารอะไร</th><th>เมื่อใด</th><th>กับใคร</th><th>อย่างไร</th><th>โดยใคร</th></tr></thead><tbody>'+cmRows+'</tbody></table>'
+    +'<h2>7.5 เอกสารข้อมูล</h2>'+kv('7.5.1 ทั่วไป',s.doc.general)+kv('7.5.2 การจัดทำและปรับปรุง',s.doc.create)+kv('7.5.3 การควบคุมเอกสาร',s.doc.control)
+    +'<h3>แบบฟอร์มควบคุมเอกสาร (FM-DCC)</h3><table><thead><tr><th style="width:20%">รหัส</th><th>ชื่อเอกสาร</th></tr></thead><tbody>'+dcRows+'</tbody></table>'
+    +'<div style="display:flex;justify-content:space-between;margin-top:28px;font-size:11px"><div style="width:30%;text-align:center">___________________<br>จัดทำ</div><div style="width:30%;text-align:center">___________________<br>ทบทวน</div><div style="width:30%;text-align:center">___________________<br>อนุมัติ</div></div>'
     +'<div class="noprint"><button onclick="window.print()" style="padding:8px 22px;cursor:pointer">🖨️ พิมพ์ / PDF</button></div>'
     +'<scr'+'ipt>setTimeout(function(){window.print()},400)</scr'+'ipt></body></html>';
   var w=window.open('','_blank');if(!w){toast('เบราว์เซอร์บล็อก popup','err');return}w.document.write(html);w.document.close();
