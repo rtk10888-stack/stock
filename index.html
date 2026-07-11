@@ -86,6 +86,8 @@ body{font-family:'Noto Sans Thai','Inter',system-ui,sans-serif;background:var(--
 .panel-h .right{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .panel-b{padding:18px}
 .panel-b.nopad{padding:0}
+.iso-doc{overflow:visible}
+.iso-tabs{display:flex;gap:6px;flex-wrap:wrap;position:sticky;top:60px;z-index:8;background:#fff;margin:-18px -18px 12px;padding:14px 18px 10px;box-shadow:0 4px 6px -4px rgba(0,0,0,.15);border-radius:0}
 
 /* Inputs */
 .field{margin-bottom:13px}
@@ -275,7 +277,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='DC7-2026.07.10r (เพิ่มแบบฟอร์มควบคุมเอกสารในโมดูล 7 SUPPORT — ครบทุกหมวด ISO ข้อ 4–10)';
+const APP_BUILD='STICKY-2026.07.10s (ล็อกแท็บหัวข้อไว้ด้านบนเวลาเลื่อน — ทุกโมดูล ISO ข้อ 4–10)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -6717,8 +6719,8 @@ function viewContext(el){
       +c.proc.map(function(r,i){var f=function(k){return '<td><input value="'+esc(r[k]||'')+'" onchange="ctxProcSet('+i+',\''+k+'\',this.value)" style="width:100%;padding:5px"></td>';};return '<tr>'+f('name')+f('owner')+f('inp')+f('out')+f('kpi')+'<td><div class="rm-x" onclick="ctxProcDel('+i+')">✕</div></td></tr>';}).join('')
       +'</tbody></table></div><button class="btn sm" style="margin-top:8px" onclick="ctxProcAdd()">+ เพิ่มกระบวนการ</button>';
   }
-  el.innerHTML='<div class="panel"><div class="panel-h" style="flex-wrap:wrap;gap:8px"><h2>📘 บริบทองค์กร — ISO 9001 / IATF 16949 (ข้อ 4)</h2><div class="right" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><span class="desc">Rev. <input value="'+esc(c.rev||'')+'" onchange="ctxSet(\'rev\',this.value)" style="width:44px;text-align:center;padding:2px 4px"></span><button class="btn sm" onclick="printContext()">🖨️ พิมพ์เอกสาร</button></div></div>'
-    +'<div class="panel-b"><div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">'+tb('41','4.1 SWOT / บริบท')+tb('42','4.2 ผู้มีส่วนได้ส่วนเสีย')+tb('43','4.3 ขอบเขต')+tb('44','4.4 กระบวนการ')+'</div>'+body+docCtrlHTML('context')+'</div></div>';
+  el.innerHTML='<div class="panel iso-doc"><div class="panel-h" style="flex-wrap:wrap;gap:8px"><h2>📘 บริบทองค์กร — ISO 9001 / IATF 16949 (ข้อ 4)</h2><div class="right" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><span class="desc">Rev. <input value="'+esc(c.rev||'')+'" onchange="ctxSet(\'rev\',this.value)" style="width:44px;text-align:center;padding:2px 4px"></span><button class="btn sm" onclick="printContext()">🖨️ พิมพ์เอกสาร</button></div></div>'
+    +'<div class="panel-b"><div class="iso-tabs">'+tb('41','4.1 SWOT / บริบท')+tb('42','4.2 ผู้มีส่วนได้ส่วนเสีย')+tb('43','4.3 ขอบเขต')+tb('44','4.4 กระบวนการ')+'</div>'+body+docCtrlHTML('context')+'</div></div>';
 }
 function printContext(){
   ensureContext();ensureSettings();var c=DB.context;var co=DB.settings.company||{};
@@ -6804,8 +6806,8 @@ function viewTopMgmt(el){
       +ta('5.3.1 ตัวแทนฝ่ายบริหาร (QMR) / ผู้รับผิดชอบข้อกำหนดลูกค้า',t.qmr,"tmSet('qmr',this.value)",3)
       +ta('5.3.2 ผู้มีอำนาจสั่งหยุดไลน์การผลิต (Stop-Line Authority)',t.stopline,"tmSet('stopline',this.value)",3);
   }
-  el.innerHTML='<div class="panel"><div class="panel-h" style="flex-wrap:wrap;gap:8px"><h2>👔 ภาวะผู้นำ — ISO 9001 / IATF 16949 (ข้อ 5)</h2><div class="right" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><span class="desc">Rev. <input value="'+esc(t.rev||'')+'" onchange="tmSet(\'rev\',this.value)" style="width:44px;text-align:center;padding:2px 4px"></span><button class="btn sm" onclick="printTopMgmt()">🖨️ พิมพ์เอกสาร</button></div></div>'
-    +'<div class="panel-b"><div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">'+tb('51','5.1 ผู้นำ & ความมุ่งมั่น')+tb('52','5.2 นโยบาย')+tb('53','5.3 บทบาทหน้าที่')+'</div>'+body+docCtrlHTML('topmgmt')+'</div></div>';
+  el.innerHTML='<div class="panel iso-doc"><div class="panel-h" style="flex-wrap:wrap;gap:8px"><h2>👔 ภาวะผู้นำ — ISO 9001 / IATF 16949 (ข้อ 5)</h2><div class="right" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><span class="desc">Rev. <input value="'+esc(t.rev||'')+'" onchange="tmSet(\'rev\',this.value)" style="width:44px;text-align:center;padding:2px 4px"></span><button class="btn sm" onclick="printTopMgmt()">🖨️ พิมพ์เอกสาร</button></div></div>'
+    +'<div class="panel-b"><div class="iso-tabs">'+tb('51','5.1 ผู้นำ & ความมุ่งมั่น')+tb('52','5.2 นโยบาย')+tb('53','5.3 บทบาทหน้าที่')+'</div>'+body+docCtrlHTML('topmgmt')+'</div></div>';
 }
 function printTopMgmt(){
   ensureTopMgmt();ensureSettings();var t=DB.topmgmt;var co=DB.settings.company||{};
@@ -6909,8 +6911,8 @@ function viewPlanning(el){
       +'<div style="font-weight:700;margin:6px 0 2px">บันทึกการเปลี่ยนแปลง (Change Log)</div>'
       +'<div class="tbl-wrap"><table style="font-size:12px"><thead><tr><th style="width:15%">วันที่</th><th style="width:38%">รายการเปลี่ยนแปลง</th><th style="width:32%">ผลกระทบ/การจัดการ</th><th>ผู้อนุมัติ</th><th></th></tr></thead><tbody>'+lg+'</tbody></table></div><button class="btn sm" style="margin-top:8px" onclick="plnArrAdd(\'changelog\',{date:\'\',item:\'\',impact:\'\',by:\'\'})">+ เพิ่มบันทึก</button>';
   }
-  el.innerHTML='<div class="panel"><div class="panel-h" style="flex-wrap:wrap;gap:8px"><h2>🗺️ การวางแผน — ISO 9001 / IATF 16949 (ข้อ 6)</h2><div class="right" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><span class="desc">Rev. <input value="'+esc(p.rev||'')+'" onchange="plnSet(\'rev\',this.value)" style="width:44px;text-align:center;padding:2px 4px"></span><button class="btn sm" onclick="printPlanning()">🖨️ พิมพ์เอกสาร</button></div></div>'
-    +'<div class="panel-b"><div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">'+tb('61','6.1 ความเสี่ยง & โอกาส')+tb('62','6.2 วัตถุประสงค์คุณภาพ (KPI)')+tb('63','6.3 ควบคุมการเปลี่ยนแปลง')+'</div>'+body+docCtrlHTML('planning')+'</div></div>';
+  el.innerHTML='<div class="panel iso-doc"><div class="panel-h" style="flex-wrap:wrap;gap:8px"><h2>🗺️ การวางแผน — ISO 9001 / IATF 16949 (ข้อ 6)</h2><div class="right" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><span class="desc">Rev. <input value="'+esc(p.rev||'')+'" onchange="plnSet(\'rev\',this.value)" style="width:44px;text-align:center;padding:2px 4px"></span><button class="btn sm" onclick="printPlanning()">🖨️ พิมพ์เอกสาร</button></div></div>'
+    +'<div class="panel-b"><div class="iso-tabs">'+tb('61','6.1 ความเสี่ยง & โอกาส')+tb('62','6.2 วัตถุประสงค์คุณภาพ (KPI)')+tb('63','6.3 ควบคุมการเปลี่ยนแปลง')+'</div>'+body+docCtrlHTML('planning')+'</div></div>';
 }
 function printPlanning(){
   ensurePlanning();ensureSettings();var p=DB.planning;var co=DB.settings.company||{};
@@ -7039,8 +7041,8 @@ function viewSupport(el){
       +'<div style="font-weight:700;margin:6px 0 2px">แบบฟอร์มควบคุมเอกสาร (Document Control — FM-DCC)</div>'
       +'<div class="tbl-wrap"><table style="font-size:12px"><thead><tr><th>รหัสฟอร์ม</th><th>ชื่อเอกสาร</th><th></th></tr></thead><tbody>'+dc+'</tbody></table></div><button class="btn sm" style="margin-top:8px" onclick="supArrAdd(\'dcc\',{code:\'\',name:\'\'})">+ เพิ่มฟอร์ม</button>';
   }
-  el.innerHTML='<div class="panel"><div class="panel-h" style="flex-wrap:wrap;gap:8px"><h2>🛠️ การสนับสนุน — ISO 9001 / IATF 16949 (ข้อ 7)</h2><div class="right" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><span class="desc">Rev. <input value="'+esc(s.rev||'')+'" onchange="supSet(\'rev\',this.value)" style="width:44px;text-align:center;padding:2px 4px"></span><button class="btn sm" onclick="printSupport()">🖨️ พิมพ์เอกสาร</button></div></div>'
-    +'<div class="panel-b"><div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">'+tbn('71','7.1 ทรัพยากร')+tbn('72','7.2 ความสามารถ')+tbn('73','7.3 ความตระหนัก')+tbn('74','7.4 การสื่อสาร')+tbn('75','7.5 เอกสารข้อมูล')+'</div>'+body+docCtrlHTML('support')+'</div></div>';
+  el.innerHTML='<div class="panel iso-doc"><div class="panel-h" style="flex-wrap:wrap;gap:8px"><h2>🛠️ การสนับสนุน — ISO 9001 / IATF 16949 (ข้อ 7)</h2><div class="right" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><span class="desc">Rev. <input value="'+esc(s.rev||'')+'" onchange="supSet(\'rev\',this.value)" style="width:44px;text-align:center;padding:2px 4px"></span><button class="btn sm" onclick="printSupport()">🖨️ พิมพ์เอกสาร</button></div></div>'
+    +'<div class="panel-b"><div class="iso-tabs">'+tbn('71','7.1 ทรัพยากร')+tbn('72','7.2 ความสามารถ')+tbn('73','7.3 ความตระหนัก')+tbn('74','7.4 การสื่อสาร')+tbn('75','7.5 เอกสารข้อมูล')+'</div>'+body+docCtrlHTML('support')+'</div></div>';
 }
 function printSupport(){
   ensureSupport();ensureSettings();var s=DB.support;var co=DB.settings.company||{};
@@ -7149,8 +7151,8 @@ function viewOperation(el){
       +sec('8.6 การปล่อยผลิตภัณฑ์และบริการ (Release)',o.release,"opSet('release',this.value)",3)
       +sec('8.7 การควบคุมผลลัพธ์ที่ไม่เป็นไปตามข้อกำหนด (Nonconforming Output)',o.ncout,"opSet('ncout',this.value)",3);
   }
-  el.innerHTML='<div class="panel"><div class="panel-h" style="flex-wrap:wrap;gap:8px"><h2>🏗️ การปฏิบัติการ — ISO 9001 / IATF 16949 (ข้อ 8)</h2><div class="right" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><span class="desc">Rev. <input value="'+esc(o.rev||'')+'" onchange="opSet(\'rev\',this.value)" style="width:44px;text-align:center;padding:2px 4px"></span><button class="btn sm" onclick="printSection(\'operation\')">🖨️ พิมพ์เอกสาร</button></div></div>'
-    +'<div class="panel-b"><div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">'+tbn('81','8.1 วางแผน/ออกแบบ')+tbn('82','8.2 ข้อกำหนดลูกค้า')+tbn('84','8.4 ควบคุมผู้ขาย')+tbn('85','8.5 การผลิต')+tbn('86','8.6/8.7 ปล่อยงาน&ของเสีย')+'</div>'+body+docCtrlHTML('operation')+'</div></div>';
+  el.innerHTML='<div class="panel iso-doc"><div class="panel-h" style="flex-wrap:wrap;gap:8px"><h2>🏗️ การปฏิบัติการ — ISO 9001 / IATF 16949 (ข้อ 8)</h2><div class="right" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><span class="desc">Rev. <input value="'+esc(o.rev||'')+'" onchange="opSet(\'rev\',this.value)" style="width:44px;text-align:center;padding:2px 4px"></span><button class="btn sm" onclick="printSection(\'operation\')">🖨️ พิมพ์เอกสาร</button></div></div>'
+    +'<div class="panel-b"><div class="iso-tabs">'+tbn('81','8.1 วางแผน/ออกแบบ')+tbn('82','8.2 ข้อกำหนดลูกค้า')+tbn('84','8.4 ควบคุมผู้ขาย')+tbn('85','8.5 การผลิต')+tbn('86','8.6/8.7 ปล่อยงาน&ของเสีย')+'</div>'+body+docCtrlHTML('operation')+'</div></div>';
 }
 /* ===== 9 PERFORMANCE — การประเมินสมรรถนะ (ISO 9001 / IATF 16949 ข้อ 9) ===== */
 function ensurePerformance(){
@@ -7209,8 +7211,8 @@ function viewPerformance(el){
       +sec('9.3.2 ปัจจัยนำเข้าการทบทวน (Inputs)',q.review.inputs,"pfGrp('review','inputs',this.value)",4)
       +sec('9.3.3 ผลลัพธ์การทบทวน (Outputs)',q.review.outputs,"pfGrp('review','outputs',this.value)",3);
   }
-  el.innerHTML='<div class="panel"><div class="panel-h" style="flex-wrap:wrap;gap:8px"><h2>🎯 การประเมินสมรรถนะ — ISO 9001 / IATF 16949 (ข้อ 9)</h2><div class="right" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><span class="desc">Rev. <input value="'+esc(q.rev||'')+'" onchange="pfSet(\'rev\',this.value)" style="width:44px;text-align:center;padding:2px 4px"></span><button class="btn sm" onclick="printSection(\'performance\')">🖨️ พิมพ์เอกสาร</button></div></div>'
-    +'<div class="panel-b"><div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">'+tbn('91','9.1 เฝ้าติดตาม/วัด')+tbn('92','9.2 ตรวจติดตามภายใน')+tbn('93','9.3 ทบทวนฝ่ายบริหาร')+'</div>'+body+docCtrlHTML('performance')+'</div></div>';
+  el.innerHTML='<div class="panel iso-doc"><div class="panel-h" style="flex-wrap:wrap;gap:8px"><h2>🎯 การประเมินสมรรถนะ — ISO 9001 / IATF 16949 (ข้อ 9)</h2><div class="right" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><span class="desc">Rev. <input value="'+esc(q.rev||'')+'" onchange="pfSet(\'rev\',this.value)" style="width:44px;text-align:center;padding:2px 4px"></span><button class="btn sm" onclick="printSection(\'performance\')">🖨️ พิมพ์เอกสาร</button></div></div>'
+    +'<div class="panel-b"><div class="iso-tabs">'+tbn('91','9.1 เฝ้าติดตาม/วัด')+tbn('92','9.2 ตรวจติดตามภายใน')+tbn('93','9.3 ทบทวนฝ่ายบริหาร')+'</div>'+body+docCtrlHTML('performance')+'</div></div>';
 }
 /* ===== 10 IMPROVEMENT — การปรับปรุง (ISO 9001 / IATF 16949 ข้อ 10) ===== */
 function ensureImprovement(){
@@ -7248,8 +7250,8 @@ function viewImprovement(el){
     body=ref('<b>ข้อ 10.3 การปรับปรุงอย่างต่อเนื่อง (Continual Improvement):</b> ปรับปรุงความเหมาะสม เพียงพอ และประสิทธิผลของระบบคุณภาพอย่างต่อเนื่อง')
       +sec('10.3 กิจกรรมการปรับปรุงอย่างต่อเนื่อง',m.continual,"imSet('continual',this.value)",4);
   }
-  el.innerHTML='<div class="panel"><div class="panel-h" style="flex-wrap:wrap;gap:8px"><h2>💡 การปรับปรุง — ISO 9001 / IATF 16949 (ข้อ 10)</h2><div class="right" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><span class="desc">Rev. <input value="'+esc(m.rev||'')+'" onchange="imSet(\'rev\',this.value)" style="width:44px;text-align:center;padding:2px 4px"></span><button class="btn sm" onclick="printSection(\'improvement\')">🖨️ พิมพ์เอกสาร</button></div></div>'
-    +'<div class="panel-b"><div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">'+tbn('101','10.1 ทั่วไป')+tbn('102','10.2 การแก้ไข (CAPA)')+tbn('103','10.3 ปรับปรุงต่อเนื่อง')+'</div>'+body+docCtrlHTML('improvement')+'</div></div>';
+  el.innerHTML='<div class="panel iso-doc"><div class="panel-h" style="flex-wrap:wrap;gap:8px"><h2>💡 การปรับปรุง — ISO 9001 / IATF 16949 (ข้อ 10)</h2><div class="right" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><span class="desc">Rev. <input value="'+esc(m.rev||'')+'" onchange="imSet(\'rev\',this.value)" style="width:44px;text-align:center;padding:2px 4px"></span><button class="btn sm" onclick="printSection(\'improvement\')">🖨️ พิมพ์เอกสาร</button></div></div>'
+    +'<div class="panel-b"><div class="iso-tabs">'+tbn('101','10.1 ทั่วไป')+tbn('102','10.2 การแก้ไข (CAPA)')+tbn('103','10.3 ปรับปรุงต่อเนื่อง')+'</div>'+body+docCtrlHTML('improvement')+'</div></div>';
 }
 /* พิมพ์เอกสารรวมของ ISO ข้อ 8/9/10 */
 function printSection(which){
