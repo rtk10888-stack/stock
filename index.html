@@ -277,7 +277,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='OPDEPT-2026.07.10t (8 OPERATION จัดใหม่ตามฝ่าย: PLANNING/SALE/R&D/PC/PD/ST/QC/NC/ACC ตามเอกสารจริง)';
+const APP_BUILD='VS4-2026.07.10u (เพิ่มโมดูล VS4 ผลิตประจำวันผู้ผลิตภายนอก — ใบสั่งผลิต VS4 เข้าอัตโนมัติ + Shortcut ลิงก์ส่งให้ VS4)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -606,6 +606,7 @@ const NAV=[
   {id:'wd',ico:'📤',label:'เบิกวัตถุดิบ',dt:'WD'},
   {id:'ws',ico:'🧰',label:'เบิกวัสดุสิ้นเปลือง'},
   {id:'dp',ico:'🏭',label:'ผลิตประจำวัน',dt:'DP'},
+  {id:'vs4',ico:'🏭',label:'VS4'},
   {id:'rw',ico:'📦',label:'รับชิ้นงาน',dt:'RW'},
   {id:'plate',ico:'✨',label:'ส่งชุบ / รับชุบ',dt:'PS'},
   {id:'qc',ico:'🔎',label:'คัดแยก OK/NG',dt:'QC'},
@@ -644,7 +645,7 @@ const NAV=[
 ];
 let route='dashboard';
 function pendingCount(){return DB.docs.filter(d=>d.status==='pending').length}
-const ABBR={dashboard:'HOME',monitor:'KPI',inventory:'STOCK',approvals:'APPR',po:'PO',ip:'IMPORT',sp:'SPECIAL',gr:'RECV',recvip:'RECV-IMP',recvsp:'RECV-SP',sup:'SUPPLY',prd:'PROD',wd:'ISSUE',ws:'SUP-ISS',dp:'DAILY',rw:'RECV-W',plate:'PLATE',qc:'QC',qcip:'QC-IMP',qcsp:'QC-SP',qcsemi:'QC-SEMI',si:'STK-IN',stkip:'STK-IMP',stksp:'STK-SP',stksemi:'STK-SEMI',rmc:'CUST-MAT',inv:'INV',iv2:'INV-SP',adj:'ADJ',moves:'MOVE',report:'REPORT',tax:'VAT-IN',taxsale:'VAT-OUT',wht:'WHT',nc:'NC',context:'CONTEXT',topmgmt:'LEADER',planning:'PLANNING',support:'SUPPORT',operation:'OPERATION',performance:'PERFORM',improvement:'IMPROVE',demand:'PLAN',mrp:'MRP',settings:'SET'};
+const ABBR={dashboard:'HOME',monitor:'KPI',inventory:'STOCK',approvals:'APPR',po:'PO',ip:'IMPORT',sp:'SPECIAL',gr:'RECV',recvip:'RECV-IMP',recvsp:'RECV-SP',sup:'SUPPLY',prd:'PROD',wd:'ISSUE',ws:'SUP-ISS',dp:'DAILY',rw:'RECV-W',plate:'PLATE',qc:'QC',qcip:'QC-IMP',qcsp:'QC-SP',qcsemi:'QC-SEMI',si:'STK-IN',stkip:'STK-IMP',stksp:'STK-SP',stksemi:'STK-SEMI',rmc:'CUST-MAT',inv:'INV',iv2:'INV-SP',adj:'ADJ',moves:'MOVE',report:'REPORT',vs4:'VS4',tax:'VAT-IN',taxsale:'VAT-OUT',wht:'WHT',nc:'NC',context:'CONTEXT',topmgmt:'LEADER',planning:'PLANNING',support:'SUPPORT',operation:'OPERATION',performance:'PERFORM',improvement:'IMPROVE',demand:'PLAN',mrp:'MRP',settings:'SET'};
 function curLang(){try{return localStorage.getItem('rtk_lang')||'th'}catch(e){return 'th'}}
 var LANGS=[['th','TH ไทย'],['en','US English'],['cn','CN 中文'],['km','KH ខ្មែរ'],['lo','LA ລາວ'],['my','MM မြန်មာ']];
 var LANGT={
@@ -701,13 +702,28 @@ function renderNav(){
   nav.innerHTML=h;
 }
 function go(r){route=r;render()}
+/* ===== VS4 — ผลิตประจำวัน (ผู้ผลิตภายนอก VS4) : มิเรอร์หน้าผลิตประจำวัน แต่กรองเฉพาะผู้ผลิต VS4 ===== */
+function viewVS4(){
+  window.__dpMaker='VS4';
+  viewDocs('DP');
+  try{ setTitle('🏭 VS4 — ผลิตประจำวัน (ผู้ผลิตภายนอก VS4)','ใบสั่งผลิตที่กำหนดผู้ผลิต "VS4" จะเข้ามาที่นี่อัตโนมัติ · ข้อมูลซิงก์กับระบบเรียลไทม์'); }catch(e){}
+  var el=document.getElementById('content'); if(!el)return;
+  var banner='<div class="hint" style="margin-bottom:12px;background:#eef2ff"><span class="i">🏭</span><div><b>VS4 — ผลิตประจำวัน (ผู้ผลิตภายนอก)</b> · ใบสั่งผลิตที่กำหนดผู้ผลิต <b>"VS4"</b> จะเข้ามาที่หน้านี้อัตโนมัติ · ข้อมูลเชื่อมโยงกับระบบ (ซิงก์คลาวด์) &nbsp; <button class="btn sm pri" onclick="vs4Shortcut()">📤 สร้าง Shortcut ส่งให้ VS4</button></div></div>';
+  el.insertAdjacentHTML('afterbegin',banner);
+}
+function vs4Shortcut(){
+  var url=location.origin+location.pathname+'#vs4';
+  var doCopy=function(){ try{ navigator.clipboard.writeText(url); toast('คัดลอกลิงก์ Shortcut แล้ว','ok'); }catch(e){ try{ var t=document.getElementById('vs4url'); if(t){t.select();document.execCommand('copy');toast('คัดลอกแล้ว','ok');} }catch(_){} } };
+  window.__vs4copy=doCopy;
+  modal({title:'📤 Shortcut สำหรับ VS4',size:'sm',body:'<div class="hint" style="margin-bottom:8px"><span class="i">💡</span><div>ส่งลิงก์นี้ให้ VS4 · เมื่อเปิดลิงก์จะเข้าหน้า <b>VS4 ผลิตประจำวัน</b> โดยตรง และข้อมูลจะ<b>ซิงก์กับระบบเรียลไทม์</b> (ต้องแชร์ไฟล์ index.html บนเว็บ/GitHub Pages เดียวกันก่อน)</div></div><input id="vs4url" value="'+esc(url)+'" onclick="this.select()" style="width:100%;padding:8px;font-size:12px" readonly>',footer:'<button class="btn" onclick="closeModal()">ปิด</button><button class="btn pri" onclick="window.__vs4copy&&window.__vs4copy()">📋 คัดลอกลิงก์</button>'});
+}
 function setTitle(t,c){document.getElementById('pageTitle').textContent=t;document.getElementById('pageCrumb').textContent=c||''}
 function render(){
   ensureSettings();renderNav();saveDB();
   const el=document.getElementById('content');
   const map={dashboard:viewDashboard,inventory:viewInventory,track:viewJobTrack,approvals:viewApprovals,monitor:viewMonitor,
     po:()=>viewDocs('PO'),ip:()=>viewDocs('IP'),sp:()=>viewDocs('SP'),gr:()=>viewDocs('GR'),prd:()=>viewDocs('PRD'),wd:()=>viewDocs('WD'),
-    dp:()=>viewDocs('DP'),rw:()=>viewDocs('RW'),plate:()=>viewDocs('PL'),qc:()=>viewDocs('QC'),si:()=>viewDocs('SI'),rmc:viewRMC,fgi:viewFGI,sup:viewSUP,ws:viewWS,recvip:()=>viewRcv('GI'),recvsp:()=>viewRcv('GS'),qcip:()=>viewQck('QI'),qcsp:()=>viewQck('QS'),qcsemi:()=>viewQck('QSE'),stkip:()=>viewStk('SII'),stksp:()=>viewStk('SIS'),stksemi:()=>viewStk('SSE'),
+    dp:()=>{window.__dpMaker='RTK-K';viewDocs('DP')},vs4:viewVS4,rw:()=>viewDocs('RW'),plate:()=>viewDocs('PL'),qc:()=>viewDocs('QC'),si:()=>viewDocs('SI'),rmc:viewRMC,fgi:viewFGI,sup:viewSUP,ws:viewWS,recvip:()=>viewRcv('GI'),recvsp:()=>viewRcv('GS'),qcip:()=>viewQck('QI'),qcsp:()=>viewQck('QS'),qcsemi:()=>viewQck('QSE'),stkip:()=>viewStk('SII'),stksp:()=>viewStk('SIS'),stksemi:()=>viewStk('SSE'),
     inv:()=>viewDocs('INV'),iv2:()=>viewDocs('IV2'),adj:()=>viewDocs('ADJ'),moves:viewMoves,report:viewReport,tax:viewTax,taxsale:viewTaxSale,wht:viewWHT,nc:viewNC,context:viewContext,topmgmt:viewTopMgmt,planning:viewPlanning,support:viewSupport,operation:viewOperation,performance:viewPerformance,improvement:viewImprovement,settings:viewSettings,
     demand:viewDemand,mrp:viewMRP};
   (map[route]||viewDashboard)(el);
@@ -1415,9 +1431,11 @@ function viewDocs(type){
   const dispLabel=(type==='PO')?'ใบสั่งซื้อวัตถุดิบ & วัสดุสิ้นเปลือง':cfg.label;
   setTitle(cfg.icon+' '+dispLabel,'สร้าง / อนุมัติ / ติดตามสถานะ');
   let docs=DB.docs.filter(d=>(d.type===type||(type==='PO'&&d.type==='SUP'))&&!(type==='PL'&&d.dplan)).sort((a,b)=>(type==='RW'||type==='SI'||type==='INV')?(String(b.date||'').localeCompare(String(a.date||''))||String(b.no||'').localeCompare(String(a.no||''),undefined,{numeric:true})):String(b.no||'').localeCompare(String(a.no||''),undefined,{numeric:true})); /* ค่าเริ่มต้น: เลขที่ มาก→น้อย ทุกโมดูล */
-  if(type==='DP'){ /* ดึงเฉพาะ "ใบสั่งผลิต(PRD) ที่สั่งผลิต RTK-K" มาแสดงในผลิตประจำวันแบบอัตโนมัติ (ยกเลิกการดึงจากรับชิ้นงาน RW แล้ว) */
-    const isRTKK=v=>{var s=String(v||'').toUpperCase();return s==='RTK-K'||makerShort(v)==='RTK-K';};
-    const extra=DB.docs.filter(d=>d.status!=='cancelled'&&d.type==='PRD'&&isRTKK(d.maker||d.makerAbbr));
+  if(type==='DP'){ /* ผลิตประจำวัน: ดึงใบสั่งผลิต(PRD) ตาม "โปรไฟล์ผู้ผลิต" — ค่าเริ่มต้น RTK-K (ผลิตในบ้าน) · โหมด VS4 = กรองเฉพาะผู้ผลิต VS4 */
+    var _pm=(window.__dpMaker||'RTK-K');
+    var isMk=function(v){var s=String(v||'').toUpperCase();var pu=_pm.toUpperCase();return s===pu||String(makerShort(v)).toUpperCase()===pu;};
+    if(_pm!=='RTK-K'){ docs=docs.filter(function(d){return isMk(d.maker||(d.lines||[]).map(function(l){return l.maker;}).find(Boolean)||'');}); }
+    const extra=DB.docs.filter(d=>d.status!=='cancelled'&&d.type==='PRD'&&isMk(d.maker||d.makerAbbr));
     docs=docs.concat(extra);
     const _dpPn=d=>{var l=(d.lines&&d.lines[0])||{};var pid=l.productId||l.fgId;var p=pid?P(pid):null;return String(p?p.pn:(l.name||'')).toLowerCase();};docs.sort((a,b)=>{var ka=a.type==='PRD'?0:1,kb=b.type==='PRD'?0:1;if(ka!==kb)return ka-kb;return _dpPn(a).localeCompare(_dpPn(b),undefined,{numeric:true})||String(a.no||'').localeCompare(String(b.no||''),undefined,{numeric:true});}); /* ใบสั่งผลิตขึ้นก่อน แล้ว PART ก→ฮ */
   }
@@ -9813,6 +9831,7 @@ function tryGate(){
   if(!DB){ try{ DB=freshDB(); }catch(e){} }
   try{ gtransSync(); }catch(e){}
   var _gate=false; try{ _gate=!gatePassed(); }catch(e){}
+  try{ if(/(^|[#&])vs4\b/i.test(location.hash||'')) route='vs4'; }catch(e){}
   if(_gate){ try{ renderNav(); renderGate(); }catch(e){} }
   else { try{ render(); }catch(e){ console.error('render error',e); try{var _c=document.getElementById('content'); if(_c)_c.innerHTML='<div style="padding:30px;color:var(--ink2)">⚠️ แสดงผลผิดพลาด: '+((e&&e.message)||e)+'<br><br>ลองรีเฟรช (Ctrl+F5)</div>';}catch(_){} } }
   try{ setSyncStatus(supa?'saving':'offline'); }catch(e){}
