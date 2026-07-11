@@ -275,7 +275,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SUPPORT-2026.07.10p (เพิ่มโมดูล 7 SUPPORT: 7.1 ทรัพยากร · 7.2 ความสามารถ · 7.3 ความตระหนัก · 7.4 การสื่อสาร · 7.5 เอกสารข้อมูล+FM-DCC)';
+const APP_BUILD='ISO8910-2026.07.10q (เพิ่มโมดูล 8 OPERATION · 9 PERFORMANCE · 10 IMPROVEMENT + แบบฟอร์มควบคุมเอกสารครบทุกโมดูล ข้อ 4–10)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -634,12 +634,15 @@ const NAV=[
   {id:'topmgmt',ico:'👔',label:'5 TOP MANAGEMENT'},
   {id:'planning',ico:'🗺️',label:'6 PLANNING'},
   {id:'support',ico:'🛠️',label:'7 SUPPORT'},
+  {id:'operation',ico:'🏗️',label:'8 OPERATION'},
+  {id:'performance',ico:'🎯',label:'9 PERFORMANCE'},
+  {id:'improvement',ico:'💡',label:'10 IMPROVEMENT'},
   {g:'อื่นๆ'},
   {id:'settings',ico:'⚙️',label:'ตั้งค่า'},
 ];
 let route='dashboard';
 function pendingCount(){return DB.docs.filter(d=>d.status==='pending').length}
-const ABBR={dashboard:'HOME',monitor:'KPI',inventory:'STOCK',approvals:'APPR',po:'PO',ip:'IMPORT',sp:'SPECIAL',gr:'RECV',recvip:'RECV-IMP',recvsp:'RECV-SP',sup:'SUPPLY',prd:'PROD',wd:'ISSUE',ws:'SUP-ISS',dp:'DAILY',rw:'RECV-W',plate:'PLATE',qc:'QC',qcip:'QC-IMP',qcsp:'QC-SP',qcsemi:'QC-SEMI',si:'STK-IN',stkip:'STK-IMP',stksp:'STK-SP',stksemi:'STK-SEMI',rmc:'CUST-MAT',inv:'INV',iv2:'INV-SP',adj:'ADJ',moves:'MOVE',report:'REPORT',tax:'VAT-IN',taxsale:'VAT-OUT',wht:'WHT',nc:'NC',context:'CONTEXT',topmgmt:'LEADER',planning:'PLANNING',support:'SUPPORT',demand:'PLAN',mrp:'MRP',settings:'SET'};
+const ABBR={dashboard:'HOME',monitor:'KPI',inventory:'STOCK',approvals:'APPR',po:'PO',ip:'IMPORT',sp:'SPECIAL',gr:'RECV',recvip:'RECV-IMP',recvsp:'RECV-SP',sup:'SUPPLY',prd:'PROD',wd:'ISSUE',ws:'SUP-ISS',dp:'DAILY',rw:'RECV-W',plate:'PLATE',qc:'QC',qcip:'QC-IMP',qcsp:'QC-SP',qcsemi:'QC-SEMI',si:'STK-IN',stkip:'STK-IMP',stksp:'STK-SP',stksemi:'STK-SEMI',rmc:'CUST-MAT',inv:'INV',iv2:'INV-SP',adj:'ADJ',moves:'MOVE',report:'REPORT',tax:'VAT-IN',taxsale:'VAT-OUT',wht:'WHT',nc:'NC',context:'CONTEXT',topmgmt:'LEADER',planning:'PLANNING',support:'SUPPORT',operation:'OPERATION',performance:'PERFORM',improvement:'IMPROVE',demand:'PLAN',mrp:'MRP',settings:'SET'};
 function curLang(){try{return localStorage.getItem('rtk_lang')||'th'}catch(e){return 'th'}}
 var LANGS=[['th','TH ไทย'],['en','US English'],['cn','CN 中文'],['km','KH ខ្មែរ'],['lo','LA ລາວ'],['my','MM မြန်មာ']];
 var LANGT={
@@ -703,7 +706,7 @@ function render(){
   const map={dashboard:viewDashboard,inventory:viewInventory,track:viewJobTrack,approvals:viewApprovals,monitor:viewMonitor,
     po:()=>viewDocs('PO'),ip:()=>viewDocs('IP'),sp:()=>viewDocs('SP'),gr:()=>viewDocs('GR'),prd:()=>viewDocs('PRD'),wd:()=>viewDocs('WD'),
     dp:()=>viewDocs('DP'),rw:()=>viewDocs('RW'),plate:()=>viewDocs('PL'),qc:()=>viewDocs('QC'),si:()=>viewDocs('SI'),rmc:viewRMC,fgi:viewFGI,sup:viewSUP,ws:viewWS,recvip:()=>viewRcv('GI'),recvsp:()=>viewRcv('GS'),qcip:()=>viewQck('QI'),qcsp:()=>viewQck('QS'),qcsemi:()=>viewQck('QSE'),stkip:()=>viewStk('SII'),stksp:()=>viewStk('SIS'),stksemi:()=>viewStk('SSE'),
-    inv:()=>viewDocs('INV'),iv2:()=>viewDocs('IV2'),adj:()=>viewDocs('ADJ'),moves:viewMoves,report:viewReport,tax:viewTax,taxsale:viewTaxSale,wht:viewWHT,nc:viewNC,context:viewContext,topmgmt:viewTopMgmt,planning:viewPlanning,support:viewSupport,settings:viewSettings,
+    inv:()=>viewDocs('INV'),iv2:()=>viewDocs('IV2'),adj:()=>viewDocs('ADJ'),moves:viewMoves,report:viewReport,tax:viewTax,taxsale:viewTaxSale,wht:viewWHT,nc:viewNC,context:viewContext,topmgmt:viewTopMgmt,planning:viewPlanning,support:viewSupport,operation:viewOperation,performance:viewPerformance,improvement:viewImprovement,settings:viewSettings,
     demand:viewDemand,mrp:viewMRP};
   (map[route]||viewDashboard)(el);
   setBuild();
@@ -6615,6 +6618,26 @@ function submitQck(kind,editId,status){
   else{d.status='pending';toast((editId?'บันทึกแก้ไข ':'สร้าง ')+d.no+' (รออนุมัติ)','ok');}
   qckDefs=[];closeModal();render();
 }
+/* ===== แบบฟอร์มควบคุมเอกสาร (Document Control) — ใช้ร่วมทุกโมดูล ISO ข้อ 4–10 ===== */
+var DC_DEFAULTS={
+  context:[{code:'QM-04',name:'บริบทองค์กร (Context)',rev:'01',date:''},{code:'FM-04-01',name:'การวิเคราะห์ SWOT',rev:'01',date:''},{code:'FM-04-02',name:'ทะเบียนผู้มีส่วนได้ส่วนเสีย',rev:'01',date:''},{code:'FM-04-03',name:'ขอบเขตระบบคุณภาพ (Quality Manual)',rev:'01',date:''},{code:'FM-04-04',name:'แผนผังกระบวนการ (Process Map)',rev:'01',date:''}],
+  topmgmt:[{code:'QM-05',name:'ภาวะผู้นำ (Leadership)',rev:'01',date:''},{code:'QP-05-01',name:'นโยบายคุณภาพ',rev:'01',date:''},{code:'FM-05-01',name:'ผังองค์กร & ใบพรรณนางาน (JD)',rev:'01',date:''}],
+  planning:[{code:'FM-06-01',name:'ทะเบียนความเสี่ยงและโอกาส',rev:'01',date:''},{code:'FM-06-02',name:'แผนฉุกเฉิน (Contingency Plan)',rev:'01',date:''},{code:'FM-06-03',name:'วัตถุประสงค์คุณภาพ (KPI)',rev:'01',date:''},{code:'FM-06-04',name:'การควบคุมการเปลี่ยนแปลง',rev:'01',date:''}],
+  operation:[{code:'FM-08-01',name:'Control Plan',rev:'01',date:''},{code:'FM-08-02',name:'PFMEA',rev:'01',date:''},{code:'FM-08-03',name:'ทะเบียนผู้ขายที่อนุมัติ (AVL)',rev:'01',date:''},{code:'FM-08-04',name:'ใบตรวจรับ / ปล่อยงาน',rev:'01',date:''}],
+  performance:[{code:'FM-09-01',name:'รายงาน KPI / ความพึงพอใจลูกค้า',rev:'01',date:''},{code:'FM-09-02',name:'แผน/รายงานการตรวจติดตามภายใน',rev:'01',date:''},{code:'FM-09-03',name:'รายงานทบทวนฝ่ายบริหาร',rev:'01',date:''}],
+  improvement:[{code:'FM-10-01',name:'ใบปฏิบัติการแก้ไข (CAR / 8D)',rev:'01',date:''},{code:'FM-10-02',name:'ทะเบียน CAPA',rev:'01',date:''},{code:'FM-10-03',name:'ข้อเสนอปรับปรุง (Kaizen)',rev:'01',date:''}]
+};
+function dcEnsure(k){ if(!DB[k])DB[k]={}; if(!Array.isArray(DB[k].docCtrl)){ DB[k].docCtrl=(DC_DEFAULTS[k]||[]).map(function(x){return Object.assign({},x);}); if(!DB[k].docCtrl.length)DB[k].docCtrl=[{code:'',name:'',rev:'01',date:''}]; } }
+function dcSet(k,i,f,v){dcEnsure(k);if(DB[k].docCtrl[i]){DB[k].docCtrl[i][f]=v;saveDB();}}
+function dcAdd(k){dcEnsure(k);DB[k].docCtrl.push({code:'',name:'',rev:'01',date:''});saveDB();render();}
+function dcDel(k,i){dcEnsure(k);DB[k].docCtrl.splice(i,1);saveDB();render();}
+function docCtrlHTML(k){ dcEnsure(k);
+  var rows=DB[k].docCtrl.map(function(r,i){var f=function(fld,t,w){return '<td'+(w?' style="width:'+w+'"':'')+'><input '+(t==='date'?'type="date" ':'')+'value="'+esc(r[fld]||'')+'" onchange="dcSet(\''+k+'\','+i+',\''+fld+'\',this.value)" style="width:100%;padding:5px"></td>';};return '<tr>'+f('code','','18%')+f('name','','')+f('rev','','10%')+f('date','date','20%')+'<td><div class="rm-x" onclick="dcDel(\''+k+'\','+i+')">✕</div></td></tr>';}).join('');
+  return '<div style="margin-top:16px;border-top:1px dashed var(--line);padding-top:10px"><div style="font-weight:700;margin-bottom:4px">📄 แบบฟอร์มควบคุมเอกสาร (Document Control) — เอกสารในหมวดนี้</div><div class="tbl-wrap"><table style="font-size:12px"><thead><tr><th>รหัสเอกสาร</th><th>ชื่อเอกสาร</th><th>Rev.</th><th>วันที่ประกาศใช้</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div><button class="btn sm" style="margin-top:8px" onclick="dcAdd(\''+k+'\')">+ เพิ่มเอกสาร</button></div>';
+}
+function dcPrintTable(k){ dcEnsure(k); var e2=function(x){return esc(String(x==null?'':x));};
+  return '<h2>แบบฟอร์มควบคุมเอกสาร (Document Control)</h2><table><thead><tr><th style="width:18%">รหัส</th><th>ชื่อเอกสาร</th><th style="width:10%">Rev.</th><th style="width:20%">วันที่</th></tr></thead><tbody>'+DB[k].docCtrl.map(function(r){return '<tr><td>'+e2(r.code)+'</td><td>'+e2(r.name)+'</td><td>'+e2(r.rev)+'</td><td>'+e2(r.date)+'</td></tr>';}).join('')+'</tbody></table>';
+}
 /* ===== 4 CONTEXT — บริบทองค์กร (ISO 9001 / IATF 16949 ข้อ 4) ===== */
 function ensureContext(){
   if(!DB.context)DB.context={};
@@ -6694,7 +6717,7 @@ function viewContext(el){
       +'</tbody></table></div><button class="btn sm" style="margin-top:8px" onclick="ctxProcAdd()">+ เพิ่มกระบวนการ</button>';
   }
   el.innerHTML='<div class="panel"><div class="panel-h" style="flex-wrap:wrap;gap:8px"><h2>📘 บริบทองค์กร — ISO 9001 / IATF 16949 (ข้อ 4)</h2><div class="right" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><span class="desc">Rev. <input value="'+esc(c.rev||'')+'" onchange="ctxSet(\'rev\',this.value)" style="width:44px;text-align:center;padding:2px 4px"></span><button class="btn sm" onclick="printContext()">🖨️ พิมพ์เอกสาร</button></div></div>'
-    +'<div class="panel-b"><div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">'+tb('41','4.1 SWOT / บริบท')+tb('42','4.2 ผู้มีส่วนได้ส่วนเสีย')+tb('43','4.3 ขอบเขต')+tb('44','4.4 กระบวนการ')+'</div>'+body+'</div></div>';
+    +'<div class="panel-b"><div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">'+tb('41','4.1 SWOT / บริบท')+tb('42','4.2 ผู้มีส่วนได้ส่วนเสีย')+tb('43','4.3 ขอบเขต')+tb('44','4.4 กระบวนการ')+'</div>'+body+docCtrlHTML('context')+'</div></div>';
 }
 function printContext(){
   ensureContext();ensureSettings();var c=DB.context;var co=DB.settings.company||{};
@@ -6715,6 +6738,7 @@ function printContext(){
     +'<h2>4.2 ผู้มีส่วนได้ส่วนเสีย</h2><table><thead><tr><th style="width:24%">ผู้มีส่วนได้ส่วนเสีย</th><th style="width:40%">ความต้องการ/ความคาดหวัง</th><th style="width:36%">ข้อกำหนดที่เกี่ยวข้อง</th></tr></thead><tbody>'+stakeRows+'</tbody></table>'
     +'<h2>4.3 ขอบเขตของระบบคุณภาพ</h2><div class="box"><b>ขอบเขต:</b> '+esc2(c.scope.statement)+'<br><br><b>สถานที่:</b> '+esc2(c.scope.site)+'<br><br><b>ข้อยกเว้น:</b> '+esc2(c.scope.excl)+'</div>'
     +'<h2>4.4 กระบวนการ (Process Approach)</h2><table><thead><tr><th>กระบวนการ</th><th>ผู้รับผิดชอบ</th><th>Input</th><th>Output</th><th>KPI</th></tr></thead><tbody>'+procRows+'</tbody></table>'
+    +dcPrintTable('context')
     +'<div style="display:flex;justify-content:space-between;margin-top:36px;font-size:11px"><div style="width:30%;text-align:center">___________________<br>จัดทำ</div><div style="width:30%;text-align:center">___________________<br>ทบทวน</div><div style="width:30%;text-align:center">___________________<br>อนุมัติ</div></div>'
     +'<div class="noprint"><button onclick="window.print()" style="padding:8px 22px;cursor:pointer">🖨️ พิมพ์ / PDF</button></div>'
     +'<scr'+'ipt>setTimeout(function(){window.print()},400)</scr'+'ipt></body></html>';
@@ -6780,7 +6804,7 @@ function viewTopMgmt(el){
       +ta('5.3.2 ผู้มีอำนาจสั่งหยุดไลน์การผลิต (Stop-Line Authority)',t.stopline,"tmSet('stopline',this.value)",3);
   }
   el.innerHTML='<div class="panel"><div class="panel-h" style="flex-wrap:wrap;gap:8px"><h2>👔 ภาวะผู้นำ — ISO 9001 / IATF 16949 (ข้อ 5)</h2><div class="right" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><span class="desc">Rev. <input value="'+esc(t.rev||'')+'" onchange="tmSet(\'rev\',this.value)" style="width:44px;text-align:center;padding:2px 4px"></span><button class="btn sm" onclick="printTopMgmt()">🖨️ พิมพ์เอกสาร</button></div></div>'
-    +'<div class="panel-b"><div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">'+tb('51','5.1 ผู้นำ & ความมุ่งมั่น')+tb('52','5.2 นโยบาย')+tb('53','5.3 บทบาทหน้าที่')+'</div>'+body+'</div></div>';
+    +'<div class="panel-b"><div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">'+tb('51','5.1 ผู้นำ & ความมุ่งมั่น')+tb('52','5.2 นโยบาย')+tb('53','5.3 บทบาทหน้าที่')+'</div>'+body+docCtrlHTML('topmgmt')+'</div></div>';
 }
 function printTopMgmt(){
   ensureTopMgmt();ensureSettings();var t=DB.topmgmt;var co=DB.settings.company||{};
@@ -6799,6 +6823,7 @@ function printTopMgmt(){
     +'<h2>5.2 นโยบายคุณภาพ</h2><div class="box"><h3>5.2.1 นโยบายคุณภาพ</h3>'+e2(t.policy.statement)+'<h3>5.2.2 การสื่อสาร</h3>'+e2(t.policy.communicate)+'</div>'
     +'<h2>5.3 บทบาท ความรับผิดชอบ และอำนาจหน้าที่</h2><table><thead><tr><th style="width:26%">ตำแหน่ง/บทบาท</th><th style="width:40%">ความรับผิดชอบ</th><th style="width:34%">อำนาจหน้าที่</th></tr></thead><tbody>'+roleRows+'</tbody></table>'
     +'<div class="box" style="margin-top:6px"><h3>5.3.1 ตัวแทนฝ่ายบริหาร (QMR)</h3>'+e2(t.qmr)+'<h3>5.3.2 ผู้มีอำนาจสั่งหยุดไลน์การผลิต</h3>'+e2(t.stopline)+'</div>'
+    +dcPrintTable('topmgmt')
     +'<div style="display:flex;justify-content:space-between;margin-top:36px;font-size:11px"><div style="width:30%;text-align:center">___________________<br>จัดทำ</div><div style="width:30%;text-align:center">___________________<br>ทบทวน</div><div style="width:30%;text-align:center">___________________<br>อนุมัติ</div></div>'
     +'<div class="noprint"><button onclick="window.print()" style="padding:8px 22px;cursor:pointer">🖨️ พิมพ์ / PDF</button></div>'
     +'<scr'+'ipt>setTimeout(function(){window.print()},400)</scr'+'ipt></body></html>';
@@ -6884,7 +6909,7 @@ function viewPlanning(el){
       +'<div class="tbl-wrap"><table style="font-size:12px"><thead><tr><th style="width:15%">วันที่</th><th style="width:38%">รายการเปลี่ยนแปลง</th><th style="width:32%">ผลกระทบ/การจัดการ</th><th>ผู้อนุมัติ</th><th></th></tr></thead><tbody>'+lg+'</tbody></table></div><button class="btn sm" style="margin-top:8px" onclick="plnArrAdd(\'changelog\',{date:\'\',item:\'\',impact:\'\',by:\'\'})">+ เพิ่มบันทึก</button>';
   }
   el.innerHTML='<div class="panel"><div class="panel-h" style="flex-wrap:wrap;gap:8px"><h2>🗺️ การวางแผน — ISO 9001 / IATF 16949 (ข้อ 6)</h2><div class="right" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><span class="desc">Rev. <input value="'+esc(p.rev||'')+'" onchange="plnSet(\'rev\',this.value)" style="width:44px;text-align:center;padding:2px 4px"></span><button class="btn sm" onclick="printPlanning()">🖨️ พิมพ์เอกสาร</button></div></div>'
-    +'<div class="panel-b"><div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">'+tb('61','6.1 ความเสี่ยง & โอกาส')+tb('62','6.2 วัตถุประสงค์คุณภาพ (KPI)')+tb('63','6.3 ควบคุมการเปลี่ยนแปลง')+'</div>'+body+'</div></div>';
+    +'<div class="panel-b"><div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">'+tb('61','6.1 ความเสี่ยง & โอกาส')+tb('62','6.2 วัตถุประสงค์คุณภาพ (KPI)')+tb('63','6.3 ควบคุมการเปลี่ยนแปลง')+'</div>'+body+docCtrlHTML('planning')+'</div></div>';
 }
 function printPlanning(){
   ensurePlanning();ensureSettings();var p=DB.planning;var co=DB.settings.company||{};
@@ -6909,6 +6934,7 @@ function printPlanning(){
     +'<div class="box" style="margin-top:6px"><b>6.2.2.1 ความสอดคล้องกับลูกค้า:</b> '+e2(p.custAlign)+'</div>'
     +'<h2>6.3 การควบคุมการเปลี่ยนแปลง</h2><div class="box">'+e2(p.change)+'</div>'
     +'<table style="margin-top:6px"><thead><tr><th style="width:15%">วันที่</th><th style="width:38%">รายการเปลี่ยนแปลง</th><th style="width:32%">ผลกระทบ/การจัดการ</th><th>ผู้อนุมัติ</th></tr></thead><tbody>'+lgRows+'</tbody></table>'
+    +dcPrintTable('planning')
     +'<div style="display:flex;justify-content:space-between;margin-top:30px;font-size:11px"><div style="width:30%;text-align:center">___________________<br>จัดทำ</div><div style="width:30%;text-align:center">___________________<br>ทบทวน</div><div style="width:30%;text-align:center">___________________<br>อนุมัติ</div></div>'
     +'<div class="noprint"><button onclick="window.print()" style="padding:8px 22px;cursor:pointer">🖨️ พิมพ์ / PDF</button></div>'
     +'<scr'+'ipt>setTimeout(function(){window.print()},400)</scr'+'ipt></body></html>';
@@ -7035,6 +7061,225 @@ function printSupport(){
     +'<h2>7.4 การสื่อสาร</h2><table><thead><tr><th style="width:24%">สื่อสารอะไร</th><th>เมื่อใด</th><th>กับใคร</th><th>อย่างไร</th><th>โดยใคร</th></tr></thead><tbody>'+cmRows+'</tbody></table>'
     +'<h2>7.5 เอกสารข้อมูล</h2>'+kv('7.5.1 ทั่วไป',s.doc.general)+kv('7.5.2 การจัดทำและปรับปรุง',s.doc.create)+kv('7.5.3 การควบคุมเอกสาร',s.doc.control)
     +'<h3>แบบฟอร์มควบคุมเอกสาร (FM-DCC)</h3><table><thead><tr><th style="width:20%">รหัส</th><th>ชื่อเอกสาร</th></tr></thead><tbody>'+dcRows+'</tbody></table>'
+    +'<div style="display:flex;justify-content:space-between;margin-top:28px;font-size:11px"><div style="width:30%;text-align:center">___________________<br>จัดทำ</div><div style="width:30%;text-align:center">___________________<br>ทบทวน</div><div style="width:30%;text-align:center">___________________<br>อนุมัติ</div></div>'
+    +'<div class="noprint"><button onclick="window.print()" style="padding:8px 22px;cursor:pointer">🖨️ พิมพ์ / PDF</button></div>'
+    +'<scr'+'ipt>setTimeout(function(){window.print()},400)</scr'+'ipt></body></html>';
+  var w=window.open('','_blank');if(!w){toast('เบราว์เซอร์บล็อก popup','err');return}w.document.write(html);w.document.close();
+}
+/* ===== 8 OPERATION — การปฏิบัติการ (ISO 9001 / IATF 16949 ข้อ 8) ===== */
+function ensureOperation(){
+  if(!DB.operation)DB.operation={};
+  var o=DB.operation;
+  if(!o.plan)o.plan={
+    control:'วางแผนและควบคุมกระบวนการผลิตให้เป็นไปตามข้อกำหนด: จัดทำใบสั่งผลิต (PRD) · Control Plan · Work Instruction (WI) · เกณฑ์การยอมรับ และเตรียมทรัพยากร/เครื่องมือวัดก่อนเริ่มงาน (ระบบนี้รองรับผ่าน ใบสั่งผลิต→ผลิต→QC→รับเข้าสต๊อค→ส่งมอบ)',
+    design:'8.3 การออกแบบผลิตภัณฑ์ — ไม่ประยุกต์ใช้ (ผลิตตามแบบลูกค้า) · แต่คงใช้ "การออกแบบกระบวนการผลิต" (Process Design) ตาม IATF: จัดทำ Process Flow · PFMEA · Control Plan ก่อนผลิตจริง'
+  };
+  if(!o.req)o.req={
+    communicate:'สื่อสารกับลูกค้า: ให้ข้อมูลผลิตภัณฑ์ · รับคำสั่งซื้อ/ใบเสนอราคา · จัดการข้อร้องเรียน/ข้อมูลป้อนกลับ · ดูแลทรัพย์สินลูกค้า · แผนฉุกเฉิน (8.2.1)',
+    determine:'กำหนดข้อกำหนดของผลิตภัณฑ์: สเปค/แบบงาน · ข้อกำหนดกฎหมาย · ข้อกำหนดจำเป็นต่อการใช้งาน (8.2.2)',
+    review:'ทบทวนความสามารถก่อนรับคำสั่งผลิต: ทำได้ตามสเปค · กำหนดส่ง · ราคา — บันทึกในใบสั่งผลิต/ใบเสนอราคา (8.2.3)',
+    change:'เมื่อข้อกำหนดเปลี่ยน แก้ไขเอกสารที่เกี่ยวข้องและสื่อสารผู้เกี่ยวข้องทุกฝ่าย (8.2.4)'
+  };
+  if(!o.sup)o.sup={
+    general:'ควบคุมผู้ให้บริการภายนอก (ผู้ขายวัตถุดิบ · ผู้รับจ้างผลิต/ชุบ) ให้ส่งมอบตรงข้อกำหนด (8.4.1)',
+    select:'คัดเลือก/ประเมินผู้ขายตามเกณฑ์ (คุณภาพ · ราคา · การส่งมอบ) · ประเมินซ้ำประจำปี · จัดทำ AVL (Approved Vendor List) (8.4.2)',
+    info:'แจ้งข้อกำหนดให้ผู้ขายชัดเจน: สเปค · จำนวน · กำหนดส่ง · ข้อกำหนดคุณภาพ/เอกสาร (8.4.3)'
+  };
+  if(!o.supList||!o.supList.length)o.supList=[
+    {name:'มาเฮงกี่',scope:'วัตถุดิบเหล็ก',rating:'A'},
+    {name:'VS4 / JARUN',scope:'จ้างผลิต (กลึง)',rating:'A'},
+    {name:'C.B.S. Plating',scope:'ชุบผิว',rating:'B'}
+  ];
+  if(!o.prod)o.prod={
+    control:'ควบคุมการผลิตภายใต้สภาวะที่ควบคุม: มี WI/Control Plan · เครื่องมือวัดที่สอบเทียบ · การตรวจระหว่างผลิต · การบำรุงรักษาเครื่องจักร (8.5.1)',
+    trace:'ชี้บ่งและสอบกลับได้ (Traceability): ใช้เลขที่ PO/LOT · ป้าย TAG (OK/NG/DELIVERY) · ระบบบันทึกเชื่อมโยงทุกขั้นตอน (ดูได้จาก รายงาน Timeline) (8.5.2)',
+    custProp:'ดูแลทรัพย์สินลูกค้า (แมทลูกค้า/แบบ/เครื่องมือ): ชี้บ่ง · เก็บรักษา · แจ้งลูกค้าหากเสียหาย (โมดูล รับแมทลูกค้า) (8.5.3)',
+    preserve:'ถนอมรักษาชิ้นงาน: บรรจุเหมาะสม · ป้องกันสนิม · จัดเก็บถูกวิธี · หลักการ FIFO (8.5.4)',
+    postdel:'กิจกรรมหลังส่งมอบ: การรับประกัน · การจัดการงานคืน/เคลม/บริการหลังการขาย (8.5.5)',
+    change:'ควบคุมการเปลี่ยนแปลงการผลิต — ทบทวนผลกระทบและอนุมัติก่อนดำเนินการ · แจ้งลูกค้าหากจำเป็น (8.5.6)'
+  };
+  if(o.release==null)o.release='ปล่อยผลิตภัณฑ์เมื่อผ่านเกณฑ์ที่กำหนด (QC ผ่าน) · เก็บหลักฐานการปล่อย/ผู้อนุมัติ · ระบบไม่อนุญาตให้ส่งมอบหากยังไม่ผ่านการตรวจ (8.6)';
+  if(o.ncout==null)o.ncout='ควบคุมผลลัพธ์ที่ไม่เป็นไปตามข้อกำหนด: ชี้บ่ง · กักกัน (พื้นที่แดง) · ตัดสินการจัดการ (แก้ไข/คัดแยก/ทิ้ง/ยอมรับพิเศษโดยได้รับอนุมัติ) · บันทึกใบ NC และแจ้งลูกค้าหากจำเป็น (โมดูล งานไม่ตรงข้อกำหนด) (8.7)';
+  if(o.rev==null)o.rev='01';
+}
+function opTab(x){window.__opTab=x;render();}
+function opSet(k,v){ensureOperation();DB.operation[k]=v;saveDB();}
+function opGrp(g,k,v){ensureOperation();DB.operation[g][k]=v;saveDB();}
+function opSupSet(i,f,v){ensureOperation();if(DB.operation.supList[i]){DB.operation.supList[i][f]=v;saveDB();}}
+function opSupAdd(){ensureOperation();DB.operation.supList.push({name:'',scope:'',rating:''});saveDB();render();}
+function opSupDel(i){ensureOperation();DB.operation.supList.splice(i,1);saveDB();render();}
+function viewOperation(el){
+  ensureSettings();ensureOperation();
+  var o=DB.operation;var tab=window.__opTab||'81';
+  setTitle('🏗️ 8 การปฏิบัติการ (Operation)','ISO 9001 / IATF 16949 ข้อ 8 · วางแผน · ข้อกำหนดลูกค้า · ผู้ขาย · การผลิต · ปล่อยงาน & ของเสีย');
+  var tbn=function(id,lbl){return '<button class="btn sm'+(tab===id?' pri':'')+'" onclick="opTab(\''+id+'\')">'+lbl+'</button>';};
+  var ref=function(x){return '<div class="hint" style="margin-bottom:10px"><span class="i">📘</span><div>'+x+'</div></div>';};
+  var sec=function(lbl,val,fn,rows){return '<div class="field"><label style="font-weight:700;font-size:13px">'+lbl+'</label><textarea onchange="'+fn+'" rows="'+(rows||2)+'" style="width:100%;padding:8px;resize:vertical;border:1px solid var(--line);border-radius:8px">'+esc(val||'')+'</textarea></div>';};
+  var body='';
+  if(tab==='81'){
+    body=ref('<b>ข้อ 8.1 การวางแผนและควบคุมการปฏิบัติการ:</b> วางแผนกระบวนการผลิต กำหนดเกณฑ์ ทรัพยากร และการควบคุม เพื่อผลิตให้ตรงข้อกำหนด')
+      +sec('8.1 การวางแผนและควบคุมการผลิต',o.plan.control,"opGrp('plan','control',this.value)",3)
+      +sec('8.3 การออกแบบและพัฒนา',o.plan.design,"opGrp('plan','design',this.value)",3);
+  } else if(tab==='82'){
+    body=ref('<b>ข้อ 8.2 ข้อกำหนดสำหรับผลิตภัณฑ์และบริการ:</b> สื่อสารกับลูกค้า · กำหนด · ทบทวน · และจัดการการเปลี่ยนแปลงข้อกำหนด')
+      +sec('8.2.1 การสื่อสารกับลูกค้า',o.req.communicate,"opGrp('req','communicate',this.value)")
+      +sec('8.2.2 การกำหนดข้อกำหนด',o.req.determine,"opGrp('req','determine',this.value)")
+      +sec('8.2.3 การทบทวนข้อกำหนด',o.req.review,"opGrp('req','review',this.value)")
+      +sec('8.2.4 การเปลี่ยนแปลงข้อกำหนด',o.req.change,"opGrp('req','change',this.value)");
+  } else if(tab==='84'){
+    var sl=o.supList.map(function(r,i){var f=function(k,w){return '<td'+(w?' style="width:'+w+'"':'')+'><input value="'+esc(r[k]||'')+'" onchange="opSupSet('+i+',\''+k+'\',this.value)" style="width:100%;padding:5px"></td>';};return '<tr>'+f('name','36%')+f('scope','')+f('rating','16%')+'<td><div class="rm-x" onclick="opSupDel('+i+')">✕</div></td></tr>';}).join('');
+    body=ref('<b>ข้อ 8.4 การควบคุมผู้ให้บริการภายนอก:</b> คัดเลือก/ประเมิน/ควบคุมผู้ขายและผู้รับจ้าง และแจ้งข้อกำหนดให้ชัดเจน')
+      +sec('8.4.1 ทั่วไป',o.sup.general,"opGrp('sup','general',this.value)")
+      +sec('8.4.2 การคัดเลือกและประเมินผู้ขาย',o.sup.select,"opGrp('sup','select',this.value)")
+      +sec('8.4.3 ข้อมูลสำหรับผู้ขาย',o.sup.info,"opGrp('sup','info',this.value)")
+      +'<div style="font-weight:700;margin:6px 0 2px">ทะเบียนผู้ขายที่อนุมัติ (AVL / Approved Vendor List)</div>'
+      +'<div class="tbl-wrap"><table style="font-size:12px"><thead><tr><th>ผู้ขาย/ผู้รับจ้าง</th><th>ขอบเขต</th><th>เกรด (A/B/C)</th><th></th></tr></thead><tbody>'+sl+'</tbody></table></div><button class="btn sm" style="margin-top:8px" onclick="opSupAdd()">+ เพิ่มผู้ขาย</button>';
+  } else if(tab==='85'){
+    body=ref('<b>ข้อ 8.5 การผลิตและการให้บริการ:</b> ควบคุมการผลิต · การชี้บ่ง/สอบกลับ · ทรัพย์สินลูกค้า · การถนอมรักษา · กิจกรรมหลังส่งมอบ · การเปลี่ยนแปลง')
+      +sec('8.5.1 การควบคุมการผลิต',o.prod.control,"opGrp('prod','control',this.value)")
+      +sec('8.5.2 การชี้บ่งและสอบกลับ (Traceability)',o.prod.trace,"opGrp('prod','trace',this.value)")
+      +sec('8.5.3 ทรัพย์สินของลูกค้า/ผู้ขาย',o.prod.custProp,"opGrp('prod','custProp',this.value)")
+      +sec('8.5.4 การถนอมรักษา (Preservation)',o.prod.preserve,"opGrp('prod','preserve',this.value)")
+      +sec('8.5.5 กิจกรรมหลังส่งมอบ',o.prod.postdel,"opGrp('prod','postdel',this.value)")
+      +sec('8.5.6 การควบคุมการเปลี่ยนแปลง',o.prod.change,"opGrp('prod','change',this.value)");
+  } else {
+    body=ref('<b>ข้อ 8.6 การปล่อยผลิตภัณฑ์ · ข้อ 8.7 การควบคุมผลลัพธ์ที่ไม่เป็นไปตามข้อกำหนด</b>')
+      +sec('8.6 การปล่อยผลิตภัณฑ์และบริการ (Release)',o.release,"opSet('release',this.value)",3)
+      +sec('8.7 การควบคุมผลลัพธ์ที่ไม่เป็นไปตามข้อกำหนด (Nonconforming Output)',o.ncout,"opSet('ncout',this.value)",3);
+  }
+  el.innerHTML='<div class="panel"><div class="panel-h" style="flex-wrap:wrap;gap:8px"><h2>🏗️ การปฏิบัติการ — ISO 9001 / IATF 16949 (ข้อ 8)</h2><div class="right" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><span class="desc">Rev. <input value="'+esc(o.rev||'')+'" onchange="opSet(\'rev\',this.value)" style="width:44px;text-align:center;padding:2px 4px"></span><button class="btn sm" onclick="printSection(\'operation\')">🖨️ พิมพ์เอกสาร</button></div></div>'
+    +'<div class="panel-b"><div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">'+tbn('81','8.1 วางแผน/ออกแบบ')+tbn('82','8.2 ข้อกำหนดลูกค้า')+tbn('84','8.4 ควบคุมผู้ขาย')+tbn('85','8.5 การผลิต')+tbn('86','8.6/8.7 ปล่อยงาน&ของเสีย')+'</div>'+body+docCtrlHTML('operation')+'</div></div>';
+}
+/* ===== 9 PERFORMANCE — การประเมินสมรรถนะ (ISO 9001 / IATF 16949 ข้อ 9) ===== */
+function ensurePerformance(){
+  if(!DB.performance)DB.performance={};
+  var q=DB.performance;
+  if(!q.mon)q.mon={
+    general:'กำหนดสิ่งที่ต้องเฝ้าติดตาม/วัด · วิธีการ · และความถี่ ผ่านตัวชี้วัด KPI (ระบบรองรับผ่านโมดูล เฝ้าติดตาม / รายงาน) (9.1.1)',
+    custSat:'วัดความพึงพอใจของลูกค้า: แบบสำรวจ · % ส่งมอบตรงเวลา · PPM/ข้อร้องเรียน · คะแนนจากลูกค้า (Scorecard) — ทบทวนใน Management Review (9.1.2)',
+    analysis:'วิเคราะห์และประเมินข้อมูล: แนวโน้ม KPI · ของเสีย (Pareto) · สมรรถนะผู้ผลิต — เพื่อใช้ตัดสินใจปรับปรุง (9.1.3)'
+  };
+  if(!q.audit)q.audit={
+    general:'ตรวจติดตามภายใน (Internal Audit) ตามแผนประจำปี ครอบคลุมทุกกระบวนการ · IATF เพิ่ม: QMS Audit · Manufacturing Process Audit · Product Audit (9.2)',
+    program:'จัดทำแผน Audit · ผู้ตรวจต้องอิสระ (ไม่ตรวจงานของตนเอง) · รายงานผล/ออก CAR · ติดตามการแก้ไขจนปิด'
+  };
+  if(!q.auditList||!q.auditList.length)q.auditList=[
+    {area:'ฝ่ายผลิต',date:'',result:''},
+    {area:'ฝ่าย QC/QA',date:'',result:''},
+    {area:'จัดซื้อ / คลังสินค้า',date:'',result:''}
+  ];
+  if(!q.review)q.review={
+    inputs:'ปัจจัยนำเข้า: สถานะ action ครั้งก่อน · ผล KPI/วัตถุประสงค์ · ความพึงพอใจลูกค้า · ผล Audit · NC/CAPA · สมรรถนะผู้ขาย · ความเสี่ยง/โอกาส · ข้อเสนอปรับปรุง (9.3.2)',
+    outputs:'ผลลัพธ์: โอกาสในการปรับปรุง · การเปลี่ยนแปลงระบบคุณภาพ · ความต้องการทรัพยากร (9.3.3)',
+    freq:'ทบทวนอย่างน้อยปีละ 1 ครั้ง โดยผู้บริหารระดับสูง — บันทึกเป็นรายงาน Management Review'
+  };
+  if(q.rev==null)q.rev='01';
+}
+function pfTab(x){window.__pfTab=x;render();}
+function pfSet(k,v){ensurePerformance();DB.performance[k]=v;saveDB();}
+function pfGrp(g,k,v){ensurePerformance();DB.performance[g][k]=v;saveDB();}
+function pfAudSet(i,f,v){ensurePerformance();if(DB.performance.auditList[i]){DB.performance.auditList[i][f]=v;saveDB();}}
+function pfAudAdd(){ensurePerformance();DB.performance.auditList.push({area:'',date:'',result:''});saveDB();render();}
+function pfAudDel(i){ensurePerformance();DB.performance.auditList.splice(i,1);saveDB();render();}
+function viewPerformance(el){
+  ensureSettings();ensurePerformance();
+  var q=DB.performance;var tab=window.__pfTab||'91';
+  setTitle('🎯 9 การประเมินสมรรถนะ (Performance Evaluation)','ISO 9001 / IATF 16949 ข้อ 9 · เฝ้าติดตาม/วัด · ตรวจติดตามภายใน · ทบทวนฝ่ายบริหาร');
+  var tbn=function(id,lbl){return '<button class="btn sm'+(tab===id?' pri':'')+'" onclick="pfTab(\''+id+'\')">'+lbl+'</button>';};
+  var ref=function(x){return '<div class="hint" style="margin-bottom:10px"><span class="i">📘</span><div>'+x+'</div></div>';};
+  var sec=function(lbl,val,fn,rows){return '<div class="field"><label style="font-weight:700;font-size:13px">'+lbl+'</label><textarea onchange="'+fn+'" rows="'+(rows||2)+'" style="width:100%;padding:8px;resize:vertical;border:1px solid var(--line);border-radius:8px">'+esc(val||'')+'</textarea></div>';};
+  var body='';
+  if(tab==='91'){
+    body=ref('<b>ข้อ 9.1 การเฝ้าติดตาม การวัด การวิเคราะห์ และการประเมิน:</b> กำหนดสิ่งที่วัด วิธีและความถี่ · วัดความพึงพอใจลูกค้า · วิเคราะห์ข้อมูลเพื่อปรับปรุง')
+      +sec('9.1.1 ทั่วไป (สิ่งที่เฝ้าติดตาม/วัด)',q.mon.general,"pfGrp('mon','general',this.value)")
+      +sec('9.1.2 ความพึงพอใจของลูกค้า',q.mon.custSat,"pfGrp('mon','custSat',this.value)")
+      +sec('9.1.3 การวิเคราะห์และประเมินผล',q.mon.analysis,"pfGrp('mon','analysis',this.value)");
+  } else if(tab==='92'){
+    var al=q.auditList.map(function(r,i){var f=function(k,t,w){return '<td'+(w?' style="width:'+w+'"':'')+'><input '+(t==='date'?'type="date" ':'')+'value="'+esc(r[k]||'')+'" onchange="pfAudSet('+i+',\''+k+'\',this.value)" style="width:100%;padding:5px"></td>';};return '<tr>'+f('area','','32%')+f('date','date','20%')+f('result','','')+'<td><div class="rm-x" onclick="pfAudDel('+i+')">✕</div></td></tr>';}).join('');
+    body=ref('<b>ข้อ 9.2 การตรวจติดตามภายใน (Internal Audit):</b> ตรวจตามแผนเพื่อยืนยันว่าระบบเป็นไปตามข้อกำหนดและมีประสิทธิผล')
+      +sec('9.2 แนวทางการตรวจติดตามภายใน',q.audit.general,"pfGrp('audit','general',this.value)")
+      +sec('โปรแกรม/ขั้นตอนการตรวจ',q.audit.program,"pfGrp('audit','program',this.value)")
+      +'<div style="font-weight:700;margin:6px 0 2px">แผน/ผลการตรวจติดตามภายใน (Audit Program)</div>'
+      +'<div class="tbl-wrap"><table style="font-size:12px"><thead><tr><th>พื้นที่/กระบวนการ</th><th>วันที่ตรวจ</th><th>ผล/ข้อบกพร่อง (CAR)</th><th></th></tr></thead><tbody>'+al+'</tbody></table></div><button class="btn sm" style="margin-top:8px" onclick="pfAudAdd()">+ เพิ่มรายการตรวจ</button>';
+  } else {
+    body=ref('<b>ข้อ 9.3 การทบทวนฝ่ายบริหาร (Management Review):</b> ผู้บริหารระดับสูงทบทวนระบบคุณภาพตามวาระเพื่อความเหมาะสม เพียงพอ และมีประสิทธิผล')
+      +sec('9.3.1 ความถี่/แนวทาง',q.review.freq,"pfGrp('review','freq',this.value)")
+      +sec('9.3.2 ปัจจัยนำเข้าการทบทวน (Inputs)',q.review.inputs,"pfGrp('review','inputs',this.value)",4)
+      +sec('9.3.3 ผลลัพธ์การทบทวน (Outputs)',q.review.outputs,"pfGrp('review','outputs',this.value)",3);
+  }
+  el.innerHTML='<div class="panel"><div class="panel-h" style="flex-wrap:wrap;gap:8px"><h2>🎯 การประเมินสมรรถนะ — ISO 9001 / IATF 16949 (ข้อ 9)</h2><div class="right" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><span class="desc">Rev. <input value="'+esc(q.rev||'')+'" onchange="pfSet(\'rev\',this.value)" style="width:44px;text-align:center;padding:2px 4px"></span><button class="btn sm" onclick="printSection(\'performance\')">🖨️ พิมพ์เอกสาร</button></div></div>'
+    +'<div class="panel-b"><div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">'+tbn('91','9.1 เฝ้าติดตาม/วัด')+tbn('92','9.2 ตรวจติดตามภายใน')+tbn('93','9.3 ทบทวนฝ่ายบริหาร')+'</div>'+body+docCtrlHTML('performance')+'</div></div>';
+}
+/* ===== 10 IMPROVEMENT — การปรับปรุง (ISO 9001 / IATF 16949 ข้อ 10) ===== */
+function ensureImprovement(){
+  if(!DB.improvement)DB.improvement={};
+  var m=DB.improvement;
+  if(m.general==null)m.general='กำหนดและเลือกโอกาสในการปรับปรุงเพื่อเพิ่มความพึงพอใจลูกค้า: ปรับปรุงผลิตภัณฑ์/กระบวนการ · แก้ไขและป้องกันของเสีย · ปรับปรุงระบบคุณภาพ (10.1)';
+  if(m.corr==null)m.corr='เมื่อเกิดสิ่งที่ไม่เป็นไปตามข้อกำหนด/ข้อร้องเรียน: (1) ตอบสนอง/ควบคุมทันที (2) หาสาเหตุราก (Root Cause) (3) แก้ไข (Corrective Action) (4) ทวนสอบประสิทธิผล (5) ปรับปรุงเอกสาร/FMEA · เครื่องมือ: 8D · 5-Why · Fishbone (IATF 10.2.3–10.2.6)';
+  if(!m.capaList||!m.capaList.length)m.capaList=[{no:'',issue:'',root:'',action:'',status:'เปิด'}];
+  if(m.continual==null)m.continual='การปรับปรุงอย่างต่อเนื่อง (Continual Improvement): จัดกิจกรรม Kaizen · ตั้งเป้า KPI ให้ท้าทายขึ้น · ทบทวน PFMEA/Control Plan · นำผลจาก Audit และ Management Review มาปรับปรุง (10.3)';
+  if(m.rev==null)m.rev='01';
+}
+function imTab(x){window.__imTab=x;render();}
+function imSet(k,v){ensureImprovement();DB.improvement[k]=v;saveDB();}
+function imCapaSet(i,f,v){ensureImprovement();if(DB.improvement.capaList[i]){DB.improvement.capaList[i][f]=v;saveDB();}}
+function imCapaAdd(){ensureImprovement();DB.improvement.capaList.push({no:'',issue:'',root:'',action:'',status:'เปิด'});saveDB();render();}
+function imCapaDel(i){ensureImprovement();DB.improvement.capaList.splice(i,1);saveDB();render();}
+function viewImprovement(el){
+  ensureSettings();ensureImprovement();
+  var m=DB.improvement;var tab=window.__imTab||'101';
+  setTitle('💡 10 การปรับปรุง (Improvement)','ISO 9001 / IATF 16949 ข้อ 10 · ทั่วไป · การแก้ไข (CAPA) · การปรับปรุงต่อเนื่อง');
+  var tbn=function(id,lbl){return '<button class="btn sm'+(tab===id?' pri':'')+'" onclick="imTab(\''+id+'\')">'+lbl+'</button>';};
+  var ref=function(x){return '<div class="hint" style="margin-bottom:10px"><span class="i">📘</span><div>'+x+'</div></div>';};
+  var sec=function(lbl,val,fn,rows){return '<div class="field"><label style="font-weight:700;font-size:13px">'+lbl+'</label><textarea onchange="'+fn+'" rows="'+(rows||3)+'" style="width:100%;padding:8px;resize:vertical;border:1px solid var(--line);border-radius:8px">'+esc(val||'')+'</textarea></div>';};
+  var body='';
+  if(tab==='101'){
+    body=ref('<b>ข้อ 10.1 ทั่วไป:</b> องค์กรต้องกำหนดและเลือกโอกาสปรับปรุง และดำเนินการที่จำเป็นเพื่อให้ตรงตามข้อกำหนดของลูกค้าและเพิ่มความพึงพอใจ')
+      +sec('10.1 ภาพรวมการปรับปรุง',m.general,"imSet('general',this.value)",3);
+  } else if(tab==='102'){
+    var cl=m.capaList.map(function(r,i){var f=function(k,w){return '<td'+(w?' style="width:'+w+'"':'')+'><input value="'+esc(r[k]||'')+'" onchange="imCapaSet('+i+',\''+k+'\',this.value)" style="width:100%;padding:5px"></td>';};return '<tr>'+f('no','10%')+f('issue','26%')+f('root','26%')+f('action','26%')+f('status','')+'<td><div class="rm-x" onclick="imCapaDel('+i+')">✕</div></td></tr>';}).join('');
+    body=ref('<b>ข้อ 10.2 ความไม่เป็นไปตามข้อกำหนดและการปฏิบัติการแก้ไข:</b> ตอบสนอง · หาสาเหตุราก · แก้ไข · ทวนสอบประสิทธิผล (เชื่อมกับโมดูล งานไม่ตรงข้อกำหนด NC)')
+      +sec('แนวทางการแก้ไข (Corrective Action / 8D)',m.corr,"imSet('corr',this.value)",4)
+      +'<div style="font-weight:700;margin:6px 0 2px">ทะเบียนการปฏิบัติการแก้ไข-ป้องกัน (CAPA Register)</div>'
+      +'<div class="tbl-wrap"><table style="font-size:12px"><thead><tr><th>เลขที่</th><th>ปัญหา/NC</th><th>สาเหตุราก</th><th>การแก้ไข</th><th>สถานะ</th><th></th></tr></thead><tbody>'+cl+'</tbody></table></div><button class="btn sm" style="margin-top:8px" onclick="imCapaAdd()">+ เพิ่มรายการ CAPA</button>';
+  } else {
+    body=ref('<b>ข้อ 10.3 การปรับปรุงอย่างต่อเนื่อง (Continual Improvement):</b> ปรับปรุงความเหมาะสม เพียงพอ และประสิทธิผลของระบบคุณภาพอย่างต่อเนื่อง')
+      +sec('10.3 กิจกรรมการปรับปรุงอย่างต่อเนื่อง',m.continual,"imSet('continual',this.value)",4);
+  }
+  el.innerHTML='<div class="panel"><div class="panel-h" style="flex-wrap:wrap;gap:8px"><h2>💡 การปรับปรุง — ISO 9001 / IATF 16949 (ข้อ 10)</h2><div class="right" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><span class="desc">Rev. <input value="'+esc(m.rev||'')+'" onchange="imSet(\'rev\',this.value)" style="width:44px;text-align:center;padding:2px 4px"></span><button class="btn sm" onclick="printSection(\'improvement\')">🖨️ พิมพ์เอกสาร</button></div></div>'
+    +'<div class="panel-b"><div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">'+tbn('101','10.1 ทั่วไป')+tbn('102','10.2 การแก้ไข (CAPA)')+tbn('103','10.3 ปรับปรุงต่อเนื่อง')+'</div>'+body+docCtrlHTML('improvement')+'</div></div>';
+}
+/* พิมพ์เอกสารรวมของ ISO ข้อ 8/9/10 */
+function printSection(which){
+  ensureSettings();var co=DB.settings.company||{};var e2=function(x){return esc(String(x==null?'':x)).replace(/\n/g,'<br>');};
+  var kv=function(l,v){return '<h3>'+l+'</h3><div>'+e2(v)+'</div>';};
+  var title='',rev='',secs='';
+  if(which==='operation'){ensureOperation();var o=DB.operation;rev=o.rev;title='การปฏิบัติการ (Operation) — ข้อ 8';
+    secs='<h2>8.1 วางแผน/ควบคุมการผลิต · 8.3 ออกแบบ</h2>'+kv('8.1',o.plan.control)+kv('8.3',o.plan.design)
+      +'<h2>8.2 ข้อกำหนดผลิตภัณฑ์</h2>'+kv('8.2.1 สื่อสารลูกค้า',o.req.communicate)+kv('8.2.2 กำหนดข้อกำหนด',o.req.determine)+kv('8.2.3 ทบทวน',o.req.review)+kv('8.2.4 เปลี่ยนแปลง',o.req.change)
+      +'<h2>8.4 ควบคุมผู้ขาย</h2>'+kv('8.4.1',o.sup.general)+kv('8.4.2 คัดเลือก/ประเมิน',o.sup.select)+kv('8.4.3 ข้อมูลผู้ขาย',o.sup.info)
+      +'<table><thead><tr><th style="width:36%">ผู้ขาย</th><th>ขอบเขต</th><th style="width:14%">เกรด</th></tr></thead><tbody>'+o.supList.map(function(r){return '<tr><td>'+e2(r.name)+'</td><td>'+e2(r.scope)+'</td><td>'+e2(r.rating)+'</td></tr>';}).join('')+'</tbody></table>'
+      +'<h2>8.5 การผลิตและบริการ</h2>'+kv('8.5.1 ควบคุมการผลิต',o.prod.control)+kv('8.5.2 สอบกลับ',o.prod.trace)+kv('8.5.3 ทรัพย์สินลูกค้า',o.prod.custProp)+kv('8.5.4 ถนอมรักษา',o.prod.preserve)+kv('8.5.5 หลังส่งมอบ',o.prod.postdel)+kv('8.5.6 เปลี่ยนแปลง',o.prod.change)
+      +'<h2>8.6 ปล่อยผลิตภัณฑ์ · 8.7 ควบคุมของเสีย</h2>'+kv('8.6',o.release)+kv('8.7',o.ncout);
+  } else if(which==='performance'){ensurePerformance();var q=DB.performance;rev=q.rev;title='การประเมินสมรรถนะ (Performance Evaluation) — ข้อ 9';
+    secs='<h2>9.1 เฝ้าติดตาม/วัด/วิเคราะห์</h2>'+kv('9.1.1 ทั่วไป',q.mon.general)+kv('9.1.2 ความพึงพอใจลูกค้า',q.mon.custSat)+kv('9.1.3 วิเคราะห์',q.mon.analysis)
+      +'<h2>9.2 การตรวจติดตามภายใน</h2>'+kv('แนวทาง',q.audit.general)+kv('โปรแกรม',q.audit.program)
+      +'<table><thead><tr><th style="width:32%">พื้นที่/กระบวนการ</th><th style="width:20%">วันที่</th><th>ผล/CAR</th></tr></thead><tbody>'+q.auditList.map(function(r){return '<tr><td>'+e2(r.area)+'</td><td>'+e2(r.date)+'</td><td>'+e2(r.result)+'</td></tr>';}).join('')+'</tbody></table>'
+      +'<h2>9.3 การทบทวนฝ่ายบริหาร</h2>'+kv('ความถี่',q.review.freq)+kv('9.3.2 Inputs',q.review.inputs)+kv('9.3.3 Outputs',q.review.outputs);
+  } else {ensureImprovement();var m=DB.improvement;rev=m.rev;title='การปรับปรุง (Improvement) — ข้อ 10';
+    secs='<h2>10.1 ทั่วไป</h2><div>'+e2(m.general)+'</div>'
+      +'<h2>10.2 การแก้ไข (Corrective Action / CAPA)</h2><div>'+e2(m.corr)+'</div>'
+      +'<table><thead><tr><th style="width:10%">เลขที่</th><th style="width:26%">ปัญหา/NC</th><th style="width:26%">สาเหตุราก</th><th style="width:26%">การแก้ไข</th><th>สถานะ</th></tr></thead><tbody>'+m.capaList.map(function(r){return '<tr><td>'+e2(r.no)+'</td><td>'+e2(r.issue)+'</td><td>'+e2(r.root)+'</td><td>'+e2(r.action)+'</td><td>'+e2(r.status)+'</td></tr>';}).join('')+'</tbody></table>'
+      +'<h2>10.3 การปรับปรุงอย่างต่อเนื่อง</h2><div>'+e2(m.continual)+'</div>';
+  }
+  var html='<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"><title>'+esc(title)+'</title><style>'
+    +"@page{size:A4;margin:12mm}*{font-family:'Tahoma',sans-serif;box-sizing:border-box}body{margin:0;font-size:11.5px;color:#111}"
+    +"h1{font-size:16px;text-align:center;margin:0 0 2px}.sub{text-align:center;font-size:11px;color:#555;margin-bottom:10px}"
+    +"h2{font-size:13px;background:#eef;border-left:4px solid #3b3fae;padding:4px 8px;margin:14px 0 4px}h3{font-size:12px;margin:7px 0 1px}"
+    +"table{width:100%;border-collapse:collapse;font-size:10.5px;margin-top:4px}th,td{border:1px solid #666;padding:4px 6px;text-align:left;vertical-align:top}th{background:#f1f1f7}"
+    +".noprint{text-align:center;margin:14px 0}@media print{.noprint{display:none}}</style></head><body>"
+    +'<h1>'+esc(co.thName||co.name||'RTK')+' — '+esc(title)+'</h1>'
+    +'<div class="sub">ISO 9001 / IATF 16949 · Rev. '+esc(rev||'')+' · พิมพ์ '+esc(todayISO())+'</div>'+secs+dcPrintTable(which)
     +'<div style="display:flex;justify-content:space-between;margin-top:28px;font-size:11px"><div style="width:30%;text-align:center">___________________<br>จัดทำ</div><div style="width:30%;text-align:center">___________________<br>ทบทวน</div><div style="width:30%;text-align:center">___________________<br>อนุมัติ</div></div>'
     +'<div class="noprint"><button onclick="window.print()" style="padding:8px 22px;cursor:pointer">🖨️ พิมพ์ / PDF</button></div>'
     +'<scr'+'ipt>setTimeout(function(){window.print()},400)</scr'+'ipt></body></html>';
