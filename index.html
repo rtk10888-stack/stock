@@ -275,7 +275,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='CONTEXT-2026.07.10m (เพิ่มโมดูล 4 CONTEXT: 4.1 SWOT · 4.2 ผู้มีส่วนได้ส่วนเสีย · 4.3 ขอบเขต · 4.4 กระบวนการ + พิมพ์เอกสาร ISO)';
+const APP_BUILD='LEADER-2026.07.10n (เพิ่มโมดูล 5 TOP MANAGEMENT: 5.1 ผู้นำ&ความมุ่งมั่น · 5.2 นโยบาย · 5.3 บทบาทหน้าที่ + พิมพ์เอกสาร ISO)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -631,12 +631,13 @@ const NAV=[
   {id:'nc',ico:'🚫',label:'งานไม่ตรงข้อกำหนด (NC)'},
   {g:'ISO 9001 / IATF 16949'},
   {id:'context',ico:'📘',label:'4 CONTEXT'},
+  {id:'topmgmt',ico:'👔',label:'5 TOP MANAGEMENT'},
   {g:'อื่นๆ'},
   {id:'settings',ico:'⚙️',label:'ตั้งค่า'},
 ];
 let route='dashboard';
 function pendingCount(){return DB.docs.filter(d=>d.status==='pending').length}
-const ABBR={dashboard:'HOME',monitor:'KPI',inventory:'STOCK',approvals:'APPR',po:'PO',ip:'IMPORT',sp:'SPECIAL',gr:'RECV',recvip:'RECV-IMP',recvsp:'RECV-SP',sup:'SUPPLY',prd:'PROD',wd:'ISSUE',ws:'SUP-ISS',dp:'DAILY',rw:'RECV-W',plate:'PLATE',qc:'QC',qcip:'QC-IMP',qcsp:'QC-SP',qcsemi:'QC-SEMI',si:'STK-IN',stkip:'STK-IMP',stksp:'STK-SP',stksemi:'STK-SEMI',rmc:'CUST-MAT',inv:'INV',iv2:'INV-SP',adj:'ADJ',moves:'MOVE',report:'REPORT',tax:'VAT-IN',taxsale:'VAT-OUT',wht:'WHT',nc:'NC',context:'CONTEXT',demand:'PLAN',mrp:'MRP',settings:'SET'};
+const ABBR={dashboard:'HOME',monitor:'KPI',inventory:'STOCK',approvals:'APPR',po:'PO',ip:'IMPORT',sp:'SPECIAL',gr:'RECV',recvip:'RECV-IMP',recvsp:'RECV-SP',sup:'SUPPLY',prd:'PROD',wd:'ISSUE',ws:'SUP-ISS',dp:'DAILY',rw:'RECV-W',plate:'PLATE',qc:'QC',qcip:'QC-IMP',qcsp:'QC-SP',qcsemi:'QC-SEMI',si:'STK-IN',stkip:'STK-IMP',stksp:'STK-SP',stksemi:'STK-SEMI',rmc:'CUST-MAT',inv:'INV',iv2:'INV-SP',adj:'ADJ',moves:'MOVE',report:'REPORT',tax:'VAT-IN',taxsale:'VAT-OUT',wht:'WHT',nc:'NC',context:'CONTEXT',topmgmt:'LEADER',demand:'PLAN',mrp:'MRP',settings:'SET'};
 function curLang(){try{return localStorage.getItem('rtk_lang')||'th'}catch(e){return 'th'}}
 var LANGS=[['th','TH ไทย'],['en','US English'],['cn','CN 中文'],['km','KH ខ្មែរ'],['lo','LA ລາວ'],['my','MM မြန်មာ']];
 var LANGT={
@@ -700,7 +701,7 @@ function render(){
   const map={dashboard:viewDashboard,inventory:viewInventory,track:viewJobTrack,approvals:viewApprovals,monitor:viewMonitor,
     po:()=>viewDocs('PO'),ip:()=>viewDocs('IP'),sp:()=>viewDocs('SP'),gr:()=>viewDocs('GR'),prd:()=>viewDocs('PRD'),wd:()=>viewDocs('WD'),
     dp:()=>viewDocs('DP'),rw:()=>viewDocs('RW'),plate:()=>viewDocs('PL'),qc:()=>viewDocs('QC'),si:()=>viewDocs('SI'),rmc:viewRMC,fgi:viewFGI,sup:viewSUP,ws:viewWS,recvip:()=>viewRcv('GI'),recvsp:()=>viewRcv('GS'),qcip:()=>viewQck('QI'),qcsp:()=>viewQck('QS'),qcsemi:()=>viewQck('QSE'),stkip:()=>viewStk('SII'),stksp:()=>viewStk('SIS'),stksemi:()=>viewStk('SSE'),
-    inv:()=>viewDocs('INV'),iv2:()=>viewDocs('IV2'),adj:()=>viewDocs('ADJ'),moves:viewMoves,report:viewReport,tax:viewTax,taxsale:viewTaxSale,wht:viewWHT,nc:viewNC,context:viewContext,settings:viewSettings,
+    inv:()=>viewDocs('INV'),iv2:()=>viewDocs('IV2'),adj:()=>viewDocs('ADJ'),moves:viewMoves,report:viewReport,tax:viewTax,taxsale:viewTaxSale,wht:viewWHT,nc:viewNC,context:viewContext,topmgmt:viewTopMgmt,settings:viewSettings,
     demand:viewDemand,mrp:viewMRP};
   (map[route]||viewDashboard)(el);
   setBuild();
@@ -6712,6 +6713,90 @@ function printContext(){
     +'<h2>4.2 ผู้มีส่วนได้ส่วนเสีย</h2><table><thead><tr><th style="width:24%">ผู้มีส่วนได้ส่วนเสีย</th><th style="width:40%">ความต้องการ/ความคาดหวัง</th><th style="width:36%">ข้อกำหนดที่เกี่ยวข้อง</th></tr></thead><tbody>'+stakeRows+'</tbody></table>'
     +'<h2>4.3 ขอบเขตของระบบคุณภาพ</h2><div class="box"><b>ขอบเขต:</b> '+esc2(c.scope.statement)+'<br><br><b>สถานที่:</b> '+esc2(c.scope.site)+'<br><br><b>ข้อยกเว้น:</b> '+esc2(c.scope.excl)+'</div>'
     +'<h2>4.4 กระบวนการ (Process Approach)</h2><table><thead><tr><th>กระบวนการ</th><th>ผู้รับผิดชอบ</th><th>Input</th><th>Output</th><th>KPI</th></tr></thead><tbody>'+procRows+'</tbody></table>'
+    +'<div style="display:flex;justify-content:space-between;margin-top:36px;font-size:11px"><div style="width:30%;text-align:center">___________________<br>จัดทำ</div><div style="width:30%;text-align:center">___________________<br>ทบทวน</div><div style="width:30%;text-align:center">___________________<br>อนุมัติ</div></div>'
+    +'<div class="noprint"><button onclick="window.print()" style="padding:8px 22px;cursor:pointer">🖨️ พิมพ์ / PDF</button></div>'
+    +'<scr'+'ipt>setTimeout(function(){window.print()},400)</scr'+'ipt></body></html>';
+  var w=window.open('','_blank');if(!w){toast('เบราว์เซอร์บล็อก popup','err');return}w.document.write(html);w.document.close();
+}
+/* ===== 5 TOP MANAGEMENT — ภาวะผู้นำ (ISO 9001 / IATF 16949 ข้อ 5) ===== */
+function ensureTopMgmt(){
+  if(!DB.topmgmt)DB.topmgmt={};
+  var t=DB.topmgmt;
+  if(!t.lead)t.lead={
+    commit:'ผู้บริหารระดับสูงมุ่งมั่นต่อระบบบริหารคุณภาพ โดยรับผิดชอบต่อประสิทธิผลของระบบ กำหนดนโยบาย/วัตถุประสงค์คุณภาพให้สอดคล้องกับทิศทางองค์กร จัดสรรทรัพยากรที่จำเป็น สื่อสารความสำคัญของคุณภาพ และทบทวนผลการดำเนินงานในการประชุมทบทวนฝ่ายบริหาร (Management Review) อย่างสม่ำเสมอ',
+    corp:'บริษัทกำหนดจรรยาบรรณธุรกิจ นโยบายต่อต้านการติดสินบน/คอร์รัปชัน และช่องทางแจ้งเบาะแส (Whistle-blowing) เพื่อแสดงความรับผิดชอบต่อสังคม (IATF 5.1.1.1)',
+    effic:'ผู้บริหารทบทวนประสิทธิภาพและประสิทธิผลของกระบวนการผลิตและกระบวนการสนับสนุนผ่านตัวชี้วัด (KPI) และการประชุมทบทวน เพื่อให้บรรลุผลลัพธ์ตามที่วางแผน (IATF 5.1.1.2)',
+    custfocus:'มุ่งเน้นลูกค้าโดยกำหนดและปฏิบัติตามข้อกำหนดของลูกค้าและกฎหมาย บริหารความเสี่ยง/โอกาส และมุ่งเพิ่มความพึงพอใจของลูกค้าอย่างต่อเนื่อง (วัดจาก % ส่งตรงเวลา, PPM, ข้อร้องเรียน)'
+  };
+  if(!t.policy)t.policy={
+    statement:'บริษัทมุ่งมั่นผลิตชิ้นส่วนโลหะที่มีคุณภาพตรงตามข้อกำหนดของลูกค้า ส่งมอบตรงเวลา ปฏิบัติตามกฎหมายและข้อกำหนด IATF 16949 พัฒนาบุคลากรและปรับปรุงระบบอย่างต่อเนื่อง เพื่อสร้างความพึงพอใจสูงสุดแก่ลูกค้า',
+    communicate:'สื่อสารนโยบายคุณภาพผ่าน: บอร์ดประชาสัมพันธ์ · อบรมพนักงานใหม่ · ประชุมเช้าประจำวัน (Morning Talk) · ติดที่หน้างานทุกแผนก และทบทวนความเข้าใจปีละครั้ง'
+  };
+  if(!t.roles||!t.roles.length)t.roles=[
+    {role:'กรรมการผู้จัดการ (Top Management)',resp:'กำหนดนโยบาย/ทิศทาง จัดสรรทรัพยากร ทบทวนฝ่ายบริหาร',auth:'อนุมัติสูงสุด'},
+    {role:'ตัวแทนฝ่ายบริหาร (QMR)',resp:'ดูแลระบบ QMS ให้เป็นไปตามมาตรฐาน รายงานผลต่อผู้บริหาร',auth:'สั่งการด้านระบบคุณภาพทุกแผนก'},
+    {role:'หัวหน้าฝ่ายผลิต',resp:'ควบคุมการผลิตให้ได้ตามแผน/คุณภาพ',auth:'จัดการกำลังผลิต'},
+    {role:'หัวหน้าฝ่ายควบคุมคุณภาพ (QC/QA)',resp:'ตรวจสอบคุณภาพ ควบคุมของเสีย จัดการ NC/CAPA',auth:'ตัดสินรับ/ปฏิเสธงาน · สั่งหยุดไลน์'},
+    {role:'หัวหน้าฝ่ายจัดซื้อ',resp:'จัดหาวัตถุดิบ/ผู้รับจ้างที่มีคุณภาพ ตรงเวลา',auth:'อนุมัติผู้ขาย/สั่งซื้อในวงเงิน'},
+    {role:'หัวหน้าคลังสินค้า',resp:'รับ-จ่าย จัดเก็บ ควบคุมสต๊อก',auth:'จัดการคลัง'}
+  ];
+  if(t.qmr==null)t.qmr='แต่งตั้ง [ชื่อ] เป็นตัวแทนฝ่ายบริหาร (QMR) รับผิดชอบให้ระบบเป็นไปตามข้อกำหนดลูกค้าและ IATF 16949 มีอำนาจเข้าถึงผู้บริหารสูงสุดโดยตรง (IATF 5.3.1)';
+  if(t.stopline==null)t.stopline='หัวหน้า QC และผู้จัดการโรงงาน มีอำนาจสั่งหยุดไลน์การผลิต (Stop Production) ทันทีเมื่อพบปัญหาคุณภาพร้ายแรง เพื่อป้องกันของเสียส่งถึงลูกค้า (IATF 5.3.2)';
+  if(t.rev==null)t.rev='01';
+}
+function tmTab(x){window.__tmTab=x;render();}
+function tmSet(k,v){ensureTopMgmt();DB.topmgmt[k]=v;saveDB();}
+function tmLead(k,v){ensureTopMgmt();DB.topmgmt.lead[k]=v;saveDB();}
+function tmPolicy(k,v){ensureTopMgmt();DB.topmgmt.policy[k]=v;saveDB();}
+function tmRoleSet(i,f,v){ensureTopMgmt();if(DB.topmgmt.roles[i]){DB.topmgmt.roles[i][f]=v;saveDB();}}
+function tmRoleAdd(){ensureTopMgmt();DB.topmgmt.roles.push({role:'',resp:'',auth:''});saveDB();render();}
+function tmRoleDel(i){ensureTopMgmt();DB.topmgmt.roles.splice(i,1);saveDB();render();}
+function viewTopMgmt(el){
+  ensureSettings();ensureTopMgmt();
+  var t=DB.topmgmt;var tab=window.__tmTab||'51';
+  setTitle('👔 5 ภาวะผู้นำ (Leadership / Top Management)','ISO 9001 / IATF 16949 ข้อ 5 · ความเป็นผู้นำ · นโยบาย · บทบาทหน้าที่');
+  var tb=function(id,lbl){return '<button class="btn sm'+(tab===id?' pri':'')+'" onclick="tmTab(\''+id+'\')">'+lbl+'</button>';};
+  var ref=function(x){return '<div class="hint" style="margin-bottom:10px"><span class="i">📘</span><div>'+x+'</div></div>';};
+  var ta=function(lbl,val,fn,rows){return '<div class="field"><label style="font-weight:700;font-size:13.5px">'+lbl+'</label><textarea onchange="'+fn+'" rows="'+(rows||3)+'" style="width:100%;padding:8px;resize:vertical;border:1px solid var(--line);border-radius:8px">'+esc(val||'')+'</textarea></div>';};
+  var body='';
+  if(tab==='51'){
+    body=ref('<b>ข้อ 5.1 ความเป็นผู้นำและความมุ่งมั่น:</b> ผู้บริหารระดับสูงต้องแสดงภาวะผู้นำและความมุ่งมั่นต่อระบบคุณภาพ — รับผิดชอบต่อประสิทธิผล · กำหนดนโยบาย/วัตถุประสงค์ · จัดสรรทรัพยากร · สื่อสารความสำคัญ · มุ่งเน้นลูกค้า')
+      +ta('5.1.1 ข้อกำหนดทั่วไป — ความมุ่งมั่นของผู้บริหาร',t.lead.commit,"tmLead('commit',this.value)",4)
+      +ta('5.1.1.1 ความรับผิดชอบต่อสังคม (IATF)',t.lead.corp,"tmLead('corp',this.value)",3)
+      +ta('5.1.1.2 ประสิทธิภาพและประสิทธิผลของกระบวนการ (IATF)',t.lead.effic,"tmLead('effic',this.value)",3)
+      +ta('5.1.2 การมุ่งเน้นลูกค้า (Customer Focus)',t.lead.custfocus,"tmLead('custfocus',this.value)",3);
+  } else if(tab==='52'){
+    body=ref('<b>ข้อ 5.2 นโยบายคุณภาพ:</b> ผู้บริหารต้องจัดทำนโยบายคุณภาพที่เหมาะสมกับองค์กร รวมความมุ่งมั่นปฏิบัติตามข้อกำหนดและปรับปรุงต่อเนื่อง · ต้อง<b>สื่อสาร เข้าใจ และนำไปใช้</b>ทั่วองค์กร และพร้อมให้ผู้มีส่วนได้ส่วนเสียเข้าถึง')
+      +ta('5.2.1 การจัดทำนโยบายคุณภาพ (Quality Policy)',t.policy.statement,"tmPolicy('statement',this.value)",4)
+      +ta('5.2.2 การสื่อสารนโยบายคุณภาพ',t.policy.communicate,"tmPolicy('communicate',this.value)",3);
+  } else {
+    body=ref('<b>ข้อ 5.3 บทบาท ความรับผิดชอบ และอำนาจหน้าที่:</b> ผู้บริหารต้องกำหนดและสื่อสารบทบาท/ความรับผิดชอบ/อำนาจหน้าที่ (JD) · <b>IATF 5.3.1:</b> แต่งตั้งผู้รับผิดชอบให้มั่นใจว่าเป็นไปตามข้อกำหนดลูกค้า · <b>IATF 5.3.2:</b> กำหนดผู้มีอำนาจสั่งหยุดการผลิตเพื่อแก้ปัญหาคุณภาพ')
+      +'<div class="tbl-wrap"><table style="font-size:12.5px"><thead><tr><th style="width:26%">ตำแหน่ง / บทบาท</th><th style="width:40%">ความรับผิดชอบ</th><th style="width:34%">อำนาจหน้าที่</th><th></th></tr></thead><tbody>'
+      +t.roles.map(function(r,i){var f=function(k){return '<td><input value="'+esc(r[k]||'')+'" onchange="tmRoleSet('+i+',\''+k+'\',this.value)" style="width:100%;padding:5px"></td>';};return '<tr>'+f('role')+f('resp')+f('auth')+'<td><div class="rm-x" onclick="tmRoleDel('+i+')">✕</div></td></tr>';}).join('')
+      +'</tbody></table></div><button class="btn sm" style="margin:8px 0" onclick="tmRoleAdd()">+ เพิ่มตำแหน่ง</button>'
+      +ta('5.3.1 ตัวแทนฝ่ายบริหาร (QMR) / ผู้รับผิดชอบข้อกำหนดลูกค้า',t.qmr,"tmSet('qmr',this.value)",3)
+      +ta('5.3.2 ผู้มีอำนาจสั่งหยุดไลน์การผลิต (Stop-Line Authority)',t.stopline,"tmSet('stopline',this.value)",3);
+  }
+  el.innerHTML='<div class="panel"><div class="panel-h" style="flex-wrap:wrap;gap:8px"><h2>👔 ภาวะผู้นำ — ISO 9001 / IATF 16949 (ข้อ 5)</h2><div class="right" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><span class="desc">Rev. <input value="'+esc(t.rev||'')+'" onchange="tmSet(\'rev\',this.value)" style="width:44px;text-align:center;padding:2px 4px"></span><button class="btn sm" onclick="printTopMgmt()">🖨️ พิมพ์เอกสาร</button></div></div>'
+    +'<div class="panel-b"><div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">'+tb('51','5.1 ผู้นำ & ความมุ่งมั่น')+tb('52','5.2 นโยบาย')+tb('53','5.3 บทบาทหน้าที่')+'</div>'+body+'</div></div>';
+}
+function printTopMgmt(){
+  ensureTopMgmt();ensureSettings();var t=DB.topmgmt;var co=DB.settings.company||{};
+  var e2=function(s){return esc(String(s==null?'':s)).replace(/\n/g,'<br>');};
+  var roleRows=t.roles.map(function(r){return '<tr><td>'+e2(r.role)+'</td><td>'+e2(r.resp)+'</td><td>'+e2(r.auth)+'</td></tr>';}).join('');
+  var html='<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"><title>5 TOP MANAGEMENT</title><style>'
+    +"@page{size:A4;margin:12mm}*{font-family:'Tahoma',sans-serif;box-sizing:border-box}body{margin:0;font-size:12px;color:#111}"
+    +"h1{font-size:16px;text-align:center;margin:0 0 2px}.sub{text-align:center;font-size:11px;color:#555;margin-bottom:10px}"
+    +"h2{font-size:13px;background:#eef;border-left:4px solid #3b3fae;padding:4px 8px;margin:14px 0 6px}h3{font-size:12px;margin:8px 0 2px}"
+    +"table{width:100%;border-collapse:collapse;font-size:11px;margin-top:4px}th,td{border:1px solid #666;padding:5px 6px;text-align:left;vertical-align:top}th{background:#f1f1f7}"
+    +".box{border:1px solid #666;padding:8px}.noprint{text-align:center;margin:14px 0}@media print{.noprint{display:none}}</style></head><body>"
+    +'<h1>'+esc(co.thName||co.name||'RTK')+' — ภาวะผู้นำ (Leadership / Top Management)</h1>'
+    +'<div class="sub">ISO 9001 / IATF 16949 · ข้อ 5 · Rev. '+esc(t.rev||'')+' · พิมพ์ '+esc(todayISO())+'</div>'
+    +'<h2>5.1 ความเป็นผู้นำและความมุ่งมั่น</h2>'
+    +'<div class="box"><h3>5.1.1 ความมุ่งมั่นของผู้บริหาร</h3>'+e2(t.lead.commit)+'<h3>5.1.1.1 ความรับผิดชอบต่อสังคม</h3>'+e2(t.lead.corp)+'<h3>5.1.1.2 ประสิทธิภาพและประสิทธิผลของกระบวนการ</h3>'+e2(t.lead.effic)+'<h3>5.1.2 การมุ่งเน้นลูกค้า</h3>'+e2(t.lead.custfocus)+'</div>'
+    +'<h2>5.2 นโยบายคุณภาพ</h2><div class="box"><h3>5.2.1 นโยบายคุณภาพ</h3>'+e2(t.policy.statement)+'<h3>5.2.2 การสื่อสาร</h3>'+e2(t.policy.communicate)+'</div>'
+    +'<h2>5.3 บทบาท ความรับผิดชอบ และอำนาจหน้าที่</h2><table><thead><tr><th style="width:26%">ตำแหน่ง/บทบาท</th><th style="width:40%">ความรับผิดชอบ</th><th style="width:34%">อำนาจหน้าที่</th></tr></thead><tbody>'+roleRows+'</tbody></table>'
+    +'<div class="box" style="margin-top:6px"><h3>5.3.1 ตัวแทนฝ่ายบริหาร (QMR)</h3>'+e2(t.qmr)+'<h3>5.3.2 ผู้มีอำนาจสั่งหยุดไลน์การผลิต</h3>'+e2(t.stopline)+'</div>'
     +'<div style="display:flex;justify-content:space-between;margin-top:36px;font-size:11px"><div style="width:30%;text-align:center">___________________<br>จัดทำ</div><div style="width:30%;text-align:center">___________________<br>ทบทวน</div><div style="width:30%;text-align:center">___________________<br>อนุมัติ</div></div>'
     +'<div class="noprint"><button onclick="window.print()" style="padding:8px 22px;cursor:pointer">🖨️ พิมพ์ / PDF</button></div>'
     +'<scr'+'ipt>setTimeout(function(){window.print()},400)</scr'+'ipt></body></html>';
