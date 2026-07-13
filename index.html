@@ -278,7 +278,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='OKTAG5-2026.07.11j (OK TAG: QR แยกบรรทัด P/NO / PO / จำนวน — สแกนอ่านครบไม่ถูกตัด)';
+const APP_BUILD='OKTAG6-2026.07.11k (OK TAG: QR ใช้ป้ายอังกฤษ P/NO/PO/QTY แยกบรรทัด — เจน QR ได้ปกติ ไม่ fallback เป็นข้อความ)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -3637,7 +3637,7 @@ function openTagDialog(docId){
   setTimeout(tagCalc,20);
 }
 function tagCalc(){const ok=Number((document.getElementById('tg_ok')||{}).value)||0;const per=Number((document.getElementById('tg_per')||{}).value)||0;const n=per>0?Math.ceil(ok/per):0;const e=document.getElementById('tg_count');if(e)e.textContent=fmt(n);return n;}
-function tagOne(t){const qr=esc('P/NO: '+(t.pno||'')+'\nPO: '+(t.po||'')+'\nจำนวน: '+(t.qty||''));
+function tagOne(t){const qr=esc('P/NO: '+(t.pno||'')+'\nPO: '+(t.po||'')+'\nQTY: '+(t.qty||''));
   return '<div class="tag"><table><tr><td class="rtk">RTK</td><td class="okh" colspan="2">OK TAG</td><td class="dt">DATE<br><b>'+esc(t.date)+'</b></td></tr>'
    +'<tr><td class="l">PO.</td><td>'+esc(t.po)+'</td><td class="l">P/NO.</td><td><b>'+esc(t.pno)+'</b></td></tr>'
    +'<tr><td class="l">LOT/DATE</td><td>'+esc(t.lot)+'</td><td class="qrc" colspan="2" rowspan="3"><div class="qr" data-qr="'+qr+'"></div></td></tr>'
