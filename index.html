@@ -277,7 +277,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='TAG04-2026.07.10w (รับชิ้นงาน TAG เปลี่ยนเป็น FM-ST-04 ควบคุมการเคลื่อนที่ชิ้นงาน: RTK+PO/P-NO/LOT/CUSTOMER/ผู้ผลิต/ชิ้นสด/ส่ง-รับ ชิ้น-กก.)';
+const APP_BUILD='VS4TAG-2026.07.10x (VS4 ผลิตประจำวัน: เพิ่มปุ่ม 🏷️ TAG FM-ST-04 ควบคุมการเคลื่อนที่ชิ้นงาน ดึงข้อมูลจากใบสั่งผลิต)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -1996,9 +1996,9 @@ function submitRW(status,editId){
 function openMvTagDialog(docId){
   const d=DB.docs.find(x=>x.id===docId);if(!d)return;
   const f0=(d.lines||[]).find(l=>Number(l.qty)>0)||(d.lines||[])[0]||{};
-  const pr=f0.productId?P(f0.productId):null;const pno=pr?pr.pn:((f0.name||'').split(' ')[0]);
+  const _pid=f0.productId||f0.fgId;const pr=_pid?P(_pid):null;const pno=pr?pr.pn:((f0.name||'').split(' ')[0]);
   const qty=Number(f0.receivedQty||f0.qty)||0;
-  const sent=Number(f0.orderedQty||f0.qty||qty)||0;
+  const sent=Number(f0.orderQty||f0.orderedQty||f0.qty||qty)||0;
   const prodDate=(d.prodDate||f0.prodDate||d.date||todayISO());
   modal({title:'🏷️ พิมพ์ TAG ควบคุมการเคลื่อนที่ชิ้นงาน (FM-ST-04)',size:'lg',body:`
     <div class="hint" style="margin-bottom:8px"><span class="i">💡</span><div>ดึงข้อมูลจากใบรับชิ้นงานอัตโนมัติ · แก้ไขได้ · กรอก <b>จำนวนบรรจุ/ถุง</b> เพื่อแบ่ง TAG (ส่ง/ชิ้น ÷ บรรจุ) · มี <b>QR</b> สแกนด้วย LINE เชื่อมเข้า "รับชิ้นงาน" อัตโนมัติ</div></div>
@@ -2006,7 +2006,7 @@ function openMvTagDialog(docId){
     <input type="hidden" id="mv_pdate" value="${esc(prodDate)}">
     <div class="row c3">
       <div class="field"><label>ผู้ผลิต / MAKER</label><input id="mv_maker" value="${esc(makerShort(f0.maker||d.maker||d.supplier||''))}"></div>
-      <div class="field"><label>PO.</label><input id="mv_po" value="${esc(f0.poNo||d.poNo||'')}"></div>
+      <div class="field"><label>PO.</label><input id="mv_po" value="${esc(f0.poNo||d.poNo||(d.type==='PRD'?d.no:'')||'')}"></div>
       <div class="field"><label>P/NO. (Part Number)</label><input id="mv_pno" value="${esc(pno||'')}"></div>
     </div>
     <div class="row c3">
@@ -4197,6 +4197,7 @@ function dpRow(d){
     <td><input value="${esc(d.inspector||'')}" onchange="dpSet('${d.id}','inspector',this.value)" placeholder="ผู้ตรวจ" style="width:88px;padding:3px 5px"></td>
     <td>${statusTag(d.status)}</td>
     <td style="text-align:right;white-space:nowrap">
+      ${(typeof window!=='undefined'&&window.__dpMaker==='VS4')?`<button class="btn sm pri" onclick="openMvTagDialog('${d.id}')" title="พิมพ์ TAG ควบคุมการเคลื่อนที่ชิ้นงาน (FM-ST-04)">🏷️ TAG</button> `:''}
       <button class="btn sm" onclick="viewDoc('${d.id}')">ดู</button>
       <button class="btn sm" onclick="printDP('${d.id}')" title="พิมพ์รายงานผลิต">🖨️</button>
       <button class="btn sm" onclick="editDPInline('${d.id}')">✏️</button>
