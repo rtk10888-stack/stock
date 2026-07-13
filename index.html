@@ -278,7 +278,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='OKTAG-2026.07.11f (OK TAG FM-QC-15: ขยาย TAG 46×28มม. + QR 18มม. ความละเอียดสูง สแกนง่ายขึ้น)';
+const APP_BUILD='OKTAG2-2026.07.11g (OK TAG FM-QC-15: ขั้นตอนเหลือช่องเดียว · ตัดลูกค้า/จำนวนออก · QR ใหญ่ 21มม.)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -3640,9 +3640,9 @@ function tagCalc(){const ok=Number((document.getElementById('tg_ok')||{}).value)
 function tagOne(t){const qr=esc('PART:'+(t.pno||'')+'|PO:'+(t.po||'')+'|DATE:'+(t.date||'')+'|QTY:'+(t.qty||''));
   return '<div class="tag"><table><tr><td class="rtk">RTK</td><td class="okh" colspan="2">OK TAG</td><td class="dt">DATE<br><b>'+esc(t.date)+'</b></td></tr>'
    +'<tr><td class="l">PO.</td><td>'+esc(t.po)+'</td><td class="l">P/NO.</td><td><b>'+esc(t.pno)+'</b></td></tr>'
-   +'<tr><td class="l">LOT</td><td>'+esc(t.lot)+'</td><td class="cu">'+esc(t.cust)+'</td><td class="qrc" rowspan="3"><div class="qr" data-qr="'+qr+'"></div></td></tr>'
-   +'<tr><td class="l">ขั้นตอน</td><td colspan="2" class="stp">'+esc(t.step)+'</td></tr>'
-   +'<tr><td class="l">ผู้ตรวจ</td><td>'+esc(t.insp)+'</td><td class="qty">'+fmt(t.qty)+'</td></tr>'
+   +'<tr><td class="l">LOT/DATE</td><td>'+esc(t.lot)+'</td><td class="qrc" colspan="2" rowspan="3"><div class="qr" data-qr="'+qr+'"></div></td></tr>'
+   +'<tr><td class="l">ขั้นตอน</td><td class="stp">'+esc(t.step)+'</td></tr>'
+   +'<tr><td class="l">ผู้ตรวจ</td><td>'+esc(t.insp)+'</td></tr>'
    +'<tr><td colspan="4" class="fm">FM-QC-15 REV.00</td></tr></table></div>';}
 function printTags(preview){
   const v=k=>((document.getElementById(k)||{}).value||'').trim();
@@ -3660,7 +3660,7 @@ function printTags(preview){
    +".tag .okh{background:#7ed957;color:#0d63c4;font-weight:800;font-size:12px;letter-spacing:.5px}"
    +".tag .dt{font-size:6px;width:20%}.tag .dt b{font-size:8px}"
    +".tag .l{font-weight:700;background:#f4f4f4;width:16%;font-size:7px}"
-   +".tag .qrc{width:20mm;vertical-align:middle}.tag .qr{width:18mm;height:18mm;margin:0 auto}.tag .qr img,.tag .qr canvas{width:18mm !important;height:18mm !important;display:block;margin:auto}"
+   +".tag .qrc{vertical-align:middle;background:#fff}.tag .qr{width:21mm;height:21mm;margin:0 auto}.tag .qr img,.tag .qr canvas{width:21mm !important;height:21mm !important;display:block;margin:auto}"
    +".tag .cu{font-weight:700;font-size:7px}.tag .stp{font-weight:600;font-size:7px}.tag .qty{font-weight:800;font-size:10px}"
    +".tag .fm{font-size:5px;text-align:right;color:#444;border:none;height:6px;padding:0 2px 0 0}"
    +"@media print{.noprint{display:none}}";
