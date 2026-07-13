@@ -260,6 +260,7 @@ function lanStartPoll(){
   lanPoll=setInterval(async()=>{
     if(applyingRemote)return;
     if(uiBusy()){window.__pendingSync=true;return;}
+    if(localDirty()){ try{ if(typeof lanPush==='function')lanPush(true); }catch(e){} return; }
     try{ const r=await fetch(lanBase+'/api/state?meta=1',{cache:'no-store'}); if(!r.ok)throw 0;
       const j=await r.json(); const t=j.updated_at?new Date(j.updated_at).getTime():0;
       if(t>lanLastUpdated && j.client_id!==CLIENT_ID){
@@ -277,7 +278,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='MKMOD-2026.07.11a (เพิ่มโมดูลผู้ผลิตภายนอก AKE/JARUN/JH/KDK/ROOT/R-TURN/RTK-V/RTK-N/SOM/SM รูปแบบเดียวกับ VS4)';
+const APP_BUILD='SAVEFIX-2026.07.11b (แก้เอกสารที่เพิ่งบันทึกหาย: กันซิงก์คลาวด์/LAN ดึงมาทับข้อมูลในเครื่องที่ยังไม่ถูกดันขึ้น — ทุกชนิดเอกสาร)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -455,6 +456,8 @@ var __lastGoodDB=null;
 function safetySnapshot(reason){ try{ var n=_docCount(DB); if(n<=0)return; var snap={t:Date.now(),reason:reason||'',n:n,json:JSON.stringify(DB)}; __lastGoodDB=snap; try{lsSet('rtk_autobak',JSON.stringify(snap));}catch(e){} }catch(e){} }
 function getAutoBak(){ if(__lastGoodDB)return __lastGoodDB; try{var s=localStorage.getItem('rtk_autobak');if(s)return JSON.parse(s);}catch(e){} return null; }
 function remoteReplaceSafe(remote){ var cur=_docCount(DB), nw=_docCount(remote); if(cur>=100 && nw < cur-100 && nw < cur*0.85) return false; return true; }
+/* ในเครื่องมีการแก้ไขที่ยังไม่ถูกดันขึ้นคลาวด์หรือไม่ (กันดึงคลาวด์มาทับข้อมูลที่เพิ่งบันทึก) */
+function localDirty(){ try{ return JSON.stringify(DB)!==lastSyncedJSON; }catch(e){ return false; } }
 function warnDrop(cur,nw){ try{ toast('⚠️ คลาวด์มีข้อมูลน้อยกว่าในเครื่องมาก ('+fmt(nw)+' < '+fmt(cur)+' เอกสาร) — ระบบไม่ดึงทับให้ กันข้อมูลหาย · ถ้าข้อมูลในเครื่องถูกต้อง กดที่สถานะซิงก์มุมบนเพื่อดันขึ้นคลาวด์','err'); }catch(e){} }
 function openRestoreMenu(){ var ab=getAutoBak(); var cur=_docCount(DB); var info= ab? ('สำเนาอัตโนมัติล่าสุด: '+new Date(ab.t).toLocaleString('th-TH')+' · '+fmt(ab.n)+' เอกสาร') : 'ยังไม่มีสำเนาอัตโนมัติในเครื่อง (จะถูกสร้างก่อนซิงก์คลาวด์ครั้งถัดไป)';
   modal({title:'🛟 กู้คืนข้อมูล',body:'<div class="hint" style="margin-bottom:10px"><span class="i">i</span><div>ปัจจุบันในเครื่องมี <b>'+fmt(cur)+'</b> เอกสาร<br>'+esc(info)+'</div></div><div style="font-size:13px;color:var(--ink2);line-height:1.7">• <b>กู้จากสำเนาอัตโนมัติ</b> = นำสำเนาที่ระบบเก็บไว้ก่อนซิงก์กลับมา แล้วดันขึ้นคลาวด์<br>• หรือใช้ปุ่ม <b>⬆ นำเข้า</b> ด้านบน เพื่อกู้จากไฟล์สำรองที่ดาวน์โหลดไว้</div>',footer:(ab&&ab.json?'<button class="btn pri" onclick="doRestoreAutoBak()">↩️ กู้จากสำเนาอัตโนมัติ ('+fmt(ab.n)+' เอกสาร)</button>':'')+'<button class="btn" onclick="closeModal()">ปิด</button>'}); }
@@ -464,7 +467,7 @@ async function reloadFromCloud(){
   if(uiBusy()){window.__pendingSync=true;return;}
   try{
     const {data}=await supa.from('app_state').select('data,updated_at').eq('id',ROW_ID).maybeSingle();
-    if(data&&data.data){ if(!remoteReplaceSafe(data.data)){ safetySnapshot('guard'); warnDrop(_docCount(DB),_docCount(data.data)); lastRemoteUpdated=new Date(data.updated_at).getTime(); setSyncStatus('synced'); return; } safetySnapshot('ก่อนดึงคลาวด์'); applyingRemote=true; DB=data.data; lastRemoteUpdated=new Date(data.updated_at).getTime(); lastSyncedJSON=JSON.stringify(DB); lsSet(LS_KEY,lastSyncedJSON); render(); applyingRemote=false; setSyncStatus('synced'); }
+    if(data&&data.data){ if(localDirty()){ try{ if(supa&&!applyingRemote)pushCloud(true); }catch(e){} setSyncStatus('synced'); return; } if(!remoteReplaceSafe(data.data)){ safetySnapshot('guard'); warnDrop(_docCount(DB),_docCount(data.data)); lastRemoteUpdated=new Date(data.updated_at).getTime(); setSyncStatus('synced'); return; } safetySnapshot('ก่อนดึงคลาวด์'); applyingRemote=true; DB=data.data; lastRemoteUpdated=new Date(data.updated_at).getTime(); lastSyncedJSON=JSON.stringify(DB); lsSet(LS_KEY,lastSyncedJSON); render(); applyingRemote=false; setSyncStatus('synced'); }
   }catch(e){}
 }
 function subscribeRealtime(){
@@ -475,7 +478,7 @@ function subscribeRealtime(){
       if(row&&row.client_id===CLIENT_ID)return;
       const t=row&&row.updated_at?new Date(row.updated_at).getTime():0;
       if(t&&t<=lastRemoteUpdated)return;
-      if(row&&row.data){ if(uiBusy()){window.__pendingSync=true;setSyncStatus('synced');return;} if(!remoteReplaceSafe(row.data)){ safetySnapshot('guard'); warnDrop(_docCount(DB),_docCount(row.data)); lastRemoteUpdated=t; setSyncStatus('synced'); return; } safetySnapshot('ก่อนอัปเดตจากอุปกรณ์อื่น'); applyingRemote=true; DB=row.data; lastRemoteUpdated=t; lastSyncedJSON=JSON.stringify(DB); lsSet(LS_KEY,lastSyncedJSON); render(); applyingRemote=false; toast('🔄 ข้อมูลอัปเดตจากอุปกรณ์อื่น','ok'); }
+      if(row&&row.data){ if(uiBusy()){window.__pendingSync=true;setSyncStatus('synced');return;} if(localDirty()){ try{ if(supa&&!applyingRemote)pushCloud(true); }catch(e){} setSyncStatus('synced'); return; } if(!remoteReplaceSafe(row.data)){ safetySnapshot('guard'); warnDrop(_docCount(DB),_docCount(row.data)); lastRemoteUpdated=t; setSyncStatus('synced'); return; } safetySnapshot('ก่อนอัปเดตจากอุปกรณ์อื่น'); applyingRemote=true; DB=row.data; lastRemoteUpdated=t; lastSyncedJSON=JSON.stringify(DB); lsSet(LS_KEY,lastSyncedJSON); render(); applyingRemote=false; toast('🔄 ข้อมูลอัปเดตจากอุปกรณ์อื่น','ok'); }
       else reloadFromCloud();
     }).subscribe();
   }catch(e){}
