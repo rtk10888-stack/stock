@@ -278,7 +278,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='NCLOC-2026.07.11c (NC: เพิ่มคอลัมน์ "สถานที่พบปัญหา" แสดงอัตโนมัติ + ซ่อน/แสดงได้)';
+const APP_BUILD='NCLOC2-2026.07.11d (NC: เพิ่มตัวกรอง "สถานที่พบปัญหา" (chip + datalist) นอกเหนือจากคอลัมน์)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -7454,7 +7454,7 @@ function viewNC(el){
     <div class="panel"><div class="panel-h"><h2>🏭 ผู้ผลิตงานเสีย (Pareto)</h2><div class="desc">จำนวนครั้งที่ทำงานเสีย · เส้นแดง = % สะสม</div></div><div class="panel-b">${ncParetoSVG(Object.entries(byMk).sort((a,b)=>b[1]-a[1]),'#f59e0b')}</div></div>
   </div>
   <div class="panel"><div class="panel-h" style="flex-wrap:wrap;gap:8px">
-    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><select onchange="window.__ncMon=this.value;render()" style="padding:6px 10px">${months.map(m=>`<option value="${m}" ${m===mon?'selected':''}>${m==='ALL'?'ทั้งหมด':esc(m)}</option>`).join('')}</select><div class="searchbox"><input id="ncSearch" placeholder="ค้นหา PO/Part/ปัญหา" oninput="filterNCRows()"></div>${ncChip('ncfPo','🔢 PO','po')}${ncChip('ncfPart','🔩 Part','part')}${ncChip('ncfCust','👤 ลูกค้า','cust')}${ncChip('ncfMk','🏭 ผู้ผลิต','maker')}<select id="ncSort" onchange="filterNCRows()" style="max-width:170px;width:auto"><option value="no_desc">เลขที่: มาก → น้อย</option><option value="no_asc">เลขที่: น้อย → มาก</option><option value="date_desc" selected>วันที่: มาก - น้อย</option><option value="date_asc">วันที่: น้อย - มาก</option></select><button class="btn sm" onclick="['ncSearch','ncfPo','ncfPart','ncfCust','ncfMk'].forEach(i=>{var e=document.getElementById(i);if(e)e.value=''});var s=document.getElementById('ncSort');if(s)s.value='date_desc';filterNCRows()">ล้าง</button></div>
+    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><select onchange="window.__ncMon=this.value;render()" style="padding:6px 10px">${months.map(m=>`<option value="${m}" ${m===mon?'selected':''}>${m==='ALL'?'ทั้งหมด':esc(m)}</option>`).join('')}</select><div class="searchbox"><input id="ncSearch" placeholder="ค้นหา PO/Part/ปัญหา" oninput="filterNCRows()"></div>${ncChip('ncfPo','🔢 PO','po')}${ncChip('ncfPart','🔩 Part','part')}${ncChip('ncfCust','👤 ลูกค้า','cust')}${ncChip('ncfMk','🏭 ผู้ผลิต','maker')}${ncChip('ncfLoc','📍 สถานที่พบปัญหา','loc')}<select id="ncSort" onchange="filterNCRows()" style="max-width:170px;width:auto"><option value="no_desc">เลขที่: มาก → น้อย</option><option value="no_asc">เลขที่: น้อย → มาก</option><option value="date_desc" selected>วันที่: มาก - น้อย</option><option value="date_asc">วันที่: น้อย - มาก</option></select><button class="btn sm" onclick="['ncSearch','ncfPo','ncfPart','ncfCust','ncfMk','ncfLoc'].forEach(i=>{var e=document.getElementById(i);if(e)e.value=''});var s=document.getElementById('ncSort');if(s)s.value='date_desc';filterNCRows()">ล้าง</button></div>
     <div class="right" style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn sm pri" onclick="ncActionSummary()" title="สรุปการดำเนินการงานเสีย">📊 สรุปการดำเนินการ</button><button class="btn sm" onclick="mkColToggle('nc')" title="ซ่อน/แสดงชื่อผู้ผลิต">${mkColShow('nc')?'🙈 ผู้ผลิต':'👁 ผู้ผลิต'}</button><button class="btn sm" onclick="ncColMenu()">👁 คอลัมน์</button><input type="file" id="ncFile" accept=".json" style="display:none" onchange="importNC(this)"><button class="btn sm" onclick="document.getElementById('ncFile').click()">📥 นำเข้า</button><button class="btn sm" onclick="printNCClaim()">🧾 เคลมผู้ผลิต</button><button class="btn sm" onclick="printNC()">🖨️ พิมพ์รายงาน</button><button class="btn pri" onclick="openNCForm()">+ แจ้งงานเสีย</button></div>
   </div><div class="panel-b nopad">
     ${rows.length?`<div class="tbl-wrap"><table style="white-space:nowrap;font-size:11.5px"><thead><tr>
@@ -7511,7 +7511,7 @@ function makerEvalModal(metric){
 }
 function ncRowHtml(r){
   const mkS=makerShort(r.maker||'');
-  return `<tr data-date="${esc(r.date||'')}" data-po="${esc((r.po||'').toLowerCase())}" data-part="${esc((r.part||'').toLowerCase())}" data-cust="${esc((r.customer||'').toLowerCase())}" data-mk="${esc(String(mkS||'').toLowerCase())}" data-ng="${Number(r.ng)||0}">
+  return `<tr data-date="${esc(r.date||'')}" data-po="${esc((r.po||'').toLowerCase())}" data-part="${esc((r.part||'').toLowerCase())}" data-cust="${esc((r.customer||'').toLowerCase())}" data-mk="${esc(String(mkS||'').toLowerCase())}" data-loc="${esc(String(r.loc||'').toLowerCase())}" data-ng="${Number(r.ng)||0}">
     <td class="muted">${esc(r.date||'')}</td><td><span class="tag violet">${esc(r.po||'-')}</span></td>
     <td class="pn linkish" onclick="viewNCDoc('${r.id}')"><b>${esc(r.part||'')}</b></td>
     <td>${esc(r.customer||'')}</td>${ncCol('lot')?`<td class="c muted">${esc(r.lot||'')}</td>`:''}${ncCol('qty')?`<td class="num">${r.qty?fmt(r.qty):'-'}</td>`:''}
@@ -7562,13 +7562,13 @@ function ncActionSummary(){
     <div class="hint" style="margin-top:8px"><span class="i">ℹ️</span><div>"ดำเนินการแล้ว" = ใบที่กรอก <b>วิธีการแก้ไข</b> แล้ว · "คงค้าง" = ยังไม่กรอกวิธีแก้ไข · เรียงตาม NG มาก→น้อย</div></div>`;
   modal({title:'📊 สรุปการดำเนินการ (NC)',size:'lg',body:body,footer:'<button class="btn pri" onclick="closeModal()">ปิด</button>'});
 }
-function ncDistinct(field){const set=new Set();DB.docs.filter(d=>d.type==='NC').forEach(d=>{let v=field==='po'?d.po:field==='part'?d.part:field==='cust'?d.customer:field==='maker'?makerShort(d.maker||''):'';if(v)set.add(String(v));});return [...set].sort();}
+function ncDistinct(field){const set=new Set();DB.docs.filter(d=>d.type==='NC').forEach(d=>{let v=field==='po'?d.po:field==='part'?d.part:field==='cust'?d.customer:field==='maker'?makerShort(d.maker||''):field==='loc'?d.loc:'';if(v)set.add(String(v));});return [...set].sort();}
 function ncChip(id,ph,field){return '<input id="'+id+'" class="fchip" list="dl_'+id+'" placeholder="'+ph+'" oninput="filterNCRows()" style="max-width:130px"><datalist id="dl_'+id+'">'+ncDistinct(field).map(v=>'<option value="'+esc(v)+'">').join('')+'</datalist>';}
 function filterNCRows(){
   const g=id=>((document.getElementById(id)||{}).value||'').trim().toLowerCase();
-  const q=g('ncSearch'),fpo=g('ncfPo'),fpa=g('ncfPart'),fc=g('ncfCust'),fm=g('ncfMk');
+  const q=g('ncSearch'),fpo=g('ncfPo'),fpa=g('ncfPart'),fc=g('ncfCust'),fm=g('ncfMk'),floc=g('ncfLoc');
   let sumNg=0;
-  document.querySelectorAll('#ncRows tr').forEach(tr=>{const ds=tr.dataset||{};const t=tr.textContent.toLowerCase();const show=(!q||t.includes(q))&&(!fpo||(ds.po||'').includes(fpo))&&(!fpa||(ds.part||'').includes(fpa))&&(!fc||(ds.cust||'').includes(fc))&&(!fm||(ds.mk||'').includes(fm));tr.style.display=show?'':'none';if(show)sumNg+=Number(ds.ng||0);});
+  document.querySelectorAll('#ncRows tr').forEach(tr=>{const ds=tr.dataset||{};const t=tr.textContent.toLowerCase();const show=(!q||t.includes(q))&&(!fpo||(ds.po||'').includes(fpo))&&(!fpa||(ds.part||'').includes(fpa))&&(!fc||(ds.cust||'').includes(fc))&&(!fm||(ds.mk||'').includes(fm))&&(!floc||(ds.loc||'').includes(floc));tr.style.display=show?'':'none';if(show)sumNg+=Number(ds.ng||0);});
   const sn=document.getElementById('ncSubNg');if(sn)sn.textContent=fmt(sumNg);
   const sortv=((document.getElementById('ncSort')||{}).value)||'date_desc';
   const tb=document.getElementById('ncRows');
