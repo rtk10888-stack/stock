@@ -278,7 +278,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='ADJFIX-2026.07.11l (ปรับยอด: ปุ่ม 🔧 ปรับสต๊อกใหม่ ที่ใบ ADJ อนุมัติแล้ว — ซ่อมกรณีคงเหลือไม่ตรงกับใบปรับยอด)';
+const APP_BUILD='ADJFIX2-2026.07.11m (ปรับยอด/ตรวจนับ สินค้าไม่ชุบ: ตั้งยอดตามนับจริงจะรวม WIP/ชุบ/คัดผ่าน เข้าคงเหลือให้ตรง + ปุ่มปรับสต๊อกใหม่)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -575,7 +575,7 @@ function applyDoc(d){
     else if(t==='RMC'){ const p=P(d.productId);if(p){p.onHand+=d.qty;move(p.id,'onHand',+d.qty,'RMC',d.no,'รับแมทลูกค้า '+(d.customer||''));} }
     else if(t==='INV'){ if((d.date||'')<'2026-07-03'){ d.lines.forEach(l=>{const p=P(l.productId);if(p){p.onHand-=l.qty;move(p.id,'onHand',-l.qty,'INV',d.no,'ขาย '+(d.customer||''));}}); } /* ตั้งแต่ 2026-07-03: ไม่ตัด — ควบคุมที่ใบเบิกจ่ายสำเร็จรูป (FGI) */ }
     else if(t==='IV2'){ d.lines.forEach(l=>{const p=P(l.productId);if(p){p.onHand-=l.qty;move(p.id,'onHand',-l.qty,'IV2',d.no,'ขายพิเศษ '+(d.customer||''));}}); }
-    else if(t==='ADJ'){ const p=P(d.productId);const before=p.onHand;const after=d.mode==='set'?d.qty:before+d.qty;const delta=after-before;p.onHand=after;move(p.id,'onHand',delta,'ADJ',d.no,d.mode==='set'?'ตรวจนับตั้งยอด':'ปรับยอด'); d.delta=delta; }
+    else if(t==='ADJ'){ const p=P(d.productId); if(p){ if(d.mode==='set'){ const dir=isDirectFlow(prodFlow(p)); const beforeTotal=dir?((p.onHand||0)+(p.wip||0)+(p.atPlating||0)+(p.passedQC||0)):(p.onHand||0); if(dir){ ['wip','atPlating','passedQC'].forEach(function(b){var c=Number(p[b])||0;if(c){p[b]=0;move(p.id,b,-c,'ADJ',d.no,'ตรวจนับ-รวมยอดเข้าคงเหลือ');}}); } const ohB=Number(p.onHand)||0,after=Number(d.qty)||0; p.onHand=after; move(p.id,'onHand',after-ohB,'ADJ',d.no,'ตรวจนับตั้งยอด'); d.delta=after-beforeTotal; } else { const before=Number(p.onHand)||0,after=before+(Number(d.qty)||0); p.onHand=after; move(p.id,'onHand',after-before,'ADJ',d.no,'ปรับยอด'); d.delta=Number(d.qty)||0; } } }
     else if(t==='FGI'){ d.lines.forEach(l=>{const p=P(l.productId);if(!p)return;const need=Number(l.qty)||0;if(need<=0)return;let deficit=need-Math.max(0,p.onHand||0);if(deficit>0){const a=Math.min(deficit,p.passedQC||0);if(a>0){p.passedQC-=a;p.onHand=(p.onHand||0)+a;move(p.id,'passedQC',-a,'FGI',d.no,'ดึงจากคัดผ่าน');move(p.id,'onHand',+a,'FGI',d.no,'ดึงเข้าคงเหลือ');deficit-=a;}}if(deficit>0){const b=Math.min(deficit,p.wip||0);if(b>0){p.wip-=b;p.onHand=(p.onHand||0)+b;move(p.id,'wip',-b,'FGI',d.no,'ดึงจาก WIP');move(p.id,'onHand',+b,'FGI',d.no,'ดึงเข้าคงเหลือ');deficit-=b;}}if(deficit>0){const c=Math.min(deficit,p.atPlating||0);if(c>0){p.atPlating-=c;p.onHand=(p.onHand||0)+c;move(p.id,'atPlating',-c,'FGI',d.no,'ดึงจากระหว่างชุบ');move(p.id,'onHand',+c,'FGI',d.no,'ดึงเข้าคงเหลือ');deficit-=c;}}p.onHand=(p.onHand||0)-need;move(p.id,'onHand',-need,'FGI',d.no,'เบิกจ่ายสำเร็จรูป '+(d.customer||''));}); }
     // PO & PRD: authorize only, no stock effect
     return {ok:true};
@@ -5524,7 +5524,8 @@ function reapplyADJ(id){const d=DB.docs.find(x=>x.id===id);if(!d||d.type!=='ADJ'
   if(d.status!=='approved'){toast('เอกสารต้องอนุมัติแล้วก่อน','err');return;}
   const p=P(d.productId);if(!p){toast('ไม่พบสินค้าของใบนี้','err');return;}
   const detail=d.mode==='set'?('ตั้งยอดเป็น '+fmt(d.qty)):('ปรับ '+(d.qty>=0?'+':'')+fmt(d.qty));
-  confirmBox('ปรับสต๊อกใหม่ตามใบ '+d.no+'?','คืนยอดที่ใบนี้เคยปรับก่อน แล้วปรับใหม่ ('+detail+') · ใช้แก้กรณีคงเหลือไม่ตรงกับใบปรับยอด · '+esc(p.pn)+' คงเหลือปัจจุบัน '+fmt(p.onHand),function(){
+  const dir0=isDirectFlow(prodFlow(p));
+  confirmBox('ปรับสต๊อกใหม่ตามใบ '+d.no+'?','คืนยอดที่ใบนี้เคยปรับก่อน แล้วปรับใหม่ ('+detail+')'+((d.mode==='set'&&dir0)?' · สินค้านี้เป็นแบบ "ไม่ชุบ" ระบบจะ<b>รวมยอด WIP/ชุบ/คัดผ่าน เข้าคงเหลือ</b>ให้ตรงกับยอดที่นับจริง':'')+' · '+esc(p.pn)+' คงเหลือปัจจุบัน '+fmt(dir0?((p.onHand||0)+(p.wip||0)+(p.atPlating||0)+(p.passedQC||0)):(p.onHand||0)),function(){
     reverseDoc(d);
     const r=applyDoc(d);
     if(r.ok){ saveDB(); render(); toast('ปรับสต๊อกใหม่แล้ว · '+esc(p.pn)+' คงเหลือ '+fmt(p.onHand),'ok'); }
