@@ -278,7 +278,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='OKTAG2-2026.07.11g (OK TAG FM-QC-15: ขั้นตอนเหลือช่องเดียว · ตัดลูกค้า/จำนวนออก · QR ใหญ่ 21มม.)';
+const APP_BUILD='OKTAG3-2026.07.11h (OK TAG: เพิ่มความสูง TAG 48×40มม. ให้แถวล่าง(ผู้ตรวจ/FM)ไม่หลุด · QR 22มม.)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -3653,20 +3653,20 @@ function printTags(preview){
   let tags='';for(let i=0;i<n;i++){const qty=(i===n-1)?(ok-per*(n-1)):per;tags+=tagOne(Object.assign({qty},base));}
   const css="@page{size:A4;margin:6mm}*{box-sizing:border-box;font-family:'Tahoma',sans-serif}body{margin:0}"
    +".sheet{font-size:0}"
-   +".tag{display:inline-block;vertical-align:top;width:46mm;height:28mm;border:1.5px solid #000;page-break-inside:avoid;margin:0 1mm 1mm 0;overflow:hidden}"
+   +".tag{display:inline-block;vertical-align:top;width:48mm;height:40mm;border:1.5px solid #000;page-break-inside:avoid;margin:0 1mm 1mm 0;overflow:hidden}"
    +".tag table{width:100%;height:100%;border-collapse:collapse;table-layout:fixed}"
    +".tag td{border:.6px solid #000;font-size:7px;padding:0 2px;text-align:center;line-height:1.05;overflow:hidden}"
    +".tag .rtk{font-weight:800;font-size:11px;width:15%}"
    +".tag .okh{background:#7ed957;color:#0d63c4;font-weight:800;font-size:12px;letter-spacing:.5px}"
    +".tag .dt{font-size:6px;width:20%}.tag .dt b{font-size:8px}"
    +".tag .l{font-weight:700;background:#f4f4f4;width:16%;font-size:7px}"
-   +".tag .qrc{vertical-align:middle;background:#fff}.tag .qr{width:21mm;height:21mm;margin:0 auto}.tag .qr img,.tag .qr canvas{width:21mm !important;height:21mm !important;display:block;margin:auto}"
+   +".tag .qrc{vertical-align:middle;background:#fff;padding:0}.tag .qr{width:22mm;height:22mm;margin:0 auto}.tag .qr img,.tag .qr canvas{width:22mm !important;height:22mm !important;display:block;margin:auto}"
    +".tag .cu{font-weight:700;font-size:7px}.tag .stp{font-weight:600;font-size:7px}.tag .qty{font-weight:800;font-size:10px}"
    +".tag .fm{font-size:5px;text-align:right;color:#444;border:none;height:6px;padding:0 2px 0 0}"
    +"@media print{.noprint{display:none}}";
   const auto=preview?'':'setTimeout(function(){window.print();},600);';
   const html='<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"><title>OK TAG</title><style>'+css+'</style></head><body>'
-   +'<div class="noprint" style="text-align:center;padding:8px;font-family:Tahoma"><b>OK TAG '+fmt(n)+' ดวง</b> (A4 ≈ 36 ดวง/แผ่น · QR ใหญ่ขึ้น สแกนง่าย) &nbsp; <button onclick="window.print()" style="padding:6px 18px;cursor:pointer">🖨️ พิมพ์</button></div>'
+   +'<div class="noprint" style="text-align:center;padding:8px;font-family:Tahoma"><b>OK TAG '+fmt(n)+' ดวง</b> (A4 ≈ 24 ดวง/แผ่น · QR ใหญ่ สแกนง่าย) &nbsp; <button onclick="window.print()" style="padding:6px 18px;cursor:pointer">🖨️ พิมพ์</button></div>'
    +'<div class="sheet">'+tags+'</div>'
    +'<scr'+'ipt src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></scr'+'ipt>'
    +'<scr'+'ipt>var _t=0;function go(){if(!window.QRCode){if(_t++<80){return setTimeout(go,60);}return;}document.querySelectorAll(".qr").forEach(function(d){d.innerHTML="";try{new QRCode(d,{text:d.getAttribute("data-qr")||" ",width:220,height:220,correctLevel:QRCode.CorrectLevel.M});}catch(e){d.style.fontSize="4px";d.style.wordBreak="break-all";d.textContent=(d.getAttribute("data-qr")||"");}});'+auto+'}go();</scr'+'ipt>'
