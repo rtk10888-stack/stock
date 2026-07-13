@@ -277,7 +277,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='VS4TAG-2026.07.10x (VS4 ผลิตประจำวัน: เพิ่มปุ่ม 🏷️ TAG FM-ST-04 ควบคุมการเคลื่อนที่ชิ้นงาน ดึงข้อมูลจากใบสั่งผลิต)';
+const APP_BUILD='VS4TAG-2026.07.10y (VS4 TAG FM-ST-04 ดึงข้อมูลจากใบรับชิ้นงาน RW ของ PO เดียวกัน)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -2029,6 +2029,16 @@ function openMvTagDialog(docId){
   setTimeout(mvTagCalc,20);
 }
 function mvTagCalc(){const q=Number((document.getElementById('mv_sentPcs')||{}).value)||0;const per=Number((document.getElementById('mv_per')||{}).value)||0;const n=per>0?Math.max(1,Math.ceil(q/per)):1;const e=document.getElementById('mv_count');if(e)e.textContent=fmt(n);return n;}
+/* VS4 TAG: ดึงข้อมูลจากเอกสาร "รับชิ้นงาน" (RW) ของ PO เดียวกัน (ถ้ามี) แล้วเปิดฟอร์ม FM-ST-04 เหมือนหน้ารับชิ้นงาน */
+function vs4Tag(docId){
+  var d=DB.docs.find(function(x){return x.id===docId;});
+  if(!d){openMvTagDialog(docId);return;}
+  var f0=(d.lines||[])[0]||{};
+  var poKey=String(f0.poNo||d.poNo||d.no||'').replace(/^PO/i,'').trim();
+  var rw=poKey?DB.docs.find(function(x){return x.type==='RW'&&x.status!=='cancelled'&&(x.lines||[]).some(function(l){return String(l.poNo||'').replace(/^PO/i,'').trim()===poKey;});}):null;
+  if(rw){toast('ดึงข้อมูล TAG จากใบรับชิ้นงาน '+(rw.no||'')+' แล้ว','ok');}
+  openMvTagDialog(rw?rw.id:docId);
+}
 function mvScanURL(t){/* QR = ลิงก์เปิดแอป + เชื่อมเข้า "รับชิ้นงาน" อัตโนมัติเมื่อสแกนด้วย LINE */
   var base=location.origin+location.pathname;
   var payload=[t.docid||'',t.pno||'',t.qty||'',t.po||'',t.pdate||''].join('|');
@@ -4197,7 +4207,7 @@ function dpRow(d){
     <td><input value="${esc(d.inspector||'')}" onchange="dpSet('${d.id}','inspector',this.value)" placeholder="ผู้ตรวจ" style="width:88px;padding:3px 5px"></td>
     <td>${statusTag(d.status)}</td>
     <td style="text-align:right;white-space:nowrap">
-      ${(typeof window!=='undefined'&&window.__dpMaker==='VS4')?`<button class="btn sm pri" onclick="openMvTagDialog('${d.id}')" title="พิมพ์ TAG ควบคุมการเคลื่อนที่ชิ้นงาน (FM-ST-04)">🏷️ TAG</button> `:''}
+      ${(typeof window!=='undefined'&&window.__dpMaker==='VS4')?`<button class="btn sm pri" onclick="vs4Tag('${d.id}')" title="พิมพ์ TAG ควบคุมการเคลื่อนที่ชิ้นงาน (FM-ST-04) — ดึงข้อมูลจากใบรับชิ้นงาน">🏷️ TAG</button> `:''}
       <button class="btn sm" onclick="viewDoc('${d.id}')">ดู</button>
       <button class="btn sm" onclick="printDP('${d.id}')" title="พิมพ์รายงานผลิต">🖨️</button>
       <button class="btn sm" onclick="editDPInline('${d.id}')">✏️</button>
