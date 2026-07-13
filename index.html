@@ -278,7 +278,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='SAVEFIX-2026.07.11b (แก้เอกสารที่เพิ่งบันทึกหาย: กันซิงก์คลาวด์/LAN ดึงมาทับข้อมูลในเครื่องที่ยังไม่ถูกดันขึ้น — ทุกชนิดเอกสาร)';
+const APP_BUILD='NCLOC-2026.07.11c (NC: เพิ่มคอลัมน์ "สถานที่พบปัญหา" แสดงอัตโนมัติ + ซ่อน/แสดงได้)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -7458,9 +7458,9 @@ function viewNC(el){
     <div class="right" style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn sm pri" onclick="ncActionSummary()" title="สรุปการดำเนินการงานเสีย">📊 สรุปการดำเนินการ</button><button class="btn sm" onclick="mkColToggle('nc')" title="ซ่อน/แสดงชื่อผู้ผลิต">${mkColShow('nc')?'🙈 ผู้ผลิต':'👁 ผู้ผลิต'}</button><button class="btn sm" onclick="ncColMenu()">👁 คอลัมน์</button><input type="file" id="ncFile" accept=".json" style="display:none" onchange="importNC(this)"><button class="btn sm" onclick="document.getElementById('ncFile').click()">📥 นำเข้า</button><button class="btn sm" onclick="printNCClaim()">🧾 เคลมผู้ผลิต</button><button class="btn sm" onclick="printNC()">🖨️ พิมพ์รายงาน</button><button class="btn pri" onclick="openNCForm()">+ แจ้งงานเสีย</button></div>
   </div><div class="panel-b nopad">
     ${rows.length?`<div class="tbl-wrap"><table style="white-space:nowrap;font-size:11.5px"><thead><tr>
-      <th>วันที่</th><th>เลขที่ PO</th><th>DISCRIPTION</th><th>CUSTOMER</th>${ncCol('lot')?'<th>LOT DATE</th>':''}${ncCol('qty')?'<th class="num">จำนวนสั่ง</th>':''}${mkColShow('nc')?'<th>ผู้ผลิต</th>':''}<th>ปัญหา</th><th>NC TAG</th><th>วิธีแก้ไข</th>${ncCol('ng')?'<th class="num">NG</th>':''}<th></th>
+      <th>วันที่</th><th>เลขที่ PO</th><th>DISCRIPTION</th><th>CUSTOMER</th>${ncCol('lot')?'<th>LOT DATE</th>':''}${ncCol('qty')?'<th class="num">จำนวนสั่ง</th>':''}${mkColShow('nc')?'<th>ผู้ผลิต</th>':''}${ncCol('loc')?'<th>สถานที่พบปัญหา</th>':''}<th>ปัญหา</th><th>NC TAG</th><th>วิธีแก้ไข</th>${ncCol('ng')?'<th class="num">NG</th>':''}<th></th>
     </tr></thead><tbody id="ncRows">${rows.map(ncRowHtml).join('')}</tbody>
-    <tfoot><tr style="background:#fff7a8;font-weight:700"><td colspan="${10-(ncCol('lot')?0:1)-(ncCol('qty')?0:1)-(mkColShow('nc')?0:1)}" style="text-align:right">รวม NG (ตามที่กรอง)${ncCol('ng')?'':': <span id="ncSubNg" style="color:var(--red)">'+fmt(tNg)+'</span>'}</td>${ncCol('ng')?`<td class="num" id="ncSubNg" style="color:var(--red)">${fmt(tNg)}</td>`:''}<td></td></tr></tfoot></table></div>`:`<div class="empty"><div class="big">🚫</div><div class="t">ยังไม่มีรายการ NC</div><div>กด "+ แจ้งงานเสีย" หรือ "📥 นำเข้า"</div></div>`}
+    <tfoot><tr style="background:#fff7a8;font-weight:700"><td colspan="${10-(ncCol('lot')?0:1)-(ncCol('qty')?0:1)-(mkColShow('nc')?0:1)+(ncCol('loc')?1:0)}" style="text-align:right">รวม NG (ตามที่กรอง)${ncCol('ng')?'':': <span id="ncSubNg" style="color:var(--red)">'+fmt(tNg)+'</span>'}</td>${ncCol('ng')?`<td class="num" id="ncSubNg" style="color:var(--red)">${fmt(tNg)}</td>`:''}<td></td></tr></tfoot></table></div>`:`<div class="empty"><div class="big">🚫</div><div class="t">ยังไม่มีรายการ NC</div><div>กด "+ แจ้งงานเสีย" หรือ "📥 นำเข้า"</div></div>`}
   </div></div>`;
   try{setTimeout(filterNCRows,0);}catch(e){}
 }
@@ -7468,7 +7468,7 @@ function ncTogglePareto(){var p=document.getElementById('ncPareto');if(!p)return
 function ncColHidden(){try{return JSON.parse(localStorage.getItem('rtk_nccols')||'[]');}catch(e){return [];}}
 function ncCol(k){return ncColHidden().indexOf(k)<0;}
 function ncColToggle(k){var h=ncColHidden();var i=h.indexOf(k);if(i<0)h.push(k);else h.splice(i,1);try{localStorage.setItem('rtk_nccols',JSON.stringify(h));}catch(e){}render();setTimeout(ncColMenu,20);}
-function ncColMenu(){var opts=[['lot','LOT DATE'],['qty','จำนวนสั่ง'],['ng','NG']];
+function ncColMenu(){var opts=[['lot','LOT DATE'],['qty','จำนวนสั่ง'],['loc','สถานที่พบปัญหา'],['ng','NG']];
   var body=opts.map(function(o){return '<label style="display:block;padding:7px 4px;font-size:14px;cursor:pointer"><input type="checkbox" '+(ncCol(o[0])?'checked':'')+' onchange="ncColToggle(\''+o[0]+'\')" style="margin-right:8px;transform:scale(1.2)"> '+o[1]+'</label>';}).join('');
   modal({title:'👁 แสดง/ซ่อนคอลัมน์',size:'sm',body:'<div class="hint" style="margin-bottom:6px"><span class="i">💡</span><div>ติ๊กเพื่อแสดง เอาติ๊กออกเพื่อซ่อน (บันทึกอัตโนมัติ)</div></div>'+body,footer:'<button class="btn pri" onclick="closeModal()">เสร็จ</button>'});}
 /* ประเมินผู้ผลิต (กราฟเส้นรูปแบบเดียวกับคัดแยก OK/NG) — ดึงจากใบคัดแยก (QC) ตามผู้ผลิต */
@@ -7516,6 +7516,7 @@ function ncRowHtml(r){
     <td class="pn linkish" onclick="viewNCDoc('${r.id}')"><b>${esc(r.part||'')}</b></td>
     <td>${esc(r.customer||'')}</td>${ncCol('lot')?`<td class="c muted">${esc(r.lot||'')}</td>`:''}${ncCol('qty')?`<td class="num">${r.qty?fmt(r.qty):'-'}</td>`:''}
     ${mkColShow('nc')?`<td><span class="tag amber">${esc(mkS||'-')}</span></td>`:''}
+    ${ncCol('loc')?`<td class="muted">${esc(r.loc||'')}</td>`:''}
     <td style="color:var(--red);max-width:200px;overflow:hidden;text-overflow:ellipsis">${esc(r.defect||'')}</td>
     <td class="c">${r.hideTag?`<button class="btn sm" style="opacity:.45" onclick="ncTagToggle('${r.id}')" title="TAG ถูกซ่อน — คลิกเพื่อแสดง">🙈 แสดง</button>`:`<button class="btn sm" onclick="printNCTag('${r.id}')" title="พิมพ์ NC TAG (FM-QC-12)">🏷️ TAG</button> <span onclick="ncTagToggle('${r.id}')" title="ซ่อน TAG ใบนี้" style="cursor:pointer;opacity:.4;font-size:11px">✕</span>`}</td>
     <td class="muted" style="max-width:220px;overflow:hidden;text-overflow:ellipsis">${esc(r.method||'')}</td>
