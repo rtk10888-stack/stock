@@ -277,7 +277,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='VS4TAG-2026.07.10y (VS4 TAG FM-ST-04 ดึงข้อมูลจากใบรับชิ้นงาน RW ของ PO เดียวกัน)';
+const APP_BUILD='DELIV-2026.07.10z (VS4/ผลิตประจำวัน: ปุ่ม TAG + บันทึก+อนุมัติ จัดส่งเข้ารับชิ้นงานอัตโนมัติจากข้อมูล TAG)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -1993,8 +1993,9 @@ function submitRW(status,editId){
   else toast((editId?'บันทึกการแก้ไข ':'สร้างใบรับชิ้นงาน ')+d.no+' (รออนุมัติ)','ok');
   rwLines=[];closeModal();render();
 }
-function openMvTagDialog(docId){
+function openMvTagDialog(docId,showDeliver){
   const d=DB.docs.find(x=>x.id===docId);if(!d)return;
+  window.__mvDeliver=!!showDeliver;
   const f0=(d.lines||[]).find(l=>Number(l.qty)>0)||(d.lines||[])[0]||{};
   const _pid=f0.productId||f0.fgId;const pr=_pid?P(_pid):null;const pno=pr?pr.pn:((f0.name||'').split(' ')[0]);
   const qty=Number(f0.receivedQty||f0.qty)||0;
@@ -2025,8 +2026,29 @@ function openMvTagDialog(docId){
       <div class="field"><label>จำนวนบรรจุ/ถุง <span class="req">*</span></label><input id="mv_per" type="number" value="${sent||qty||1}" oninput="mvTagCalc()"></div>
     </div>
     <div class="kv" style="margin-top:4px;font-size:14px"><span class="k">จำนวน TAG ที่จะพิมพ์</span><b id="mv_count" style="color:var(--brand);font-size:18px">1</b></div>
-  `,footer:`<button class="btn" onclick="closeModal()">ปิด</button><button class="btn" onclick="printMvTags(true)">👁️ ดูตัวอย่าง</button><button class="btn pri" onclick="printMvTags(false)">🖨️ พิมพ์ TAG</button>`});
+  `,footer:`<button class="btn" onclick="closeModal()">ปิด</button>${showDeliver?`<button class="btn ok" onclick="mvTagToRW()" title="สร้างใบรับชิ้นงาน + อนุมัติ (ปรับสต๊อก) จากข้อมูล TAG นี้">✅ บันทึก + อนุมัติ (จัดส่ง รับชิ้นงาน)</button>`:''}<button class="btn" onclick="printMvTags(true)">👁️ ดูตัวอย่าง</button><button class="btn pri" onclick="printMvTags(false)">🖨️ พิมพ์ TAG</button>`});
   setTimeout(mvTagCalc,20);
+}
+/* บันทึก + อนุมัติ: สร้างใบรับชิ้นงาน (RW) จากข้อมูล TAG แล้วอนุมัติ (ปรับสต๊อก) — ใช้จาก VS4/ผลิตประจำวัน */
+function mvTagToRW(){
+  var v=function(k){return ((document.getElementById(k)||{}).value||'').trim();};
+  var maker=v('mv_maker'), po=v('mv_po').replace(/^PO/i,'').trim(), pno=v('mv_pno');
+  var sent=Number(v('mv_sentPcs'))||0, recv=Number(v('mv_recvPcs'))||0;
+  var qty=recv||sent; if(!qty){toast('ยังไม่มีจำนวน รับ/ส่ง ใน TAG','err');return;}
+  var p=DB.products.find(function(x){return x.type==='FG'&&x.pn===pno;})||findProdByName(pno,'FG');
+  var pid=p?p.id:'';
+  var recvKg=Number(v('mv_recvKg'))||0, lot=v('mv_lot'), date=v('mv_date')||todayISO();
+  var dup=DB.docs.find(function(x){return x.type==='RW'&&x.status!=='cancelled'&&(x.lines||[]).some(function(l){return String(l.poNo||'').replace(/^PO/i,'').trim()===po&&(Number(l.receivedQty)||0)===qty;});});
+  if(dup){toast('มีใบรับชิ้นงานของ PO นี้ (จำนวนเท่ากัน) แล้ว: '+(dup.no||''),'err');return;}
+  confirmBox('บันทึก + อนุมัติ จัดส่งเข้ารับชิ้นงาน?','สร้างใบรับชิ้นงาน (RW) ผู้ผลิต '+esc(maker||'-')+' · PO '+esc(po||'-')+' · จำนวน '+fmt(qty)+' และปรับยอดสต๊อกตามเงื่อนไขการไหลของสินค้า',function(){
+    var line={date:date,poNo:po,name:p?(p.pn+(p.name&&p.name!=='-'?' '+p.name:'')):pno,productId:pid,maker:maker,orderedQty:sent||qty,receivedQty:qty,qty:qty,unit:'Pcs.',totalWeight:recvKg,computed:0,lot:lot,remark:'จาก TAG จัดส่ง (VS4/ผลิตประจำวัน)'};
+    var rw={id:uid(),type:'RW',ts:Date.now(),status:'pending',no:nextNo('RW'),date:date,maker:maker,lines:[line]};
+    DB.docs.push(rw);
+    var r=doApprove(rw);
+    if(!r.ok){ DB.docs=DB.docs.filter(function(x){return x.id!==rw.id;}); toast('บันทึกไม่สำเร็จ: '+((r&&r.err)||''),'err'); return; }
+    saveDB();closeModal();render();
+    modal({title:'✅ จัดส่งเข้ารับชิ้นงานแล้ว',body:'<div class="kv"><span class="k">ใบรับชิ้นงาน</span><b style="color:var(--teal)">'+esc(rw.no)+'</b></div><div class="kv"><span class="k">Part</span>'+esc(line.name)+'</div><div class="kv"><span class="k">ผู้ผลิต</span>'+esc(maker||'-')+'</div><div class="kv"><span class="k">จำนวนรับ</span><b>'+fmt(qty)+'</b></div><div class="hint" style="margin-top:8px"><span class="i">ℹ️</span><div>สร้างใบรับชิ้นงานและปรับยอดสต๊อกแล้ว — ดูได้ที่เมนู <b>รับชิ้นงาน</b></div></div>',footer:'<button class="btn" onclick="closeModal()">อยู่หน้านี้</button><button class="btn pri" onclick="closeModal();go(\'rw\')">ไปที่ รับชิ้นงาน →</button>'});
+  });
 }
 function mvTagCalc(){const q=Number((document.getElementById('mv_sentPcs')||{}).value)||0;const per=Number((document.getElementById('mv_per')||{}).value)||0;const n=per>0?Math.max(1,Math.ceil(q/per)):1;const e=document.getElementById('mv_count');if(e)e.textContent=fmt(n);return n;}
 /* VS4 TAG: ดึงข้อมูลจากเอกสาร "รับชิ้นงาน" (RW) ของ PO เดียวกัน (ถ้ามี) แล้วเปิดฟอร์ม FM-ST-04 เหมือนหน้ารับชิ้นงาน */
@@ -2037,7 +2059,7 @@ function vs4Tag(docId){
   var poKey=String(f0.poNo||d.poNo||d.no||'').replace(/^PO/i,'').trim();
   var rw=poKey?DB.docs.find(function(x){return x.type==='RW'&&x.status!=='cancelled'&&(x.lines||[]).some(function(l){return String(l.poNo||'').replace(/^PO/i,'').trim()===poKey;});}):null;
   if(rw){toast('ดึงข้อมูล TAG จากใบรับชิ้นงาน '+(rw.no||'')+' แล้ว','ok');}
-  openMvTagDialog(rw?rw.id:docId);
+  openMvTagDialog(rw?rw.id:docId,true);
 }
 function mvScanURL(t){/* QR = ลิงก์เปิดแอป + เชื่อมเข้า "รับชิ้นงาน" อัตโนมัติเมื่อสแกนด้วย LINE */
   var base=location.origin+location.pathname;
@@ -4207,7 +4229,7 @@ function dpRow(d){
     <td><input value="${esc(d.inspector||'')}" onchange="dpSet('${d.id}','inspector',this.value)" placeholder="ผู้ตรวจ" style="width:88px;padding:3px 5px"></td>
     <td>${statusTag(d.status)}</td>
     <td style="text-align:right;white-space:nowrap">
-      ${(typeof window!=='undefined'&&window.__dpMaker==='VS4')?`<button class="btn sm pri" onclick="vs4Tag('${d.id}')" title="พิมพ์ TAG ควบคุมการเคลื่อนที่ชิ้นงาน (FM-ST-04) — ดึงข้อมูลจากใบรับชิ้นงาน">🏷️ TAG</button> `:''}
+      <button class="btn sm pri" onclick="vs4Tag('${d.id}')" title="พิมพ์ TAG ควบคุมการเคลื่อนที่ชิ้นงาน (FM-ST-04) + บันทึกจัดส่งเข้ารับชิ้นงาน">🏷️ TAG</button>
       <button class="btn sm" onclick="viewDoc('${d.id}')">ดู</button>
       <button class="btn sm" onclick="printDP('${d.id}')" title="พิมพ์รายงานผลิต">🖨️</button>
       <button class="btn sm" onclick="editDPInline('${d.id}')">✏️</button>
