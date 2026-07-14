@@ -251,7 +251,7 @@ async function lanPush(force){
     const r=await fetch(lanBase+'/api/state',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({data:DB,client_id:CLIENT_ID,updated_at:now})});
     if(!r.ok)throw 0;
     const j=await r.json().catch(()=>({}));
-    lastSyncedJSON=json; lanLastUpdated=new Date(now).getTime(); lanOK=true; lanCloud=!!(j&&j.cloud);
+    lastSyncedJSON=json; lanLastUpdated=new Date(now).getTime(); lanOK=true; lanCloud=!!(j&&j.cloud); try{lsSet('rtk_pending','0');}catch(e){}
     setSyncStatus(lanCloud?'lan_cloud':'lan_only');
   }catch(e){ lanOK=false; setSyncStatus('offline'); }
 }
@@ -278,7 +278,7 @@ const SEED={
 
 /* ---------- State ---------- */
 let DB=null;
-const APP_BUILD='HRROSTER-2026.07.14a (7.1.2 บัญชีรายชื่อพนักงาน: แนบเอกสาร FM-HR 9 จุด ดู/พิมพ์/แก้/ลบ · กลุ่มเงินเดือนซ่อน/แสดง · พับได้ · พิมพ์รายชื่อ/สรุปค่าแรง/สลิป FM-HR-07)';
+const APP_BUILD='HRROSTER-2026.07.14b (แก้ข้อมูลหายตอนรีเฟรช: boot ไม่ดึงคลาวด์ทับข้อมูลที่พิมพ์ค้างยังไม่ทันซิงก์ — pending flag ครอบทุกรายการ)';
 function setBuild(){const a=document.getElementById('buildSidebar');if(a)a.textContent='· build '+APP_BUILD;const b=document.getElementById('buildTag');if(b)b.textContent='build '+APP_BUILD;const c=document.getElementById('buildSidebarM');if(c)c.textContent=APP_BUILD;try{applyRecoverBtn();}catch(e){}}
 let _undoStack=[],_redoStack=[],_lastSnap=null,_histLock=false;
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -290,12 +290,19 @@ function loadLocal(){
 }
 async function loadDB(){
   DB=loadLocal();
+  var localPending=false; try{ localPending=(localStorage.getItem('rtk_pending')==='1'); }catch(e){}
   if(!supa){ if(!DB){DB=freshDB();lsSet(LS_KEY,JSON.stringify(DB));} return; }
   try{
     const {data,error}=await supa.from('app_state').select('data,updated_at,client_id').eq('id',ROW_ID).maybeSingle();
     if(error)throw error;
     cloudOK=true;
-    if(data&&data.data){ DB=data.data; lastRemoteUpdated=new Date(data.updated_at).getTime(); }
+    if(data&&data.data){
+      if(localPending && DB && !isUntouchedSeed(DB)){
+        /* ในเครื่องมีข้อมูลที่พิมพ์/แก้ไว้แต่ยังไม่ทันซิงก์ (ปิด/รีเฟรชก่อนดันขึ้นคลาวด์) — เก็บของในเครื่องไว้ แล้วดันขึ้นคลาวด์ กันข้อมูลหาย */
+        lastRemoteUpdated=new Date(data.updated_at).getTime();
+        lastSyncedJSON=''; try{ await pushCloud(true); }catch(e){}
+      } else { DB=data.data; lastRemoteUpdated=new Date(data.updated_at).getTime(); }
+    }
     else { if(!DB)DB=freshDB(); if(!isUntouchedSeed(DB)) await pushCloud(true); }  /* ไม่ดันชุดตั้งต้นทับคลาวด์เปล่า */
   }catch(e){ cloudOK=false; if(!DB)DB=freshDB(); }
   lsSet(LS_KEY,JSON.stringify(DB));
@@ -419,6 +426,7 @@ function mkProduct(type,p){
 function saveDB(){
   try{if(typeof migrateSlipsLocal==='function')migrateSlipsLocal();}catch(e){}
   try{const cur=JSON.stringify(DB);if(!_histLock){if(_lastSnap!==null&&cur!==_lastSnap){_undoStack.push(_lastSnap);if(_undoStack.length>20)_undoStack.shift();_redoStack.length=0;}_lastSnap=cur;}lsSet(LS_KEY,cur);}catch(e){}
+  try{lsSet('rtk_pending','1');}catch(e){} /* มีการแก้ไขในเครื่องที่ยังไม่ถูกยืนยันซิงก์ — กัน boot ดึงคลาวด์ทับ */
   scheduleSync();updateUndoBtns();
 }
 function updateUndoBtns(){const u=document.getElementById('undoBtn'),r=document.getElementById('redoBtn');if(u)u.disabled=!_undoStack.length;if(r)r.disabled=!_redoStack.length;}
@@ -436,7 +444,7 @@ async function pushCloud(force){
   try{
     const {error}=await supa.from('app_state').upsert({id:ROW_ID,data:DB,client_id:CLIENT_ID,updated_at:now});
     if(error)throw error;
-    lastSyncedJSON=json; lastRemoteUpdated=new Date(now).getTime(); cloudOK=true; syncRetryN=0; if(syncRetry){clearTimeout(syncRetry);syncRetry=null;} setSyncStatus('synced');
+    lastSyncedJSON=json; lastRemoteUpdated=new Date(now).getTime(); cloudOK=true; syncRetryN=0; if(syncRetry){clearTimeout(syncRetry);syncRetry=null;} try{lsSet('rtk_pending','0');}catch(e){} setSyncStatus('synced');
   }catch(e){ cloudOK=false; setSyncStatus('offline'); if(JSON.stringify(DB)!==lastSyncedJSON){ if(syncRetry)clearTimeout(syncRetry); const delay=Math.min(30000,4000*(++syncRetryN)); syncRetry=setTimeout(function(){ if(supa&&!applyingRemote)pushCloud(false); },delay); } }
 }
 async function forceCloudSync(){
